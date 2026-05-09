@@ -17,26 +17,8 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Package artifact
-        run: |
-          tar -czf sc-frontend-release.tar.gz \
-            .next/ \
-            public/ \
-            package.json \
-            package-lock.json \
-            next.config.ts
+      - name: Package source code
+        run: tar -czf sc-frontend-release.tar.gz --exclude='.git' .
 
       - name: Upload package to Ubuntu
         uses: appleboy/scp-action@v0.1.7
@@ -68,11 +50,9 @@ jobs:
             if [ "$SIMULATE" = "true" ]; then
               echo "[SIMULATE] SSH connected to Ubuntu"
               echo "[SIMULATE] Would extract /tmp/sc-frontend-release.tar.gz to $TARGET_PATH"
-              echo "[SIMULATE] Would run npm ci --omit=dev in $TARGET_PATH"
-              echo "[SIMULATE] Would restart service smartcanteen-frontend"
+              echo "[SIMULATE] Would run docker compose up -d --build in $TARGET_PATH"
             else
               tar -xzf /tmp/sc-frontend-release.tar.gz -C "$TARGET_PATH"
-              cd "$TARGET_PATH" && npm ci --omit=dev
-              sudo systemctl restart smartcanteen-frontend
-              sudo systemctl status smartcanteen-frontend --no-pager
+              cd "$TARGET_PATH"
+              docker compose up -d --build
             fi
