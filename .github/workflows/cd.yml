@@ -3,7 +3,6 @@ name: CD
 on:
   push:
     branches:
-      - master
       - develop
   workflow_dispatch:
 
@@ -11,14 +10,14 @@ jobs:
   deploy-via-ssh:
     name: CD Deploy (SSH Ubuntu)
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Package source code
-        run: tar -czf sc-frontend-release.tar.gz --exclude='.git' .
+        run: git archive --format=tar.gz -o sc-frontend-release.tar.gz HEAD
 
       - name: Upload package to Ubuntu
         uses: appleboy/scp-action@v0.1.7
