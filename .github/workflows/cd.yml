@@ -1,9 +1,8 @@
-name: CD
+name: CD Frontend
 
 on:
   push:
     branches:
-      - master
       - develop
   workflow_dispatch:
 
@@ -11,14 +10,14 @@ jobs:
   deploy-via-ssh:
     name: CD Deploy (SSH Ubuntu)
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Package source code
-        run: tar -czf sc-frontend-release.tar.gz --exclude='.git' .
+        run: git archive --format=tar.gz -o sc-frontend-release.tar.gz HEAD
 
       - name: Upload package to Ubuntu
         uses: appleboy/scp-action@v0.1.7
@@ -35,15 +34,18 @@ jobs:
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_FRONTEND }}
           DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
+          BRANCH_NAME: ${{ github.ref_name }} # Lấy tên nhánh (master hoặc develop)
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: DEPLOY_PATH,DEPLOY_SIMULATE
+          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME
           script: |
             set -e
-            TARGET_PATH="${DEPLOY_PATH:-/opt/smartcanteen/frontend}"
+            # Tự động tách thư mục theo nhánh: .../frontend/master hoặc .../frontend/develop
+            BASE_PATH="${DEPLOY_PATH:-/opt/smartcanteen/frontend}"
+            TARGET_PATH="$BASE_PATH/$BRANCH_NAME"
             SIMULATE="${DEPLOY_SIMULATE:-true}"
 
             mkdir -p "$TARGET_PATH"
@@ -53,6 +55,8 @@ jobs:
               echo "[SIMULATE] Would run docker compose up -d --build in $TARGET_PATH"
             else
               tar -xzf /tmp/sc-frontend-release.tar.gz -C "$TARGET_PATH"
+              rm -f /tmp/sc-frontend-release.tar.gz # Dọn dẹp file tạm
+              
               cd "$TARGET_PATH"
               docker compose up -d --build
             fi
