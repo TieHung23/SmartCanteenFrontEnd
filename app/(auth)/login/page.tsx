@@ -15,12 +15,12 @@ export default function LoginPage() {
             </div>
 
             <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-24 bg-white">
-                <div className="w-full max-w-sm flex flex-col items-center">
+                <div className="w-full max-w-sm flex flex-col items-center -mt-30">
                     <div className="mb-8 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
                         <img
                             src="/logo.png"
                             alt="Mascot"
-                            className="w-40 h-40 object-contain drop-shadow-2xl"
+                            className="w-56 h-56 object-contain drop-shadow-2xl"
                         />
                     </div>
 
