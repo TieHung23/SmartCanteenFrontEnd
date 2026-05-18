@@ -5,6 +5,7 @@ export const env = createEnv({
   server: {
     NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET là bắt buộc"),
     NEXTAUTH_URL: z.string().url("NEXTAUTH_URL phải là URL hợp lệ"),
+
   },
 
   client: {
