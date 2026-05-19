@@ -5,6 +5,6 @@ import { LoginBodyType, LoginResponse } from "@/types/auth.types";
 export const authService = {
     login: async (body: LoginBodyType): Promise<LoginResponse> => {
         const response = await apiClient.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, body);
-        return response as unknown as LoginResponse;
+        return response.data;
     }
 };
