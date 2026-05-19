@@ -10,6 +10,11 @@ on:
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
+    env:
+      NEXTAUTH_SECRET: "dummy_secret_for_ci_build_123456"
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_API_URL: "http://localhost:8000"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
 
     steps:
       - name: Checkout source
