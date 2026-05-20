@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { toast } from "sonner";
 import { LoginBodyType, LoginSchema } from "@/types/auth.types";
 import { authService } from "@/services/auth.service";
@@ -82,8 +83,13 @@ export const LoginForm = () => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Button variant="outline" className="rounded-xl py-6 flex gap-2 border-gray-200 hover:bg-gray-50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+          <Image
+            src="https://www.google.com/favicon.ico"
+            alt="Google"
+            width={16}
+            height={16}
+            className="h-4 w-4"
+          />
           <span className="text-xs font-semibold">Sign in with Google</span>
         </Button>
         <Button variant="outline" className="rounded-xl py-6 flex gap-2 border-gray-200 hover:bg-gray-50">
