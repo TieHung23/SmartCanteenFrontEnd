@@ -35,12 +35,16 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_FRONTEND }}
           DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
           BRANCH_NAME: ${{ github.ref_name }} # Lấy tên nhánh (master hoặc develop)
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME
+          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME,NEXTAUTH_SECRET,NEXTAUTH_URL,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_APP_URL
           script: |
             set -e
             # Tự động tách thư mục theo nhánh: .../frontend/master hoặc .../frontend/develop
@@ -52,11 +56,20 @@ jobs:
             if [ "$SIMULATE" = "true" ]; then
               echo "[SIMULATE] SSH connected to Ubuntu"
               echo "[SIMULATE] Would extract /tmp/sc-frontend-release.tar.gz to $TARGET_PATH"
+              echo "[SIMULATE] Would write .env to $TARGET_PATH/.env"
               echo "[SIMULATE] Would run docker compose up -d --build in $TARGET_PATH"
             else
               tar -xzf /tmp/sc-frontend-release.tar.gz -C "$TARGET_PATH"
               rm -f /tmp/sc-frontend-release.tar.gz # Dọn dẹp file tạm
               
               cd "$TARGET_PATH"
+              umask 077
+              cat > .env << 'EOF'
+              NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+              NEXTAUTH_URL=$NEXTAUTH_URL
+              NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+              NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+              EOF
+
               docker compose up -d --build
             fi
