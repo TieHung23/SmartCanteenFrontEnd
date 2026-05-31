@@ -5,15 +5,18 @@ export const env = createEnv({
   server: {
     NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET là bắt buộc"),
     NEXTAUTH_URL: z.string().url("NEXTAUTH_URL phải là URL hợp lệ"),
+    GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET là bắt buộc"),
   },
 
   client: {
     NEXT_PUBLIC_API_URL: z.string().url("NEXT_PUBLIC_API_URL phải là URL hợp lệ"),
     NEXT_PUBLIC_APP_URL: z.string().url("NEXT_PUBLIC_APP_URL phải là URL hợp lệ"),
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().min(1, "NEXT_PUBLIC_GOOGLE_CLIENT_ID là bắt buộc"),
   },
 
   experimental__runtimeEnv: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
   },
 });

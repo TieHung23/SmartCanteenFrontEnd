@@ -40,11 +40,11 @@ apiClient.interceptors.response.use(
         break;
 
       case 403:
-        console.error("Bạn không có quyền truy cập tài nguyên này.");
+        console.error("You do not have permission to access this resource.");
         break;
 
       case 500:
-        console.error("Lỗi hệ thống. Vui lòng thử lại sau.");
+        console.error("Server error. Please try again later.");
         break;
 
       default:
