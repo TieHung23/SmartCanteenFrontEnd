@@ -2,36 +2,81 @@
 
 import type { AxiosError } from "axios";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { LoginBodyType, LoginSchema } from "@/types/auth.types";
 import { authService } from "@/services/auth.service";
+import { ROUTES } from "@/config/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
+  google_domain_invalid: "Unable to sign in, please try again",
+  google_token_error: "Google sign-in failed, please try again",
+  no_id_token: "Unable to verify Google account, please sign in again",
+  backend_error: "Google sign-in failed on server, please try again",
+  no_token: "Unable to retrieve sign-in token, please try again",
+  no_code: "Google did not return an auth code, please sign in again",
+  server_error: "Server error, please try again",
+};
+
 export const LoginForm = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginBodyType>({
     resolver: zodResolver(LoginSchema)
   })
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+
+    if (!error) {
+      return;
+    }
+
+    toast.error(GOOGLE_AUTH_ERROR_MESSAGES[error] ?? "Unable to sign in, please try again");
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("error");
+    const nextUrl = nextSearchParams.toString() ? `/login?${nextSearchParams.toString()}` : "/login";
+    window.history.replaceState({}, "", nextUrl);
+  }, [searchParams]);
+
   const loginMutation = useMutation({
     mutationFn: (data: LoginBodyType) => authService.login(data),
     onSuccess: (data) => {
-      localStorage.setItem("accessToken", data.data.token);
-      toast.success("Đăng nhập thành công!");
-      router.push("/dashboard");
+      localStorage.setItem("accessToken", data.value.accessToken);
+      toast.success("Signed in successfully!");
+      router.push(ROUTES.HOME);
     },
     onError: (error: AxiosError<{ message?: string }>) => {
-      toast.error(error.response?.data?.message || "Lỗi đăng nhập");
+      const serverMessage = error.response?.data?.message || "";
+
+      const isNotVerified = /verify|xác minh|chưa xác minh|verified/i.test(serverMessage);
+
+      if (isNotVerified) {
+        toast.error(
+          "Account not verified. Please check your email and verify your account before signing in."
+        );
+        return;
+      }
+
+      toast.error(serverMessage || "Login error");
     },
   });
 
   const onSubmit = (data: LoginBodyType) => {
     loginMutation.mutate(data);
+  };
+
+  // Google OAuth: redirect to backend handler
+  const handleGoogleLogin = () => {
+    window.location.href = "/api/auth/google";
   };
 
   return (
@@ -67,8 +112,8 @@ export const LoginForm = () => {
           </button>
           <div className="flex gap-1">
             <span>Does not have account?</span>
-            <button type="button" className="text-blue-400 hover:underline">
-              sign up
+            <button type="button" onClick={() => router.push(ROUTES.REGISTER)} className="text-blue-400 hover:underline">
+              Sign up
             </button>
           </div>
         </div>
@@ -82,7 +127,12 @@ export const LoginForm = () => {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="rounded-xl py-6 flex gap-2 border-gray-200 hover:bg-gray-50">
+        <Button
+          type="button"
+          onClick={handleGoogleLogin}
+          variant="outline"
+          className="rounded-xl py-6 flex gap-2 border-gray-200 hover:bg-gray-50"
+        >
           <Image
             src="https://www.google.com/favicon.ico"
             alt="Google"
@@ -100,3 +150,4 @@ export const LoginForm = () => {
     </div>
   );
 };
+

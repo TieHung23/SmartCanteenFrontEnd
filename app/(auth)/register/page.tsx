@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { LoginForm } from "@/components/features/auth/login-form";
+import { RegisterForm } from "@/components/features/auth/register-form";
 
-export default function LoginPage() {
+export default function RegisterPage() {
     return (
         <div className="flex min-h-screen bg-white">
             <div className="hidden lg:block w-1/2 relative bg-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    src="https://images.unsplash.com/photo-1552566626-52f8b828add9?q=80&w=2070&auto=format&fit=crop"
+                    src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1887&auto=format&fit=crop"
                     alt="Canteen interior"
                     className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -26,17 +26,17 @@ export default function LoginPage() {
                     </div>
 
                     <div className="w-full mb-8">
-                        <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Sign in</h1>
+                        <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Create Account</h1>
                     </div>
 
                     <Suspense
                         fallback={
                             <div className="w-full py-8 text-center text-sm text-gray-500">
-                                Loading login form...
+                                Loading registration form...
                             </div>
                         }
                     >
-                        <LoginForm />
+                        <RegisterForm />
                     </Suspense>
                 </div>
             </div>
