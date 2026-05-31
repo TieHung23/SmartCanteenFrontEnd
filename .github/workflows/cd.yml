@@ -11,13 +11,6 @@ jobs:
     name: CD Deploy (SSH Ubuntu)
     runs-on: ubuntu-latest
     environment: development
-    env:
-      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-      NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
-      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: Checkout source
@@ -73,14 +66,12 @@ jobs:
               cd "$TARGET_PATH"
               
               # Create .env file for Docker build
-              cat > .env << EOF
-NEXTAUTH_SECRET=$NEXTAUTH_SECRET
-NEXTAUTH_URL=$NEXTAUTH_URL
-NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-EOF
+              echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" > .env
+              echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env
+              echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" >> .env
+              echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
+              echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID" >> .env
+              echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env
               
               docker compose up -d --build
             fi
