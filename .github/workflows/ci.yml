@@ -11,10 +11,12 @@ jobs:
   build-and-lint:
     runs-on: ubuntu-latest
     env:
-      NEXTAUTH_SECRET: "dummy_secret_for_ci_build_123456"
-      NEXTAUTH_URL: "http://localhost:3000"
-      NEXT_PUBLIC_API_URL: "http://localhost:8000"
-      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      NEXTAUTH_SECRET: smart_canteen_super_secret_key_123456
+      NEXTAUTH_URL: http://localhost:3000/
+      NEXT_PUBLIC_API_URL: http://178.128.100.1:8080/
+      NEXT_PUBLIC_APP_URL: http://localhost:3000/
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: 91493514580-ddeki7akgu4gg92tepa2hoda2c6mvv2nq.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: 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
 
     steps:
       - name: Checkout source
