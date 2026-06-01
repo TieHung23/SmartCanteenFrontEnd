@@ -29,35 +29,18 @@ const getGoogleEmail = (idToken: string) => {
   }
 };
 
-/**
- * GET /api/auth/google/callback?code=...
- *
- * Mục đích: Nhận authorization code từ Google, exchange với Google để lấy id_token,
- * rồi gửi id_token sang backend
- *
- * Flow:
- * 1. Google redirect về đây với ?code=XXX (authorization code)
- * 2. Exchange code với Google token endpoint bằng client_secret
- * 3. Lấy id_token từ Google response
- * 4. Gửi id_token tới backend /api/Auth/google
- * 5. Backend trả accessToken
- * 6. Lưu token vào redirect URL param
- * 7. Redirect tới /auth/google/complete?token=XXX (client-side xử lý)
- */
+// Handle Google OAuth callback: exchange code for id_token, send id_token to backend,
+// receive access token and redirect the client to the completion page with the token.
 export const GET = async (request: Request) => {
-  // Step 1: Parse query params từ URL
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
-  // Step 2: Check có lỗi từ Google không
   if (error) {
     console.error("[OAuth] Google error:", error);
-    // Redirect về login page với error param
     return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=${error}`);
   }
 
-  // Step 3: Check có code không
   if (!code) {
     console.error("[OAuth] No authorization code received");
     return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=no_code`);
@@ -101,28 +84,18 @@ export const GET = async (request: Request) => {
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=google_domain_invalid`);
     }
 
-    /**
-     * Step 4: Gửi id_token tới backend
-     *
-     * Tại sao gửi tới backend?
-     * - Backend đang validate Google ID token
-     * - ID token được Google ký, backend có thể verify an toàn
-     * - Backend trả token mà frontend không thể fake
-     */
     const backendResponse = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/Auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ IdToken: idToken }),
     });
 
-    // Step 5: Check backend response có OK không
     if (!backendResponse.ok) {
       const errorText = await backendResponse.text();
       console.error("[OAuth] Backend exchange failed:", backendResponse.status, errorText);
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=backend_error`);
     }
 
-    // Step 6: Parse token từ backend response
     const backendBodyText = await backendResponse.text();
     let backendData: unknown = null;
 
@@ -179,14 +152,6 @@ export const GET = async (request: Request) => {
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=no_token`);
     }
 
-    /**
-     * Step 7: Redirect tới complete page với token
-     *
-     * Tại sao không lưu token ở đây?
-     * - Đây là server route, không có access tới localStorage
-     * - Phải gửi token qua URL/cookie để client lưu
-     * - Complete page là client component → có thể access localStorage
-     */
     const redirectUrl = new URL(`${env.NEXT_PUBLIC_APP_URL}/auth/google/complete`);
     redirectUrl.searchParams.set("token", accessToken);
 
