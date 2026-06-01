@@ -11,13 +11,6 @@ jobs:
     name: CD Deploy (SSH Ubuntu)
     runs-on: ubuntu-latest
     environment: development
-    env:
-      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-      NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
-      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: Checkout source
@@ -42,18 +35,13 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_FRONTEND }}
           DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
           BRANCH_NAME: ${{ github.ref_name }} # Lấy tên nhánh (master hoặc develop)
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          ENV_VARIABLE: ${{ secrets.ENV_VARIABLE }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME,NEXTAUTH_SECRET,NEXTAUTH_URL,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET
+          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME,ENV_VARIABLE
           script: |
             set -e
             # Tự động tách thư mục theo nhánh: .../frontend/master hoặc .../frontend/develop
@@ -71,5 +59,9 @@ jobs:
               rm -f /tmp/sc-frontend-release.tar.gz # Dọn dẹp file tạm
               
               cd "$TARGET_PATH"
+              
+              # Create .env file for Docker build
+              echo "$ENV_VARIABLE" > .env
+              
               docker compose up -d --build
             fi
