@@ -47,7 +47,6 @@ export const RegisterForm = () => {
   return (
     <div className="w-full space-y-4">
       {" "}
-      {/* Giảm xuống space-y-4 cho khít hơn */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <input type="hidden" defaultValue={1} {...register("category", { valueAsNumber: true })} />
 
@@ -56,7 +55,7 @@ export const RegisterForm = () => {
             <Input
               {...register("name")}
               placeholder="Name"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("name") && <p className="text-xs text-red-500">{getError("name")}</p>}
           </div>
@@ -65,7 +64,7 @@ export const RegisterForm = () => {
             <Input
               {...register("studentId")}
               placeholder="Student ID"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("studentId") && (
               <p className="text-xs text-red-500">{getError("studentId")}</p>
@@ -76,7 +75,7 @@ export const RegisterForm = () => {
             <Input
               {...register("email")}
               placeholder="Email"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("email") && <p className="text-xs text-red-500">{getError("email")}</p>}
           </div>
@@ -85,7 +84,7 @@ export const RegisterForm = () => {
             <Input
               {...register("phoneNumber")}
               placeholder="Phone number"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("phoneNumber") && (
               <p className="text-xs text-red-500">{getError("phoneNumber")}</p>
@@ -97,7 +96,7 @@ export const RegisterForm = () => {
               type="password"
               {...register("password")}
               placeholder="Password"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("password") && <p className="text-xs text-red-500">{getError("password")}</p>}
           </div>
@@ -107,7 +106,7 @@ export const RegisterForm = () => {
               type="password"
               {...register("confirmPassword")}
               placeholder="Confirm password"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("confirmPassword") && (
               <p className="text-xs text-red-500">{getError("confirmPassword")}</p>
@@ -117,7 +116,7 @@ export const RegisterForm = () => {
           <div>
             <select
               {...register("gender", { valueAsNumber: true })}
-              className="w-full border-0 border-b border-gray-200 rounded-none bg-transparent px-0 text-base text-slate-700 py-2.5 focus:outline-none focus:border-orange-500"
+              className="w-full border-0 border-b border-gray-200 rounded-none bg-transparent px-2 text-base text-slate-700 py-2.5 focus:outline-none focus:border-orange-500"
             >
               <option value={1}>Male</option>
               <option value={2}>Female</option>
@@ -133,7 +132,7 @@ export const RegisterForm = () => {
             <Input
               type="date"
               {...register("dateOfBirth")}
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("dateOfBirth") && (
               <p className="text-xs text-red-500">{getError("dateOfBirth")}</p>
@@ -144,24 +143,22 @@ export const RegisterForm = () => {
             <Input
               {...register("majorOrClass")}
               placeholder="Major / Class"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("majorOrClass") && (
               <p className="text-xs text-red-500">{getError("majorOrClass")}</p>
             )}
           </div>
 
-          {/* SỬA ĐỔI Ô ADDRESS TẠI ĐÂY: Chuyển sang Input đồng bộ line-border và loại bỏ khoảng trống thừa */}
           <div className="md:col-span-2">
             <Input
               {...register("address")}
               placeholder="Address"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("address") && <p className="text-xs text-red-500">{getError("address")}</p>}
           </div>
 
-          {/* Giảm bớt padding top (pt-1) để kéo Button sát lên trên */}
           <div className="md:col-span-2 pt-1">
             <Button
               type="submit"

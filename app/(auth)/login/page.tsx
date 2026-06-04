@@ -3,7 +3,7 @@ import { LoginForm } from "@/components/features/auth/login-form";
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen overflow-hidden bg-white">
       <div className="hidden lg:block w-1/2 relative bg-gray-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -36,6 +36,8 @@ export default function LoginPage() {
               </div>
             }
           >
+            {" "}
+            .
             <LoginForm />
           </Suspense>
         </div>

@@ -92,7 +92,7 @@ export const LoginForm = () => {
           <Input
             {...register("email")}
             placeholder="Email"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400"
+            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
           />
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
         </div>
@@ -101,7 +101,7 @@ export const LoginForm = () => {
             type="password"
             {...register("password")}
             placeholder="Password"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400"
+            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
           />
           {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
         </div>

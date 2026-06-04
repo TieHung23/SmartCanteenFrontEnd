@@ -3,7 +3,7 @@ import { RegisterForm } from "@/components/features/auth/register-form";
 
 export default function RegisterPage() {
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex h-screen overflow-hidden bg-white">
       <div className="hidden lg:block w-1/2 relative bg-gray-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -14,9 +14,9 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-linear-to-t from-black/40 via-black/18 to-black/6" />
       </div>
 
-      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-20 bg-white">
+      <div className="w-full lg:w-1/2 flex flex-col items-center overflow-y-auto bg-white px-8 sm:px-10 lg:px-12 py-6">
         <div className="w-full max-w-2xl flex flex-col items-center -mt-26">
-          <div className="mb-6 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+          <div className="mt-6 mb-2 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
