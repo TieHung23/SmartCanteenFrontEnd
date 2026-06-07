@@ -71,6 +71,8 @@ export const GET = async (request: Request) => {
 
     const googleTokenData = await tokenResponse.json();
     const idToken = googleTokenData.id_token;
+    console.log("[OAuth] idToken from Google:", idToken?.substring(0, 50));
+    console.log("[OAuth] googleTokenData keys:", Object.keys(googleTokenData));
 
     if (!idToken) {
       console.error("[OAuth] Google response did not include id_token");
@@ -90,15 +92,14 @@ export const GET = async (request: Request) => {
       body: JSON.stringify({ IdToken: idToken }),
     });
 
+    const backendBodyText = await backendResponse.text();
+
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text();
-      console.error("[OAuth] Backend exchange failed:", backendResponse.status, errorText);
+      console.error("[OAuth] Backend exchange failed:", backendResponse.status, backendBodyText);
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=backend_error`);
     }
 
-    const backendBodyText = await backendResponse.text();
     let backendData: unknown = null;
-
     try {
       backendData = backendBodyText ? JSON.parse(backendBodyText) : null;
     } catch {
