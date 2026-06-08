@@ -9,7 +9,7 @@ export default function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const navLinks = [
-    { name: "Home", href: "/home" },
+    { name: "Home", href: "/" },
     { name: "Meal Session", href: "/session" },
     { name: "Menu", href: "/menu" },
     { name: "About Us", href: "/about" },
@@ -35,7 +35,7 @@ export default function Navbar() {
   return (
     <header className="w-full px-6 py-4 bg-[#ffefe7]">
       <div className="max-w-7xl mx-auto flex items-center justify-between bg-white border border-gray-100 rounded-full shadow-sm px-6 h-16 gap-4">
-        <Link href="/home" className="flex items-center gap-3 shrink-0">
+        <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/logo.png"
             alt="Meal Session Logo"
