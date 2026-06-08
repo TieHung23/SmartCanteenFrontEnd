@@ -51,5 +51,5 @@ module.exports = {
       },
     },
   },
-  plugins: [], // Nếu project bạn có dùng hiệu ứng của shadcn thì có thể thêm require("tailwindcss-animate") vào đây sau.
+  plugins: [],
 };
