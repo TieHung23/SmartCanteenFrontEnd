@@ -57,11 +57,14 @@ export function useOrderDetail(orderId: string | null) {
 
 export function useActiveOrder() {
   return useApiData<OrderListItem | null>(async () => {
-    const [ready, preparing, pending] = await Promise.all([
+    const [readyRes, preparingRes, pendingRes] = await Promise.allSettled([
       orderService.getMyOrders({ status: 2, pageSize: 1 }),
       orderService.getMyOrders({ status: 1, pageSize: 1 }),
       orderService.getMyOrders({ status: 0, pageSize: 1 }),
     ]);
+    const ready = readyRes.status === "fulfilled" ? readyRes.value : { items: [] };
+    const preparing = preparingRes.status === "fulfilled" ? preparingRes.value : { items: [] };
+    const pending = pendingRes.status === "fulfilled" ? pendingRes.value : { items: [] };
     return ready.items?.[0] ?? preparing.items?.[0] ?? pending.items?.[0] ?? null;
   }, []);
 }
