@@ -3,10 +3,22 @@
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { useCategories, useDishesForMeal } from "@/lib/hooks/useCanteen";
 
-export default function MenuPage() {
+// ĐỊNH NGHĨA KIỂU DỮ LIỆU ĐỂ TRÁNH LỖI "ANY"
+type DishItem = {
+  id: string;
+  categoryId: string;
+  name: string;
+  price: number | string;
+  imageUrl?: string;
+  [key: string]: unknown;
+};
+
+// CHUYỂN CẢ NAVBAR VÀ LOGIC TRANG VÀO COMPONENT CON NÀY
+function MenuContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
 
@@ -14,7 +26,6 @@ export default function MenuPage() {
   const { data: dishesData, isLoading: loadingDishes } = useDishesForMeal(sessionId || "");
   const isLoading = loadingCats || loadingDishes;
 
-  // XỬ LÝ EDGE CASE: User truy cập thẳng vào /menu mà chưa có sessionId
   if (!sessionId) {
     return (
       <>
@@ -54,23 +65,19 @@ export default function MenuPage() {
   }
 
   const categories = categoriesData?.items || [];
-  const dishes = dishesData?.items || [];
+  const dishes = (dishesData?.items || []) as DishItem[];
 
   const sortedCategories = [...categories].sort((a, b) => {
     const nameA = a.name.toLowerCase();
     const nameB = b.name.toLowerCase();
-
     const isAStarch = nameA.includes("starch") || nameA.includes("tinh bột");
     const isBStarch = nameB.includes("starch") || nameB.includes("tinh bột");
-
     if (isAStarch && !isBStarch) return -1;
     if (!isAStarch && isBStarch) return 1;
-
     const isAMain = nameA.includes("main") || nameA.includes("món chính");
     const isBMain = nameB.includes("main") || nameB.includes("món chính");
     if (isAMain && !isBMain) return -1;
     if (!isAMain && isBMain) return 1;
-
     return 0;
   });
 
@@ -93,7 +100,6 @@ export default function MenuPage() {
   ];
   const marqueeItems = [...navItems, ...navItems];
 
-  // Hàm cuộn mượt mà
   const scrollToCategory = (categoryId: string) => {
     if (categoryId === "all") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -131,26 +137,24 @@ export default function MenuPage() {
                 </svg>
                 Back to Sessions
               </Link>
-
               <h1 className="text-4xl md:text-6xl lg:text-[4.5rem] font-extrabold text-gray-900 tracking-tight mb-6 leading-[1.1]">
                 Design Your <br className="hidden md:block" />
                 <span className="text-[#D35400]">Perfect Tray</span>
               </h1>
-
               <p className="text-gray-500 font-medium text-base md:text-lg max-w-md mx-auto md:mx-0 leading-relaxed">
                 Explore fresh ingredients, balance your nutrition, and craft a delicious meal
                 tailored to your daily goals.
               </p>
             </div>
-
             <div className="flex-1 w-full mt-14 md:mt-0 flex justify-center md:justify-end relative">
               <div className="relative w-56 h-56 md:w-80 md:h-80 animate-[floatCenter_6s_ease-in-out_infinite]">
                 <Image
-                  src="/chef_hat.png" // Đổi thành hình đĩa thức ăn đẹp của bạn
+                  src="/chef_hat.png"
                   alt="Delicious Meal"
                   fill
                   className="object-contain drop-shadow-2xl"
                   priority
+                  sizes="320px"
                 />
               </div>
             </div>
@@ -163,7 +167,6 @@ export default function MenuPage() {
               const iconPath = item.isAll
                 ? "/globe.svg"
                 : categoryIconMap[item.name.toLowerCase()] || "/file.svg";
-
               return (
                 <button
                   key={`nav-${item.id}-${index}`}
@@ -196,7 +199,6 @@ export default function MenuPage() {
           <h2 className="text-sm md:text-base font-bold text-gray-400 uppercase tracking-[0.3em] mb-10">
             Your Setup
           </h2>
-
           <div className="relative w-full max-w-2xl mx-auto aspect-[4/3] drop-shadow-2xl hover:scale-[1.02] transition-transform duration-500">
             <Image
               src="/tray.png"
@@ -204,6 +206,7 @@ export default function MenuPage() {
               fill
               className="object-contain"
               priority
+              sizes="600px"
             />
           </div>
         </div>
@@ -216,8 +219,7 @@ export default function MenuPage() {
           ) : (
             <div className="space-y-24">
               {sortedCategories.map((category) => {
-                const categoryDishes = dishes.filter((dish) => dish.categoryId === category.id);
-
+                const categoryDishes = dishes.filter((d) => d.categoryId === category.id);
                 if (categoryDishes.length === 0) return null;
                 const iconPath = categoryIconMap[category.name.toLowerCase()] || "/file.svg";
 
@@ -240,42 +242,31 @@ export default function MenuPage() {
                         <strong className="text-[#D35400]">{category.name.toLowerCase()}</strong>
                       </h3>
                     </div>
-
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-y-16 gap-x-8 md:gap-x-12 lg:gap-x-16 justify-items-center">
-                      {categoryDishes.map(
-                        (dish: {
-                          id: string;
-                          name: string;
-                          price: number;
-                          imageUrl?: string;
-                          categoryId: string;
-                        }) => (
-                          <div
-                            key={dish.id}
-                            className="flex flex-col items-center group cursor-pointer w-full max-w-[180px]"
-                          >
-                            <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-full p-2 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 group-hover:border-orange-200 group-hover:shadow-[0_8px_30px_rgba(211,84,0,0.12)] transition-all duration-300 transform group-hover:-translate-y-3 overflow-hidden">
-                              <Image
-                                src={dish.imageUrl || "/placeholder-food.png"}
-                                alt={dish.name}
-                                fill
-                                sizes="(max-width: 768px) 100vw, 33vw" // Thêm sizes để tối ưu hiệu suất và tránh warning
-                                className="object-cover rounded-full p-1.5"
-                              />
-                            </div>
-
-                            <p className="mt-5 text-center font-bold text-gray-800 group-hover:text-[#D35400] transition-colors line-clamp-2 px-2 text-base md:text-lg">
-                              {dish.name}
-                            </p>
-
-                            <div className="mt-3 text-center bg-gray-50 px-5 py-1.5 rounded-full group-hover:bg-[#D35400] transition-colors duration-300 border border-gray-100 group-hover:border-transparent">
-                              <p className="font-bold text-[#D35400] group-hover:text-white text-sm md:text-base">
-                                {dish.price} <span className="font-medium opacity-70">điểm</span>
-                              </p>
-                            </div>
+                      {categoryDishes.map((dish) => (
+                        <div
+                          key={dish.id}
+                          className="flex flex-col items-center group cursor-pointer w-full max-w-[180px]"
+                        >
+                          <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-full p-2 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 group-hover:border-orange-200 group-hover:shadow-[0_8px_30px_rgba(211,84,0,0.12)] transition-all duration-300 transform group-hover:-translate-y-3 overflow-hidden">
+                            <Image
+                              src={dish.imageUrl || "/placeholder-food.png"}
+                              alt={dish.name}
+                              fill
+                              sizes="(max-width: 768px) 100vw, 33vw"
+                              className="object-cover rounded-full p-1.5"
+                            />
                           </div>
-                        ),
-                      )}
+                          <p className="mt-5 text-center font-bold text-gray-800 group-hover:text-[#D35400] transition-colors line-clamp-2 px-2 text-base md:text-lg">
+                            {dish.name}
+                          </p>
+                          <div className="mt-3 text-center bg-gray-50 px-5 py-1.5 rounded-full group-hover:bg-[#D35400] transition-colors duration-300 border border-gray-100 group-hover:border-transparent">
+                            <p className="font-bold text-[#D35400] group-hover:text-white text-sm md:text-base">
+                              {dish.price} <span className="font-medium opacity-70">điểm</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
@@ -284,26 +275,30 @@ export default function MenuPage() {
           )}
         </div>
       </main>
+    </>
+  );
+}
 
+// BỌC CẢ NAVBAR VÀ MENU_CONTENT VÀO TRONG ĐÂY
+export default function MenuPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#FDFBF9]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D35400]"></div>
+        </div>
+      }
+    >
+      <MenuContent />
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        @keyframes floatCenter {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-15px); }
-        }
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          display: flex;
-          width: max-content;
-          animation: marquee 35s linear infinite;
-        }
+        @keyframes floatCenter { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .animate-marquee { display: flex; width: max-content; animation: marquee 35s linear infinite; }
       `,
         }}
       />
-    </>
+    </Suspense>
   );
 }
