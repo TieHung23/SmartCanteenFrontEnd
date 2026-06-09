@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { ROUTES } from "@/config/routes";
+import Navbar from "@/components/layout/Navbar";
 
 export default function Home() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function Home() {
           router.push("/staff");
           break;
         case "USER":
-          router.push("/home");
+          router.push("/");
           break;
         default:
           router.push(ROUTES.LOGIN);
@@ -43,13 +44,12 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="flex flex-col min-h-screen items-center justify-center bg-zinc-50">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
-        <h1 className="text-sm font-medium text-gray-500 animate-pulse">
-          Verifying account role, please wait...
-        </h1>
-      </div>
+    <div>
+      <Navbar />
+      <h1 className="text-2xl font-bold text-center mt-10">Welcome to the Home Page!</h1>
+      <p className="text-center mt-4 text-gray-600">
+        This is the landing page for students after login.
+      </p>
     </div>
   );
 }
