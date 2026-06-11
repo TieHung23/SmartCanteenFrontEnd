@@ -114,6 +114,7 @@ export default function ProfilePage() {
     if (name === "gender") {
       setProfile({ ...profile, gender: Number(value) || 1 });
     } else {
+      // value từ input luôn là string, không bao giờ undefined
       setProfile({ ...profile, [name]: value });
     }
   };
@@ -133,6 +134,7 @@ export default function ProfilePage() {
 
     setIsUploadingAvatar(true);
     try {
+      // 1. Upload lên Cloudinary để lấy URL
       const imgUrl = await userService.uploadAvatar(file);
 
       // 2. PUT URL mới vào profile
@@ -182,6 +184,9 @@ export default function ProfilePage() {
     window.location.href = "/login";
   };
 
+  // Helper đảm bảo value input KHÔNG BAO GIỜ là undefined
+  const s = (v: string | null | undefined) => v ?? "";
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FDFBF9] flex items-center justify-center">
@@ -202,21 +207,22 @@ export default function ProfilePage() {
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-12 px-4 sm:px-6 font-sans">
         <div className="max-w-[1100px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* ─── CỘT TRÁI ─── */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col items-center">
+              {/* ── AVATAR với nút upload ── */}
               <div className="relative w-28 h-28 mb-4 group">
-                <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md transition-transform group-hover:scale-105">
-                  <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md transition-transform group-hover:scale-105">
-                    <Image
-                      src={getSafeImageUrl(profile.imgUrl)}
-                      alt="Profile Avatar"
-                      fill
-                      sizes="112px"
-                      className="object-cover"
-                    />
-                  </div>
+                <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md transition-transform group-hover:scale-105">
+                  <Image
+                    src={getSafeImageUrl(profile.imgUrl)}
+                    alt="Profile Avatar"
+                    fill
+                    sizes="112px"
+                    className="object-cover"
+                  />
                 </div>
 
+                {/* Overlay hover */}
                 <label
                   className={`absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1
                     bg-black/50 cursor-pointer transition-opacity
@@ -242,6 +248,7 @@ export default function ProfilePage() {
                   />
                 </label>
 
+                {/* Badge camera góc dưới phải */}
                 {!isUploadingAvatar && (
                   <div className="absolute bottom-0.5 right-0.5 bg-[#D35400] text-white p-1.5 rounded-full border-2 border-white shadow pointer-events-none">
                     <Camera className="w-3 h-3" />
@@ -288,11 +295,14 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* ─── CỘT PHẢI ─── */}
           <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[600px]">
+            {/* TAB 1: PERSONAL */}
             {activeTab === "personal" && (
               <div className="animate-fadeIn">
                 <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Personal Information</h3>
 
+                {/* Gender */}
                 <div className="flex items-center gap-8 mb-8">
                   {[
                     { val: 1, label: "Male" },
@@ -323,7 +333,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       name="name"
-                      value={profile.name ?? ""}
+                      value={s(profile.name)}
                       onChange={handleInputChange}
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all focus:shadow-[0_0_0_4px_rgba(211,84,0,0.05)]"
                     />
@@ -335,7 +345,7 @@ export default function ProfilePage() {
                     </label>
                     <input
                       type="email"
-                      value={profile.email ?? ""}
+                      value={s(profile.email)}
                       readOnly
                       className="w-full bg-gray-100 border border-transparent px-5 py-3.5 rounded-xl text-sm font-bold text-gray-500 outline-none pr-28 cursor-not-allowed"
                     />
@@ -353,7 +363,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       name="studentId"
-                      value={profile.studentId || ""}
+                      value={s(profile.studentId)}
                       onChange={handleInputChange}
                       placeholder="e.g. SE123456"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
@@ -367,7 +377,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       name="majorOrClass"
-                      value={profile.majorOrClass || ""}
+                      value={s(profile.majorOrClass)}
                       onChange={handleInputChange}
                       placeholder="e.g. Software Engineering"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
@@ -381,7 +391,7 @@ export default function ProfilePage() {
                     <input
                       type="tel"
                       name="phoneNumber"
-                      value={profile.phoneNumber || ""}
+                      value={s(profile.phoneNumber)}
                       onChange={handleInputChange}
                       placeholder="09xx xxx xxx"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
@@ -395,7 +405,7 @@ export default function ProfilePage() {
                     <input
                       type="date"
                       name="dateOfBirth"
-                      value={profile.dateOfBirth?.split("T")[0] || ""}
+                      value={s(profile.dateOfBirth?.split("T")[0])}
                       onChange={handleInputChange}
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-600 outline-none transition-all"
                     />
@@ -408,7 +418,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       name="address"
-                      value={profile.address || ""}
+                      value={s(profile.address)}
                       onChange={handleInputChange}
                       placeholder="Your current address"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
@@ -438,6 +448,7 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {/* TAB 2: WALLET */}
             {activeTab === "wallet" && (
               <div className="animate-fadeIn flex flex-col h-full">
                 <div className="flex items-center justify-between mb-10 border-b border-gray-100 pb-6">
@@ -453,6 +464,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* Virtual Card */}
                 <div className="w-full max-w-md mx-auto mb-12">
                   <div
                     className={`relative w-full aspect-[1.586] rounded-[1.5rem] p-6 md:p-8 text-white flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.02] ${selectedTheme.background} ${selectedTheme.shadow}`}
@@ -494,6 +506,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* Theme Picker */}
                 <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
                   <div className="flex items-center gap-2 mb-5">
                     <Paintbrush className="w-5 h-5 text-gray-500" />

@@ -20,7 +20,7 @@ export function useMeal(id: string | null) {
     }
     try {
       const result = await mealService.getMealDetail(id);
-      return { value: result.value, isSuccess: true, message: undefined }; // đổi null → undefined
+      return { value: result, isSuccess: true, message: undefined }; // đổi null → undefined
     } catch {
       return { isSuccess: false, value: null, message: "Failed to fetch meal" };
     }

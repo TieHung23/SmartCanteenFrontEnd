@@ -15,7 +15,7 @@ export const dishService = {
         params,
       });
 
-      return response.value;
+      return response.data;
     } catch (error) {
       console.error("Error listing dishes in dishService:", error);
       throw error;
