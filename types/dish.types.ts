@@ -5,11 +5,9 @@ export interface Dish {
   name: string;
   description: string;
   price: number; // số điểm
-  currency: string;
-  stockQuantity: number;
   isActive: boolean;
-  mealId: string;
   categoryId: string;
+  imgUrl: string | null;
 }
 
 export const DishSchema = z.object({
@@ -17,9 +15,7 @@ export const DishSchema = z.object({
   name: z.string(),
   description: z.string(),
   price: z.number(),
-  currency: z.string(),
-  stockQuantity: z.number().int(),
   isActive: z.boolean(),
-  mealId: z.string(),
   categoryId: z.string(),
+  imgUrl: z.string().nullable(),
 }) satisfies z.ZodType<Dish>;

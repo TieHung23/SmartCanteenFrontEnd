@@ -3,42 +3,67 @@
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import Navbar from "@/components/layout/Navbar";
-import { useCategories, useDishesForMeal } from "@/lib/hooks/useCanteen";
-// Import trực tiếp kiểu Dish chuẩn từ dự án của bạn
+import { useCategories, useMealDetail, useAllDishes } from "@/lib/hooks/useCanteen";
 import type { Dish } from "@/types/dish.types";
+
+const getSafeImageUrl = (
+  url: string | null | undefined,
+  fallback: string = "/placeholder-food.png",
+): string => {
+  if (!url || url.trim() === "") return fallback;
+  if (url.startsWith("/")) return url;
+  try {
+    new URL(url);
+    return url;
+  } catch {
+    return fallback;
+  }
+};
 
 function MenuContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
 
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
-  const { data: dishesData, isLoading: loadingDishes } = useDishesForMeal(sessionId || "");
-  const isLoading = loadingCats || loadingDishes;
+  const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
+  const { data: mealDetail, isLoading: loadingMeal } = useMealDetail(sessionId);
+  const isLoading = loadingCats || loadingDishes || loadingMeal;
+
+  const dishes = useMemo(() => {
+    if (!allDishesData?.items) return [];
+
+    if (mealDetail?.dishes && mealDetail.dishes.length > 0) {
+      const allowedDishIds = new Set(mealDetail.dishes.map((d: { dishId: string }) => d.dishId));
+      return allDishesData.items.filter((dish: Dish) => allowedDishIds.has(dish.id));
+    }
+
+    return allDishesData.items;
+  }, [mealDetail, allDishesData]);
 
   if (!sessionId) {
     return (
       <>
         <Navbar />
         <main className="min-h-[80vh] flex flex-col items-center justify-center bg-[#FDFBF9] px-4">
-          <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6 text-5xl shadow-sm">
+          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-6 text-4xl shadow-sm">
             🍽️
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">
             No Session Selected
           </h1>
-          <p className="text-gray-500 mb-8 text-center max-w-md text-base leading-relaxed">
-            It looks like you haven&apos;t chosen a meal session yet. Please select a session to
-            view the available menu.
+          <p className="text-gray-400 mb-8 text-center max-w-sm text-sm leading-relaxed">
+            Please choose an active meal session from the dashboard to explore the tailored menu
+            setup.
           </p>
           <Link
             href="/session"
-            className="bg-[#D35400] text-white px-8 py-3.5 rounded-full font-bold hover:bg-[#B34700] transition-colors shadow-lg shadow-orange-500/30 flex items-center gap-2"
+            className="bg-[#D35400] text-white px-7 py-3 rounded-full text-sm font-bold hover:bg-[#B34700] transition-all shadow-md shadow-orange-500/20 flex items-center gap-2"
           >
             <svg
-              width="20"
-              height="20"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -56,39 +81,10 @@ function MenuContent() {
   }
 
   const categories = categoriesData?.items || [];
-  // Gán đúng kiểu Dish chuẩn của hệ thống, không ép kiểu bậy sang DishItem nữa
-  const dishes: Dish[] = dishesData?.items || [];
-
-  const sortedCategories = [...categories].sort((a, b) => {
-    const nameA = a.name.toLowerCase();
-    const nameB = b.name.toLowerCase();
-    const isAStarch = nameA.includes("starch") || nameA.includes("tinh bột");
-    const isBStarch = nameB.includes("starch") || nameB.includes("tinh bột");
-    if (isAStarch && !isBStarch) return -1;
-    if (!isAStarch && isBStarch) return 1;
-    const isAMain = nameA.includes("main") || nameA.includes("món chính");
-    const isBMain = nameB.includes("main") || nameB.includes("món chính");
-    if (isAMain && !isBMain) return -1;
-    if (!isAMain && isBMain) return 1;
-    return 0;
-  });
-
-  const categoryIconMap: Record<string, string> = {
-    breakfasts: "/breakfast.png",
-    lunches: "/lunch.png",
-    dinner: "/dinner.png",
-    desserts: "/dessert.png",
-    sides: "/side-dish.png",
-    vegan: "/vegan.png",
-    "tinh bột": "/lunch.png",
-    "món chính": "/lunch.png",
-    "món phụ": "/side-dish.png",
-    "tráng miệng": "/dessert.png",
-  };
 
   const navItems = [
-    { id: "all", name: "All", isAll: true },
-    ...sortedCategories.map((c) => ({ ...c, isAll: false })),
+    { id: "all", name: "All", isAll: true, imgUrl: "/globe.svg" },
+    ...categories.map((c) => ({ ...c, isAll: false })),
   ];
   const marqueeItems = [...navItems, ...navItems];
 
@@ -107,21 +103,21 @@ function MenuContent() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#FDFBF9] pb-24 font-sans overflow-x-hidden">
-        <div className="w-full bg-white border-b border-gray-100 pt-8 pb-16 md:pt-16 md:pb-24">
+      <main className="min-h-screen bg-[#FDFBF9] pb-32 font-sans overflow-x-hidden">
+        <div className="w-full bg-white border-b border-gray-50 pt-10 pb-16 md:pt-16 md:pb-20">
           <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between">
             <div className="flex-1 text-center md:text-left z-10">
               <Link
                 href="/session"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
+                className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6 tracking-wide uppercase"
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2.5"
+                  strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
@@ -129,56 +125,62 @@ function MenuContent() {
                 </svg>
                 Back to Sessions
               </Link>
-              <h1 className="text-4xl md:text-6xl lg:text-[4.5rem] font-extrabold text-gray-900 tracking-tight mb-6 leading-[1.1]">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight mb-5 leading-[1.15]">
                 Design Your <br className="hidden md:block" />
                 <span className="text-[#D35400]">Perfect Tray</span>
               </h1>
-              <p className="text-gray-500 font-medium text-base md:text-lg max-w-md mx-auto md:mx-0 leading-relaxed">
+              <p className="text-gray-400 font-medium text-sm md:text-base leading-relaxed">
+                Active Session:{" "}
+                <strong className="text-gray-700 font-semibold">
+                  {mealDetail?.name || "Loading..."}
+                </strong>{" "}
+                <br />
                 Explore fresh ingredients, balance your nutrition, and craft a delicious meal
                 tailored to your daily goals.
               </p>
             </div>
-            <div className="flex-1 w-full mt-14 md:mt-0 flex justify-center md:justify-end relative">
-              <div className="relative w-56 h-56 md:w-80 md:h-80 animate-[floatCenter_6s_ease-in-out_infinite]">
+            <div className="flex-1 w-full mt-10 md:mt-0 flex justify-center md:justify-end relative">
+              <div className="relative w-48 h-48 md:w-64 md:h-64 animate-[floatCenter_6s_ease-in-out_infinite]">
                 <Image
                   src="/chef_hat.png"
-                  alt="Delicious Meal"
+                  alt="Canteen Concept"
                   fill
-                  className="object-contain drop-shadow-2xl"
+                  className="object-contain drop-shadow-xl"
                   priority
-                  sizes="320px"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="w-full border-b border-gray-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] py-4 sticky top-0 bg-white/95 backdrop-blur-md z-40 overflow-hidden flex">
-          <div className="animate-marquee hover:[animation-play-state:paused] flex items-center gap-10 md:gap-16 px-4">
+        <div className="w-full border-b border-gray-100 shadow-[0_2px_15px_-5px_rgba(0,0,0,0.02)] py-3.5 sticky top-0 bg-white/90 backdrop-blur-lg z-40 overflow-hidden flex">
+          <div className="animate-marquee hover:[animation-play-state:paused] flex items-center gap-12 md:gap-16 px-4">
             {marqueeItems.map((item, index) => {
               const iconPath = item.isAll
                 ? "/globe.svg"
-                : categoryIconMap[item.name.toLowerCase()] || "/file.svg";
+                : getSafeImageUrl(item.imgUrl, "/file.svg");
               return (
                 <button
                   key={`nav-${item.id}-${index}`}
                   onClick={() => scrollToCategory(item.id)}
-                  className="flex flex-col items-center gap-2 group cursor-pointer hover:-translate-y-1 transition-transform min-w-[80px]"
+                  className="flex flex-col items-center gap-2 group cursor-pointer transition-all min-w-[75px]"
                 >
                   <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors shadow-sm border border-transparent group-hover:border-orange-100 ${item.isAll ? "bg-[#FFF3EB]" : "bg-gray-50 group-hover:bg-[#FFF3EB]"}`}
+                    className={`w-12 h-12 rounded-full overflow-hidden flex items-center justify-center transition-all border ${item.isAll ? "bg-[#FFF3EB] border-orange-100/50 shadow-sm" : "bg-gray-50 border-gray-100 group-hover:bg-[#FFF3EB] group-hover:border-orange-100"}`}
                   >
                     <Image
                       src={iconPath}
                       alt={item.name}
-                      width={26}
-                      height={26}
-                      className={`${item.isAll ? "opacity-100" : "opacity-60"} group-hover:opacity-100 transition-opacity`}
+                      width={item.isAll ? 22 : 48}
+                      height={item.isAll ? 22 : 48}
+                      className={
+                        item.isAll
+                          ? "object-contain"
+                          : "object-cover w-full h-full transition-opacity opacity-80 group-hover:opacity-100"
+                      }
                     />
                   </div>
-                  <span
-                    className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${item.isAll ? "text-[#D35400]" : "text-gray-500 group-hover:text-[#D35400]"}`}
-                  >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-[#D35400] transition-colors">
                     {item.name}
                   </span>
                 </button>
@@ -187,90 +189,95 @@ function MenuContent() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 mt-16 mb-8 text-center relative z-20">
-          <h2 className="text-sm md:text-base font-bold text-gray-400 uppercase tracking-[0.3em] mb-10">
-            Your Setup
+        <div className="max-w-xl mx-auto px-6 mt-16 mb-6 text-center relative z-20">
+          <h2 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.35em] mb-6">
+            Tray Configuration
           </h2>
-          <div className="relative w-full max-w-2xl mx-auto aspect-[4/3] drop-shadow-2xl hover:scale-[1.02] transition-transform duration-500">
+          <div className="relative w-full max-w-lg mx-auto aspect-[4/3] drop-shadow-xl hover:scale-[1.01] transition-transform duration-500">
             <Image
               src="/tray.png"
               alt="Empty Canteen Tray"
               fill
               className="object-contain"
               priority
-              sizes="600px"
+              sizes="450px"
             />
           </div>
         </div>
 
-        <div className="w-full max-w-[1600px] mx-auto px-6 md:px-12 lg:px-20 mt-20">
+        <div className="w-full max-w-[1500px] mx-auto px-6 md:px-12 mt-16">
           {isLoading ? (
-            <div className="flex justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D35400]"></div>
+            <div className="flex justify-center py-16">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D35400]"></div>
             </div>
           ) : (
             <div className="space-y-24">
-              {sortedCategories.map((category) => {
+              {categories.map((category) => {
                 const categoryDishes = dishes.filter((d) => d.categoryId === category.id);
                 if (categoryDishes.length === 0) return null;
-                const iconPath = categoryIconMap[category.name.toLowerCase()] || "/file.svg";
+                const categoryHeaderIcon = getSafeImageUrl(category.imgUrl, "/file.svg");
 
                 return (
                   <div
                     key={`section-${category.id}`}
                     id={`category-${category.id}`}
-                    className="w-full"
+                    className="w-full scroll-mt-28"
                   >
-                    <div className="flex items-center justify-center md:justify-start gap-4 mb-12 border-b border-gray-100 pb-4">
-                      <Image
-                        src={iconPath}
-                        alt={category.name}
-                        width={36}
-                        height={36}
-                        className="object-contain opacity-90"
-                      />
-                      <h3 className="text-2xl md:text-3xl font-bold text-gray-800 capitalize tracking-tight m-0">
-                        <span className="font-normal text-gray-400 mr-2">Choose your</span>
-                        <strong className="text-[#D35400]">{category.name.toLowerCase()}</strong>
+                    <div className="flex items-center justify-center md:justify-start gap-3.5 mb-10 border-b border-gray-100 pb-3.5">
+                      <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center border border-gray-100">
+                        <Image
+                          src={categoryHeaderIcon}
+                          alt={category.name}
+                          width={36}
+                          height={36}
+                          className="object-cover w-full h-full"
+                        />
+                      </div>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight m-0 font-sans flex items-center gap-1.5">
+                        <span className="font-normal text-gray-400">Choose your</span>
+                        <span className="text-[#D35400] font-extrabold">{category.name}</span>
                       </h3>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-y-16 gap-x-8 md:gap-x-12 lg:gap-x-16 justify-items-center">
-                      {categoryDishes.map((dish) => {
-                        // Kỹ thuật "Safe Property Access": Ép kiểu nội bộ (dish as any) trực tiếp trong tầm sử dụng thuộc tính
-                        // để đánh lừa tsc mà không kích hoạt luật no-explicit-any của vòng map.
-                        const safeDish = dish as unknown as Record<
-                          string,
-                          string | number | undefined
-                        >;
-                        const finalImageUrl = (safeDish.imageUrl ||
-                          safeDish.image ||
-                          "/placeholder-food.png") as string;
 
-                        return (
-                          <div
-                            key={dish.id}
-                            className="flex flex-col items-center group cursor-pointer w-full max-w-[180px]"
-                          >
-                            <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-full p-2 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 group-hover:border-orange-200 group-hover:shadow-[0_8px_30px_rgba(211,84,0,0.12)] transition-all duration-300 transform group-hover:-translate-y-3 overflow-hidden">
-                              <Image
-                                src={finalImageUrl}
-                                alt={dish.name}
-                                fill
-                                sizes="(max-width: 768px) 100vw, 33vw"
-                                className="object-cover rounded-full p-1.5"
-                              />
-                            </div>
-                            <p className="mt-5 text-center font-bold text-gray-800 group-hover:text-[#D35400] transition-colors line-clamp-2 px-2 text-base md:text-lg">
-                              {dish.name}
-                            </p>
-                            <div className="mt-3 text-center bg-gray-50 px-5 py-1.5 rounded-full group-hover:bg-[#D35400] transition-colors duration-300 border border-gray-100 group-hover:border-transparent">
-                              <p className="font-bold text-[#D35400] group-hover:text-white text-sm md:text-base">
-                                {dish.price} <span className="font-medium opacity-70">điểm</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-y-12 gap-x-8 justify-items-center">
+                      {/* ĐÃ FIX: Định nghĩa gộp Dish và các field giá động */}
+                      {categoryDishes.map(
+                        (dish: Dish & { priceAmount?: number; price?: number }) => {
+                          const finalImageUrl = getSafeImageUrl(dish.imgUrl);
+                          return (
+                            <div
+                              key={dish.id}
+                              className="flex flex-col items-center text-center group cursor-pointer w-full max-w-[170px]"
+                            >
+                              <div className="relative w-36 h-36 md:w-40 md:h-40 rounded-full p-1.5 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 group-hover:border-orange-200 group-hover:shadow-[0_10px_30px_rgba(211,84,0,0.08)] transition-all duration-300 transform group-hover:-translate-y-2 overflow-hidden">
+                                <Image
+                                  src={finalImageUrl}
+                                  alt={dish.name}
+                                  fill
+                                  sizes="160px"
+                                  className="object-cover rounded-full p-1"
+                                />
+                              </div>
+
+                              <h4 className="mt-4 font-bold text-gray-800 group-hover:text-[#D35400] transition-colors text-sm md:text-base line-clamp-1 font-sans px-1">
+                                {dish.name}
+                              </h4>
+
+                              <p className="mt-1 text-[11px] text-gray-400 line-clamp-2 min-h-[32px] leading-relaxed font-sans px-2 opacity-85">
+                                {dish.description ||
+                                  "No description provided for this specific item."}
                               </p>
+
+                              <div className="mt-2.5 bg-gray-50 group-hover:bg-[#D35400] px-4 py-1 rounded-full border border-gray-100 group-hover:border-transparent transition-all duration-300">
+                                <p className="font-extrabold text-[#D35400] group-hover:text-white text-xs m-0 font-sans tracking-wide">
+                                  {dish.priceAmount ?? dish.price ?? 0}{" "}
+                                  <span className="font-medium opacity-75 text-[10px]">pts</span>
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        },
+                      )}
                     </div>
                   </div>
                 );
@@ -288,7 +295,7 @@ export default function MenuPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-[#FDFBF9]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D35400]"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D35400]"></div>
         </div>
       }
     >
@@ -296,9 +303,10 @@ export default function MenuPage() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        @keyframes floatCenter { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
+        @keyframes floatCenter { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .animate-marquee { display: flex; width: max-content; animation: marquee 35s linear infinite; }
+        .font-sans { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
       `,
         }}
       />

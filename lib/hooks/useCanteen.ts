@@ -1,11 +1,13 @@
 "use client";
 
 import { useApiData } from "./useApiData";
-import { dishService, type PaginatedList } from "@/services/dish.service";
+import { dishService } from "@/services/dish.service";
 import { categoryService } from "@/services/category.service";
+import { mealService, type PaginatedList } from "@/services/meal.service";
 import { orderService } from "@/services/order.service";
 import type { Dish } from "@/types/dish.types";
 import type { Category } from "@/types/category.types";
+import type { MealDetail } from "@/types/meal.types";
 import type { OrderDetail, OrderListItem, OrderStatus } from "@/types/order.types";
 
 const EMPTY_PAGE = <T>(): PaginatedList<T> => ({
@@ -18,17 +20,17 @@ const EMPTY_PAGE = <T>(): PaginatedList<T> => ({
   hasNextPage: false,
 });
 
-export function useDishesForMeal(mealId: string | null) {
-  return useApiData<PaginatedList<Dish>>(
-    () =>
-      mealId
-        ? dishService.getDishesByMeal(mealId)
-        : Promise.resolve({
-            isSuccess: false,
-            value: EMPTY_PAGE<Dish>(),
-            message: "No meal selected",
-          }),
+export function useMealDetail(mealId: string | null) {
+  return useApiData<MealDetail | null>(
+    () => (mealId ? mealService.getMealDetail(mealId) : Promise.resolve(null)),
     [mealId],
+  );
+}
+
+export function useAllDishes() {
+  return useApiData<PaginatedList<Dish>>(
+    () => dishService.getDishes({ isActive: true, pageSize: 100 }),
+    [],
   );
 }
 
@@ -44,22 +46,14 @@ export function useMyOrders(params?: { pageSize?: number; status?: OrderStatus }
 }
 
 export function useOrderDetail(orderId: string | null) {
-  return useApiData<OrderDetail>(
-    () =>
-      orderId
-        ? orderService.getOrderById(orderId)
-        : Promise.resolve({
-            isSuccess: false,
-            value: null as unknown as OrderDetail,
-            message: "No order ID",
-          }),
+  return useApiData<OrderDetail | null>(
+    () => (orderId ? orderService.getOrderById(orderId) : Promise.resolve(null)),
     [orderId],
   );
 }
 
 export function useActiveOrder() {
   return useApiData<OrderListItem | null>(async () => {
-    // Gọi đồng thời các trạng thái đơn hàng mong muốn
     const results = await Promise.allSettled([
       orderService.getMyOrders({ status: 2, pageSize: 1 }), // Ready
       orderService.getMyOrders({ status: 1, pageSize: 1 }), // Preparing
