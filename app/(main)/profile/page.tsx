@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Navbar from "@/components/layout/Navbar";
-import { User, Lock, LogOut, CheckCircle2, Wallet, Paintbrush, Wifi, Camera } from "lucide-react";
+import { User, Lock, LogOut, CheckCircle2, Wallet, Paintbrush, Wifi } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 
 const getRoleName = (roleId: number) => {
@@ -35,7 +35,6 @@ const getSafeImageUrl = (
   }
 };
 
-// ✅ Đảm bảo không có field nào là undefined — tránh lỗi controlled/uncontrolled
 const normalizeProfile = (data: UserProfileResponse): UserProfileResponse => ({
   ...data,
   name: data.name ?? "",
@@ -88,10 +87,8 @@ export default function ProfilePage() {
   const [originalProfile, setOriginalProfile] = useState<UserProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [activeTab, setActiveTab] = useState<"personal" | "wallet">("personal");
   const [selectedTheme, setSelectedTheme] = useState(cardThemes[0]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -114,41 +111,7 @@ export default function ProfilePage() {
     if (name === "gender") {
       setProfile({ ...profile, gender: Number(value) || 1 });
     } else {
-      // value từ input luôn là string, không bao giờ undefined
       setProfile({ ...profile, [name]: value });
-    }
-  };
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !profile) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Vui lòng chọn file ảnh!");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Ảnh tối đa 5MB!");
-      return;
-    }
-
-    setIsUploadingAvatar(true);
-    try {
-      // 1. Upload lên Cloudinary để lấy URL
-      const imgUrl = await userService.uploadAvatar(file);
-
-      // 2. PUT URL mới vào profile
-      const updated = normalizeProfile(await userService.updateProfile({ ...profile, imgUrl }));
-
-      // 3. Cập nhật UI ngay
-      setProfile(updated);
-      setOriginalProfile(updated);
-    } catch {
-      alert("Upload ảnh thất bại, vui lòng thử lại!");
-    } finally {
-      setIsUploadingAvatar(false);
-      // Reset input để có thể chọn lại cùng file
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -184,7 +147,7 @@ export default function ProfilePage() {
     window.location.href = "/login";
   };
 
-  // Helper đảm bảo value input KHÔNG BAO GIỜ là undefined
+  // Đảm bảo value input không bao giờ undefined
   const s = (v: string | null | undefined) => v ?? "";
 
   if (isLoading) {
@@ -210,9 +173,9 @@ export default function ProfilePage() {
           {/* ─── CỘT TRÁI ─── */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col items-center">
-              {/* ── AVATAR với nút upload ── */}
-              <div className="relative w-28 h-28 mb-4 group">
-                <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md transition-transform group-hover:scale-105">
+              {/* Avatar tĩnh — upload sau */}
+              <div className="relative w-28 h-28 mb-4">
+                <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md">
                   <Image
                     src={getSafeImageUrl(profile.imgUrl)}
                     alt="Profile Avatar"
@@ -221,39 +184,6 @@ export default function ProfilePage() {
                     className="object-cover"
                   />
                 </div>
-
-                {/* Overlay hover */}
-                <label
-                  className={`absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1
-                    bg-black/50 cursor-pointer transition-opacity
-                    ${isUploadingAvatar ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                >
-                  {isUploadingAvatar ? (
-                    <div className="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Camera className="w-5 h-5 text-white drop-shadow" />
-                      <span className="text-[10px] font-bold text-white tracking-wide">
-                        Đổi ảnh
-                      </span>
-                    </>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                    disabled={isUploadingAvatar}
-                  />
-                </label>
-
-                {/* Badge camera góc dưới phải */}
-                {!isUploadingAvatar && (
-                  <div className="absolute bottom-0.5 right-0.5 bg-[#D35400] text-white p-1.5 rounded-full border-2 border-white shadow pointer-events-none">
-                    <Camera className="w-3 h-3" />
-                  </div>
-                )}
               </div>
 
               <h2 className="text-xl font-extrabold text-gray-800 text-center">{profile.name}</h2>
@@ -484,7 +414,7 @@ export default function ProfilePage() {
                     <div className="relative z-10 mt-6 md:mt-8">
                       <p className="font-mono text-xl md:text-2xl tracking-[0.2em] font-medium opacity-90 drop-shadow-md">
                         **** **** ****{" "}
-                        {(profile.studentId || profile.id?.substring(0, 4) || "0000")
+                        {s(profile.studentId || profile.id?.substring(0, 4) || "0000")
                           .toUpperCase()
                           .slice(-4)}
                       </p>

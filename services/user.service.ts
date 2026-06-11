@@ -27,7 +27,6 @@ export type UpdateProfilePayload = Partial<
 >;
 
 export const userService = {
-  // Lấy thông tin User hiện tại (Yêu cầu JWT)
   getProfile: async (): Promise<UserProfileResponse> => {
     try {
       const response = (await apiClient.get<ApiResponse<UserProfileResponse>>(
@@ -40,13 +39,13 @@ export const userService = {
     }
   },
 
-  updateProfile: async (data: UpdateProfilePayload): Promise<ApiResponse<UserProfileResponse>> => {
+  updateProfile: async (data: UpdateProfilePayload): Promise<UserProfileResponse> => {
     try {
       const response = (await apiClient.put<ApiResponse<UserProfileResponse>>(
         "/api/auth/me",
         data,
       )) as unknown as ApiResponse<UserProfileResponse>;
-      return response;
+      return response.value;
     } catch (error) {
       console.error("Lỗi khi cập nhật thông tin cá nhân:", error);
       throw error;
