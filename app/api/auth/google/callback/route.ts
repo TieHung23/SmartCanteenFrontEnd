@@ -7,10 +7,7 @@ type GoogleIdTokenPayload = {
 
 const getGoogleEmail = (idToken: string) => {
   const payloadPart = idToken.split(".")[1];
-
-  if (!payloadPart) {
-    return null;
-  }
+  if (!payloadPart) return null;
 
   try {
     const normalizedPayload = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
@@ -18,7 +15,6 @@ const getGoogleEmail = (idToken: string) => {
       normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
       "=",
     );
-
     const payload = JSON.parse(
       Buffer.from(paddedPayload, "base64").toString("utf8"),
     ) as GoogleIdTokenPayload;
@@ -29,8 +25,6 @@ const getGoogleEmail = (idToken: string) => {
   }
 };
 
-// Handle Google OAuth callback: exchange code for id_token, send id_token to backend,
-// receive access token and redirect the client to the completion page with the token.
 export const GET = async (request: Request) => {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
@@ -47,13 +41,11 @@ export const GET = async (request: Request) => {
   }
 
   try {
-    console.log("[OAuth] Received code from Google, exchanging with Google token endpoint...");
+    console.log("[OAuth] Exchanging code with Google token endpoint...");
 
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
         client_id: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
@@ -71,8 +63,6 @@ export const GET = async (request: Request) => {
 
     const googleTokenData = await tokenResponse.json();
     const idToken = googleTokenData.id_token;
-    console.log("[OAuth] idToken from Google:", idToken?.substring(0, 50));
-    console.log("[OAuth] googleTokenData keys:", Object.keys(googleTokenData));
 
     if (!idToken) {
       console.error("[OAuth] Google response did not include id_token");
@@ -80,11 +70,12 @@ export const GET = async (request: Request) => {
     }
 
     const email = getGoogleEmail(idToken);
-
     if (!email || !email.toLowerCase().endsWith("@fpt.edu.vn")) {
       console.error("[OAuth] Google account is not allowed:", email);
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=google_domain_invalid`);
     }
+
+    console.log("[OAuth] Email verified:", email, "-> Forwarding to Smart Canteen Backend...");
 
     const backendResponse = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/Auth/google`, {
       method: "POST",
@@ -92,73 +83,35 @@ export const GET = async (request: Request) => {
       body: JSON.stringify({ IdToken: idToken }),
     });
 
-    const backendBodyText = await backendResponse.text();
-
     if (!backendResponse.ok) {
-      console.error("[OAuth] Backend exchange failed:", backendResponse.status, backendBodyText);
+      const errorText = await backendResponse.text();
+      console.error("[OAuth] Backend exchange failed:", backendResponse.status, errorText);
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=backend_error`);
     }
 
-    let backendData: unknown = null;
-    try {
-      backendData = backendBodyText ? JSON.parse(backendBodyText) : null;
-    } catch {
-      backendData = backendBodyText;
-    }
+    const resEnvelope = await backendResponse.json();
 
-    const accessToken =
-      (typeof backendData === "string" ? backendData : null) ??
-      (typeof backendData === "object" && backendData !== null
-        ? ((
-            backendData as {
-              token?: string;
-              accessToken?: string;
-              access_token?: string;
-              value?: {
-                token?: string;
-                accessToken?: string;
-                access_token?: string;
-              };
-              data?: {
-                token?: string;
-                accessToken?: string;
-                access_token?: string;
-              };
-            }
-          ).data?.token ??
-          (
-            backendData as {
-              value?: { token?: string; accessToken?: string; access_token?: string };
-            }
-          ).value?.token ??
-          (
-            backendData as {
-              value?: { token?: string; accessToken?: string; access_token?: string };
-            }
-          ).value?.accessToken ??
-          (
-            backendData as {
-              value?: { token?: string; accessToken?: string; access_token?: string };
-            }
-          ).value?.access_token ??
-          (backendData as { token?: string; accessToken?: string; access_token?: string }).token ??
-          (backendData as { token?: string; accessToken?: string; access_token?: string })
-            .accessToken ??
-          (backendData as { token?: string; accessToken?: string; access_token?: string })
-            .access_token)
-        : null);
+    const tokenValue = resEnvelope?.value;
+    const accessToken = tokenValue?.accessToken;
+    const refreshToken = tokenValue?.refreshToken;
 
     if (!accessToken) {
-      console.error("[OAuth] Backend didn't return token", backendBodyText);
+      console.error("[OAuth] Backend didn't return accessToken within envelope value", resEnvelope);
       return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=no_token`);
     }
 
     const redirectUrl = new URL(`${env.NEXT_PUBLIC_APP_URL}/auth/google/complete`);
     redirectUrl.searchParams.set("token", accessToken);
+    if (refreshToken) {
+      redirectUrl.searchParams.set("refreshToken", refreshToken);
+    }
 
     return Response.redirect(redirectUrl);
-  } catch (error) {
-    console.error("[OAuth] Unexpected error:", error);
+  } catch (error: unknown) {
+    console.error(
+      "[OAuth] Critical network error during fetch operation:",
+      error?.message || error,
+    );
     return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=server_error`);
   }
 };

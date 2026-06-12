@@ -2,9 +2,10 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bell, ShoppingCart } from "lucide-react";
-
+import { Bell, ShoppingCart, LogOut } from "lucide-react";
+import { userService, UserProfileResponse } from "@/services/user.service";
 export default function Navbar() {
+  const [userData, setUserData] = useState<UserProfileResponse | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -16,11 +17,22 @@ export default function Navbar() {
     { name: "Contact", href: "/contact" },
   ];
 
-  const user = {
-    userId: "12345",
-    fullName: "Mimi",
-    avatar: "",
-  };
+  useEffect(() => {
+    const fetchNavbarProfile = async () => {
+      try {
+        const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+        if (token) {
+          const profile = await userService.getProfile();
+          setUserData(profile);
+        }
+      } catch (error) {
+        console.error("Không thể lấy thông tin profile cho Navbar:", error);
+        setUserData(null);
+      }
+    };
+
+    fetchNavbarProfile();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -32,6 +44,17 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+    setUserData(null);
+    window.location.href = "/login";
+  };
+
+  const getSafeAvatar = (url: string | null | undefined, id: string) => {
+    if (url && url.trim() !== "") return url;
+    return `https://api.dicebear.com/9.x/adventurer/svg?seed=${id || "default"}`;
+  };
   return (
     <header className="w-full px-6 py-4 bg-[#ffefe7]">
       <div className="max-w-7xl mx-auto flex items-center justify-between bg-white border border-gray-100 rounded-full shadow-sm px-6 h-16 gap-4">
@@ -84,17 +107,15 @@ export default function Navbar() {
           className="flex items-center gap-3 pl-4 border-l border-gray-200 relative"
           ref={dropdownRef}
         >
-          {user ? (
+          {userData ? (
             <>
-              <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                Hi, {user.fullName}
+              <span className="text-sm font-bold text-gray-700 hidden sm:block">
+                Hi, {userData.name}
               </span>
               <Image
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                src={
-                  user.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${user.userId}`
-                }
-                alt={user.fullName || "User avatar"}
+                src={getSafeAvatar(userData.imgUrl, userData.id)}
+                alt={userData.name || "User avatar"}
                 width={40}
                 height={40}
                 unoptimized
@@ -119,10 +140,10 @@ export default function Navbar() {
                   </Link>
                   <div className="border-t border-gray-100" />
                   <button
-                    className="w-full text-left px-5 py-4 text-sm font-medium text-red-500 hover:bg-red-50 transition-all"
-                    onClick={() => setIsDropdownOpen(false)}
+                    className="w-full flex items-center gap-2 text-left px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-all"
+                    onClick={handleLogout}
                   >
-                    Logout
+                    <LogOut className="w-4 h-4" /> Logout
                   </button>
                 </div>
               )}

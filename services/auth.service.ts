@@ -69,4 +69,10 @@ export const authService = {
       return null;
     }
   },
+
+  refreshToken: async (token: string): Promise<unknown> => {
+    return apiClient.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
+      refreshToken: token,
+    });
+  },
 };
