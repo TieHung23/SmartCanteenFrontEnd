@@ -1,6 +1,6 @@
 import apiClient from "@/lib/api/client";
 import type { Dish } from "@/types/dish.types";
-import type { ApiResponse, PaginatedList } from "./meal.service";
+import { type ApiResponse, type PaginatedList } from "./meal.service";
 
 export const dishService = {
   getDishes: async (params?: {
@@ -15,10 +15,32 @@ export const dishService = {
         params,
       });
 
-      return response.data;
+      const checkResponse = response as unknown as {
+        value?: PaginatedList<Dish>;
+        data?: { value?: PaginatedList<Dish> };
+      };
+
+      if (checkResponse && checkResponse.value) {
+        return checkResponse.value;
+      }
+
+      if (checkResponse && checkResponse.data && checkResponse.data.value) {
+        return checkResponse.data.value;
+      }
+
+      const fallbackData = (response as unknown as { data?: PaginatedList<Dish> }).data || response;
+      return fallbackData as PaginatedList<Dish>;
     } catch (error) {
       console.error("Error listing dishes in dishService:", error);
-      throw error;
+      return {
+        items: [],
+        pageNumber: 1,
+        pageSize: 10,
+        totalCount: 0,
+        totalPages: 0,
+        hasPreviousPage: false,
+        hasNextPage: false,
+      };
     }
   },
 };
