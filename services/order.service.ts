@@ -7,7 +7,7 @@ import type {
   OrderListItem,
   OrderStatus,
 } from "@/types/order.types";
-import type { PaginatedList } from "./dish.service";
+import type { PaginatedList } from "./meal.service";
 
 export const orderService = {
   getMyOrders: async (params?: {

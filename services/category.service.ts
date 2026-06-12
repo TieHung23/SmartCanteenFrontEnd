@@ -1,7 +1,7 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { Category } from "@/types/category.types";
-import type { PaginatedList } from "./dish.service";
+import type { PaginatedList } from "./meal.service";
 
 export const categoryService = {
   getAll: async (): Promise<PaginatedList<Category>> => {
