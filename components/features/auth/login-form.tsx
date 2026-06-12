@@ -28,9 +28,13 @@ const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
 export const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginBodyType>({
-    resolver: zodResolver(LoginSchema)
-  })
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginBodyType>({
+    resolver: zodResolver(LoginSchema),
+  });
 
   useEffect(() => {
     const error = searchParams.get("error");
@@ -43,7 +47,9 @@ export const LoginForm = () => {
 
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.delete("error");
-    const nextUrl = nextSearchParams.toString() ? `/login?${nextSearchParams.toString()}` : "/login";
+    const nextUrl = nextSearchParams.toString()
+      ? `/login?${nextSearchParams.toString()}`
+      : "/login";
     window.history.replaceState({}, "", nextUrl);
   }, [searchParams]);
 
@@ -61,7 +67,7 @@ export const LoginForm = () => {
 
       if (isNotVerified) {
         toast.error(
-          "Account not verified. Please check your email and verify your account before signing in."
+          "Account not verified. Please check your email and verify your account before signing in.",
         );
         return;
       }
@@ -80,13 +86,13 @@ export const LoginForm = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-10">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-1">
           <Input
             {...register("email")}
             placeholder="Email"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400"
+            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
           />
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
         </div>
@@ -95,7 +101,7 @@ export const LoginForm = () => {
             type="password"
             {...register("password")}
             placeholder="Password"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-0 shadow-none text-base placeholder:text-gray-400"
+            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
           />
           {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
         </div>
@@ -112,7 +118,11 @@ export const LoginForm = () => {
           </button>
           <div className="flex gap-1">
             <span>Does not have account?</span>
-            <button type="button" onClick={() => router.push(ROUTES.REGISTER)} className="text-blue-400 hover:underline">
+            <button
+              type="button"
+              onClick={() => router.push(ROUTES.REGISTER)}
+              className="text-blue-400 hover:underline"
+            >
               Sign up
             </button>
           </div>
@@ -126,28 +136,19 @@ export const LoginForm = () => {
           <span className="bg-white px-2 text-gray-400 font-bold">OR</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3">
         <Button
           type="button"
           onClick={handleGoogleLogin}
           variant="outline"
-          className="rounded-xl py-6 flex gap-2 border-gray-200 hover:bg-gray-50"
+          className="h-12 w-full rounded-xl border border-gray-200 bg-white/90 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
         >
-          <Image
-            src="https://www.google.com/favicon.ico"
-            alt="Google"
-            width={16}
-            height={16}
-            className="h-4 w-4"
-          />
-          <span className="text-xs font-semibold">Sign in with Google</span>
-        </Button>
-        <Button variant="outline" className="rounded-xl py-6 flex gap-2 border-gray-200 hover:bg-gray-50">
-          <div className="w-4 h-4 bg-red-500 rounded-sm flex items-center justify-center text-[10px] text-white font-bold">M</div>
-          <span className="text-xs font-semibold">Sign in with Email</span>
+          <span className="flex items-center gap-3">
+            <Image src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
+            <span className="text-sm font-semibold">Continue with Google</span>
+          </span>
         </Button>
       </div>
     </div>
   );
 };
-
