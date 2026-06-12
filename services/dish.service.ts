@@ -32,15 +32,7 @@ export const dishService = {
       return fallbackData as PaginatedList<Dish>;
     } catch (error) {
       console.error("Error listing dishes in dishService:", error);
-      return {
-        items: [],
-        pageNumber: 1,
-        pageSize: 10,
-        totalCount: 0,
-        totalPages: 0,
-        hasPreviousPage: false,
-        hasNextPage: false,
-      };
+      throw error;
     }
   },
 };
