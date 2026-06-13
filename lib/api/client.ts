@@ -36,7 +36,7 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
+    config.headers["X-Api-Version"] = "1.0";
     return config;
   },
   (error) => {

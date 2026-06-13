@@ -2,8 +2,8 @@ import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import {
   LoginBodyType,
-  LoginResponse,
   RegisterBodyType,
+  LoginResponse,
   RegisterResponse,
 } from "@/types/auth.types";
 

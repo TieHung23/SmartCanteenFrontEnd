@@ -5,7 +5,7 @@ import Image from "next/image";
 import Navbar from "@/components/layout/Navbar";
 import { User, Lock, LogOut, CheckCircle2, Wallet, Paintbrush, Wifi } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
-
+import { toast } from "sonner";
 const getRoleName = (roleId: number) => {
   switch (roleId) {
     case 1:
@@ -93,9 +93,31 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = normalizeProfile(await userService.getProfile());
-        setProfile(data);
-        setOriginalProfile(data);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response: any = await userService.getProfile();
+
+        // 📦 1. Bóc vỏ Envelope .NET
+        const profileData = response?.value || response;
+
+        // 🔬 2. IN THẲNG RA CONSOLE ĐỂ NHÌN TÊN BIẾN TIỀN
+        console.log("💳 [DATA THÔ TỪ SERVER ME]:", profileData);
+
+        // 🔀 3. Ép đọc cả 2 kiểu chữ (Viết hoa / Viết thường) để không sợ Backend đặt tên lệch
+        const balance =
+          profileData?.balanceAmount ?? profileData?.BalanceAmount ?? profileData?.balance ?? 0;
+
+        const data = normalizeProfile(profileData);
+
+        // Gán đè số tiền vừa bẫy được vào state profile
+        setProfile({
+          ...data,
+          balanceAmount: Number(balance),
+        });
+
+        setOriginalProfile({
+          ...data,
+          balanceAmount: Number(balance),
+        });
       } catch (error) {
         console.error("Failed to fetch profile:", error);
       } finally {
@@ -116,26 +138,56 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    if (!profile) return;
+    if (!profile || !originalProfile) return;
     setIsSaving(true);
     try {
-      const updated = normalizeProfile(
-        await userService.updateProfile({
-          name: profile.name,
-          phoneNumber: profile.phoneNumber,
-          dateOfBirth: profile.dateOfBirth,
-          address: profile.address,
-          gender: profile.gender,
-          studentId: profile.studentId,
-          majorOrClass: profile.majorOrClass,
-          imgUrl: profile.imgUrl,
-        }),
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await userService.updateProfile({
+        name: profile.name,
+        phoneNumber: profile.phoneNumber,
+        dateOfBirth: profile.dateOfBirth,
+        address: profile.address,
+        gender: profile.gender,
+        studentId: profile.studentId,
+        majorOrClass: profile.majorOrClass,
+        imgUrl: profile.imgUrl,
+      });
+
+      const updatedData = response?.value || response;
+
+      const updated = normalizeProfile(updatedData);
+
+      // Quét tìm các trường thay đổi
+      const changedFields: string[] = [];
+      if (profile.name !== originalProfile.name) changedFields.push("Full Name");
+      if (profile.phoneNumber !== originalProfile.phoneNumber) changedFields.push("Phone Number");
+      if (profile.address !== originalProfile.address) changedFields.push("Address");
+      if (profile.majorOrClass !== originalProfile.majorOrClass) changedFields.push("Major/Class");
+      if (profile.gender !== originalProfile.gender) changedFields.push("Gender");
+      if (profile.studentId !== originalProfile.studentId) changedFields.push("Student ID");
+
+      const currentBirth = profile.dateOfBirth?.split("T")[0];
+      const originalBirth = originalProfile.dateOfBirth?.split("T")[0];
+      if (currentBirth !== originalBirth) changedFields.push("Date of Birth");
+
+      // Bắn toast bằng sonner cực mượt
+      if (changedFields.length > 0) {
+        if (changedFields.length <= 2) {
+          changedFields.forEach((field) => {
+            toast.success(`Updated ${field} successfully! 🎉`);
+          });
+        } else {
+          toast.success(`Profile updated: ${changedFields.join(", ")} 🎉`);
+        }
+      } else {
+        toast.info("No changes detected.");
+      }
+
       setProfile(updated);
       setOriginalProfile(updated);
-      alert("Cập nhật thông tin thành công! 🎉");
-    } catch {
-      alert("Có lỗi xảy ra khi lưu thông tin.");
+    } catch (error) {
+      console.error(error);
+      toast.error("An unexpected error occurred while saving your profile.");
     } finally {
       setIsSaving(false);
     }
@@ -147,7 +199,6 @@ export default function ProfilePage() {
     window.location.href = "/login";
   };
 
-  // Đảm bảo value input không bao giờ undefined
   const s = (v: string | null | undefined) => v ?? "";
 
   if (isLoading) {
@@ -173,7 +224,6 @@ export default function ProfilePage() {
           {/* ─── CỘT TRÁI ─── */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col items-center">
-              {/* Avatar tĩnh — upload sau */}
               <div className="relative w-28 h-28 mb-4">
                 <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md">
                   <Image
@@ -227,7 +277,6 @@ export default function ProfilePage() {
 
           {/* ─── CỘT PHẢI ─── */}
           <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[600px]">
-            {/* TAB 1: PERSONAL */}
             {activeTab === "personal" && (
               <div className="animate-fadeIn">
                 <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Personal Information</h3>

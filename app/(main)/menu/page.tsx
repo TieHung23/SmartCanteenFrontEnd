@@ -3,10 +3,12 @@
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { useCategories, useMealDetail, useAllDishes } from "@/lib/hooks/useCanteen";
 import type { Dish } from "@/types/dish.types";
+// 📢 1. Khai thác sức mạnh lưu trữ từ CartContext toàn cục
+import { useCart } from "@/context/cart-context";
 
 const getSafeImageUrl = (
   url: string | null | undefined,
@@ -29,7 +31,17 @@ function MenuContent() {
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
   const { data: mealDetail, isLoading: loadingMeal } = useMealDetail(sessionId);
+
+  // 📢 2. Bóc tách các hàm tương tác giỏ hàng ra xài
+  const { addToCart, setMealId } = useCart();
   const isLoading = loadingCats || loadingDishes || loadingMeal;
+
+  // ✅ FIX LỖI CÚ PHÁP: Đồng bộ mã Session làm MealID đặt đơn chuẩn .NET Backend
+  useEffect(() => {
+    if (sessionId) {
+      setMealId(sessionId);
+    }
+  }, [sessionId, setMealId]); // Đã đóng đầy đủ dấu ngoặc nhọn và ngoặc tròn ở đây!
 
   const dishes = useMemo(() => {
     if (!allDishesData?.items) return [];
@@ -240,23 +252,54 @@ function MenuContent() {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-y-12 gap-x-8 justify-items-center">
-                      {/* ĐÃ FIX: Định nghĩa gộp Dish và các field giá động */}
                       {categoryDishes.map(
-                        (dish: Dish & { priceAmount?: number; price?: number }) => {
+                        (
+                          dish: Dish & { priceAmount?: number; price?: number; dishId?: string },
+                        ) => {
                           const finalImageUrl = getSafeImageUrl(dish.imgUrl);
+                          const dishPrice = dish.priceAmount ?? dish.price ?? 0;
+
+                          // 📢 SỬA ĐOẠN NÀY: Tìm chính xác ID khớp với cấu trúc liên kết Session trong DB
+                          // Nếu đối tượng dish có trường dishId (từ mealDetail) thì ưu tiên lấy, không thì fallback về dish.id
+                          const finalDishGuid = dish.dishId || dish.id;
+
+                          const handleDishClick = () => {
+                            console.log("👉 [ACTION ADD TO TRAY] - ID gửi đi:", finalDishGuid);
+
+                            addToCart(
+                              {
+                                dishId: finalDishGuid, // ✅ Đã bốc đúng mã ID liên kết khớp cột 1 trong DB của Nhi
+                                name: dish.name,
+                                price: dishPrice,
+                                imgUrl: finalImageUrl,
+                                description: dish.description || "Fresh canteen select item.",
+                              },
+                              1,
+                            ); // Mặc định chạm đĩa đồ ăn tự động tăng 1 số lượng
+                          };
+
                           return (
                             <div
                               key={dish.id}
+                              onClick={handleDishClick} // 📢 Kích hoạt sự kiện click một chạm trượt Drawer
                               className="flex flex-col items-center text-center group cursor-pointer w-full max-w-[170px]"
                             >
-                              <div className="relative w-36 h-36 md:w-40 md:h-40 rounded-full p-1.5 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 group-hover:border-orange-200 group-hover:shadow-[0_10px_30px_rgba(211,84,0,0.08)] transition-all duration-300 transform group-hover:-translate-y-2 overflow-hidden">
+                              {/* Khung đĩa tròn thức ăn có tích hợp hiệu ứng hover */}
+                              <div className="relative w-36 h-36 md:w-40 md:h-40 rounded-full p-1.5 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 group-hover:border-orange-400 group-hover:shadow-[0_10px_30px_rgba(211,84,0,0.12)] transition-all duration-300 transform group-hover:-translate-y-2 overflow-hidden">
                                 <Image
                                   src={finalImageUrl}
                                   alt={dish.name}
                                   fill
                                   sizes="160px"
-                                  className="object-cover rounded-full p-1"
+                                  className="object-cover rounded-full p-1 shadow-inner"
                                 />
+
+                                {/* UI HIỆU ỨNG: Lớp phủ mờ hiện chữ khi di chuột vào đĩa đồ ăn */}
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-full">
+                                  <span className="text-white font-black text-[11px] uppercase tracking-wider bg-[#D35400] px-3 py-1.5 rounded-full scale-90 group-hover:scale-100 transition-transform shadow-md">
+                                    + Add to Tray
+                                  </span>
+                                </div>
                               </div>
 
                               <h4 className="mt-4 font-bold text-gray-800 group-hover:text-[#D35400] transition-colors text-sm md:text-base line-clamp-1 font-sans px-1">
@@ -270,7 +313,7 @@ function MenuContent() {
 
                               <div className="mt-2.5 bg-gray-50 group-hover:bg-[#D35400] px-4 py-1 rounded-full border border-gray-100 group-hover:border-transparent transition-all duration-300">
                                 <p className="font-extrabold text-[#D35400] group-hover:text-white text-xs m-0 font-sans tracking-wide">
-                                  {dish.priceAmount ?? dish.price ?? 0}{" "}
+                                  {dishPrice}{" "}
                                   <span className="font-medium opacity-75 text-[10px]">pts</span>
                                 </p>
                               </div>

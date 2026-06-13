@@ -108,10 +108,9 @@ export const GET = async (request: Request) => {
 
     return Response.redirect(redirectUrl);
   } catch (error: unknown) {
-    console.error(
-      "[OAuth] Critical network error during fetch operation:",
-      error?.message || error,
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    console.error("[OAuth] Critical network error during fetch operation:", errorMessage);
     return Response.redirect(`${env.NEXT_PUBLIC_APP_URL}/login?error=server_error`);
   }
 };

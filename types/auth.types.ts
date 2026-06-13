@@ -98,3 +98,18 @@ export const UpdateProfileSchema = z.object({
 export type LoginBodyType = z.infer<typeof LoginSchema>;
 export type RegisterBodyType = z.infer<typeof RegisterSchema>;
 export type UpdateProfileBodyType = z.infer<typeof UpdateProfileSchema>;
+
+export interface LoginResponse {
+  value: {
+    accessToken: string;
+    refreshToken?: string;
+  };
+  statusCode?: number;
+  message?: string;
+}
+
+export interface RegisterResponse {
+  value?: unknown;
+  statusCode?: number;
+  message?: string;
+}
