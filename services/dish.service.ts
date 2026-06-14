@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { Dish } from "@/types/dish.types";
 import { type ApiResponse, type PaginatedList } from "./meal.service";
 
@@ -11,9 +12,12 @@ export const dishService = {
     name?: string;
   }): Promise<PaginatedList<Dish>> => {
     try {
-      const response = await apiClient.get<ApiResponse<PaginatedList<Dish>>>("/api/dishes", {
-        params,
-      });
+      const response = await apiClient.get<ApiResponse<PaginatedList<Dish>>>(
+        API_ENDPOINTS.DISH.LIST,
+        {
+          params,
+        },
+      );
 
       const checkResponse = response as unknown as {
         value?: PaginatedList<Dish>;
