@@ -24,6 +24,8 @@ import {
   ArrowUpRight,
   ExternalLink,
   RotateCcw,
+  PartyPopper,
+  Receipt,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -32,6 +34,19 @@ const PAYMENT_METHODS = [
   { id: 3, name: "VNPay" },
   { id: 4, name: "SePay (Bank Transfer)" },
 ];
+
+function formatPts(amount: number) {
+  return new Intl.NumberFormat("vi-VN").format(amount);
+}
+
+function PtsDisplay({ amount, className }: { amount: number; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${className || ""}`}>
+      <Image src="/logo_point.png" alt="pts" width={18} height={18} className="object-contain" />
+      <span>{formatPts(amount)}</span>
+    </span>
+  );
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -138,53 +153,88 @@ export default function CheckoutPage() {
       <>
         <Navbar />
         <main className="min-h-screen bg-[#FDFBF9] flex items-center justify-center px-4 py-12 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-orange-100/40 to-transparent pointer-events-none" />
-          <div className="max-w-md w-full bg-white rounded-[2rem] shadow-lg border border-orange-100/50 p-10 text-center relative z-10">
-            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-orange-100">
-              <CheckCircle2 className="w-12 h-12 text-[#D35400]" />
-            </div>
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Order Placed!</h1>
-            <p className="text-gray-400 text-sm mb-6">{orderResult.message}</p>
-            <div className="bg-orange-50/60 rounded-2xl p-6 space-y-3 text-left mb-8 border border-orange-100/30">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Order ID</span>
-                <span className="font-bold text-gray-800 truncate ml-4 max-w-[200px]">
-                  {orderResult.id.slice(0, 8)}...
-                </span>
+          <div className="absolute inset-0 bg-gradient-to-b from-orange-100/50 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-200/20 rounded-full blur-[100px] pointer-events-none" />
+          <div className="max-w-lg w-full relative z-10">
+            <div className="bg-white rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-orange-100/40 p-10 text-center">
+              <div className="relative mb-6">
+                <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200/50">
+                  <PartyPopper className="w-12 h-12 text-[#D35400]" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center border-4 border-white shadow-md">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total Paid</span>
-                <span className="font-bold text-[#D35400]">
-                  {new Intl.NumberFormat("vi-VN").format(orderResult.totalPrice)} pts
-                </span>
+              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Order Confirmed!</h1>
+              <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
+
+              <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
+                <div className="flex items-center gap-3 pb-3 border-b border-orange-100/30">
+                  <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
+                    <Receipt className="w-4 h-4 text-[#D35400]" />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Order Receipt</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Order ID</span>
+                  <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
+                    {orderResult.id.slice(0, 12)}...
+                  </span>
+                </div>
+                {orderResult.transactionId && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Transaction ID</span>
+                    <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
+                      {orderResult.transactionId.slice(0, 12)}...
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Payment Method</span>
+                  <span className="font-bold text-gray-700 flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Wallet Points
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
+                  <span className="text-base font-bold text-gray-800">Total Paid</span>
+                  <PtsDisplay
+                    amount={orderResult.totalPrice}
+                    className="text-lg font-black text-[#D35400]"
+                  />
+                </div>
+                <div className="flex justify-between text-sm pt-2">
+                  <span className="text-gray-500">Remaining Balance</span>
+                  <PtsDisplay
+                    amount={orderResult.userRemainingBalance}
+                    className="font-bold text-[#D35400]"
+                  />
+                </div>
               </div>
-              <div className="flex justify-between text-sm border-t border-orange-100/50 pt-3">
-                <span className="text-gray-500">Remaining Balance</span>
-                <span className="font-bold text-[#D35400]">
-                  {new Intl.NumberFormat("vi-VN").format(orderResult.userRemainingBalance)} pts
-                </span>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    clearCart();
+                    router.push(ROUTES.ORDERS);
+                  }}
+                  className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
+                >
+                  View My Orders
+                </button>
+                <button
+                  onClick={() => {
+                    clearCart();
+                    router.push(ROUTES.SESSION);
+                  }}
+                  className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
+                >
+                  Browse Sessions
+                </button>
               </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  clearCart();
-                  router.push(ROUTES.ORDERS);
-                }}
-                className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)]"
-              >
-                View My Orders
-              </button>
-              <button
-                onClick={() => {
-                  clearCart();
-                  router.push(ROUTES.SESSION);
-                }}
-                className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all"
-              >
-                Browse Sessions
-              </button>
-            </div>
+            <p className="text-center text-[10px] text-gray-300 mt-4 font-bold tracking-wider uppercase">
+              Smart Canteen &bull; Order Confirmation
+            </p>
           </div>
         </main>
       </>
@@ -232,8 +282,8 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-bold text-gray-800 truncate">{item.name}</h4>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Intl.NumberFormat("vi-VN").format(item.price)} pts each
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                      <PtsDisplay amount={item.price} /> each
                     </p>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
@@ -254,7 +304,7 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                       <div className="text-sm font-black text-[#D35400]">
-                        {new Intl.NumberFormat("vi-VN").format(item.price * item.quantity)} pts
+                        <PtsDisplay amount={item.price * item.quantity} />
                       </div>
                     </div>
                   </div>
@@ -281,21 +331,26 @@ export default function CheckoutPage() {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Items ({cartItems.length})</span>
-                    <span className="font-bold text-gray-800">
-                      {new Intl.NumberFormat("vi-VN").format(totalPoints)} pts
-                    </span>
+                    <PtsDisplay amount={totalPoints} className="font-bold text-gray-800" />
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Your Balance</span>
-                    <span className="font-bold text-[#D35400]">
-                      {new Intl.NumberFormat("vi-VN").format(balance)} pts
-                    </span>
+                    <PtsDisplay amount={balance} className="font-bold text-[#D35400]" />
                   </div>
-                  <div className="border-t border-orange-100/30 pt-4 flex justify-between text-base">
-                    <span className="font-bold text-gray-800">Total</span>
-                    <span className="font-black text-[#D35400] text-lg">
-                      {new Intl.NumberFormat("vi-VN").format(totalPoints)} pts
-                    </span>
+                  <div className="border-t border-orange-100/30 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-bold text-gray-800">Payment Method</span>
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-gray-600 bg-orange-50 px-3 py-1 rounded-lg border border-orange-100">
+                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Wallet
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-base">
+                      <span className="font-bold text-gray-800">Total</span>
+                      <PtsDisplay
+                        amount={totalPoints}
+                        className="font-black text-[#D35400] text-lg"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -312,7 +367,7 @@ export default function CheckoutPage() {
                     ) : (
                       <>
                         <Wallet className="w-4 h-4" /> Pay{" "}
-                        {new Intl.NumberFormat("vi-VN").format(totalPoints)} pts
+                        <PtsDisplay amount={totalPoints} className="text-white" />
                       </>
                     )}
                   </button>
@@ -323,9 +378,8 @@ export default function CheckoutPage() {
                       <div>
                         <p className="text-sm font-bold text-[#B34700]">Insufficient Balance</p>
                         <p className="text-xs text-orange-500 mt-1">
-                          You need{" "}
-                          <strong>{new Intl.NumberFormat("vi-VN").format(neededPoints)}</strong>{" "}
-                          more points. Top up to continue.
+                          You need <strong>{formatPts(neededPoints)}</strong> more points. Top up to
+                          continue.
                         </p>
                       </div>
                     </div>
@@ -352,12 +406,8 @@ export default function CheckoutPage() {
                                 Top-up request created!
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
-                                {new Intl.NumberFormat("vi-VN").format(topUpResult.amountVnd)} VND
-                                {" → "}
-                                {new Intl.NumberFormat("vi-VN").format(
-                                  topUpResult.convertedPoints,
-                                )}{" "}
-                                pts
+                                {formatPts(topUpResult.amountVnd)} VND {" → "}
+                                {formatPts(topUpResult.convertedPoints)} pts
                               </p>
                               <span className="inline-block mt-2 text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">
                                 {topUpResult.status}
@@ -406,7 +456,7 @@ export default function CheckoutPage() {
                                         : "bg-white border-gray-200 text-gray-500 hover:border-orange-200"
                                     }`}
                                   >
-                                    {new Intl.NumberFormat("vi-VN").format(amt)}
+                                    {formatPts(amt)}
                                   </button>
                                 ))}
                               </div>
@@ -418,12 +468,8 @@ export default function CheckoutPage() {
                                 step={10000}
                                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-1 focus:ring-orange-200"
                               />
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                ~
-                                {new Intl.NumberFormat("vi-VN").format(
-                                  Math.floor(topUpAmount / 1000),
-                                )}{" "}
-                                pts
+                              <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                ~ <PtsDisplay amount={Math.floor(topUpAmount / 1000)} />
                               </p>
                             </div>
 

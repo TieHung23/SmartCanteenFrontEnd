@@ -332,28 +332,6 @@ export default function ProfilePage() {
               <div className="animate-fadeIn">
                 <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Personal Information</h3>
 
-                <div className="flex items-center gap-8 mb-8">
-                  {[
-                    { val: 1, label: "Male" },
-                    { val: 2, label: "Female" },
-                    { val: 3, label: "Other" },
-                  ].map(({ val, label }) => (
-                    <label key={val} className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={val}
-                        checked={profile.gender === val}
-                        onChange={handleInputChange}
-                        className="w-4 h-4 text-[#D35400] focus:ring-[#D35400] cursor-pointer"
-                      />
-                      <span className="text-sm font-bold text-gray-600 group-hover:text-[#D35400] transition-colors">
-                        {label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -455,7 +433,32 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-4 mt-10 border-t border-gray-100 pt-8">
+                <div className="border-t border-gray-100 pt-6 mt-8">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
+                    Gender
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { val: 1, label: "Male" },
+                      { val: 2, label: "Female" },
+                      { val: 3, label: "Other" },
+                    ].map(({ val, label }) => (
+                      <button
+                        key={val}
+                        onClick={() => setProfile(profile ? { ...profile, gender: val } : null)}
+                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                          profile?.gender === val
+                            ? "bg-[#D35400] text-white border-[#D35400] shadow-[0_2px_8px_rgba(211,84,0,0.25)]"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-orange-200 hover:text-[#D35400]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-4 mt-6 border-t border-gray-100 pt-8">
                   <button
                     onClick={() => setProfile(originalProfile)}
                     className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-800 transition-all"
