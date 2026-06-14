@@ -4,6 +4,8 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "sonner";
+import { CartProvider } from "@/context/cart-context";
+import CartDrawer from "@/components/features/orders/CartDrawer";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -42,8 +44,11 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <QueryProvider>
-          {children}
-          <Toaster richColors position="top-right" />
+          <CartProvider>
+            {children}
+            <CartDrawer />
+            <Toaster richColors position="top-right" />
+          </CartProvider>
         </QueryProvider>
       </body>
     </html>

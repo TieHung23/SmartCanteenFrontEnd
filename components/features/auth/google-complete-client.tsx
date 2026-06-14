@@ -10,6 +10,7 @@ export const GoogleCompleteClient = () => {
   const processed = useRef(false);
 
   const token = searchParams.get("token");
+  const refreshToken = searchParams.get("refreshToken");
   const error = searchParams.get("error");
 
   useEffect(() => {
@@ -24,6 +25,13 @@ export const GoogleCompleteClient = () => {
     if (token) {
       localStorage.setItem("accessToken", token);
       // Delay nhỏ để đảm bảo localStorage đã lưu xong
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+        console.log("[OAuth Complete] Successfully cached both Auth tokens.");
+      } else {
+        console.warn("[OAuth Complete] Warning: Missing refreshToken from URL.");
+      }
+
       setTimeout(() => {
         window.location.href = "/";
       }, 100);
@@ -32,7 +40,7 @@ export const GoogleCompleteClient = () => {
 
     toast.error("Token not found");
     router.push("/login");
-  }, [token, error, router]);
+  }, [token, refreshToken, error, router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

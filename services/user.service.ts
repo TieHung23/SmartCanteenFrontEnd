@@ -1,5 +1,6 @@
 import apiClient from "@/lib/api/client";
 import type { ApiResponse } from "./meal.service";
+import { API_ENDPOINTS } from "@/lib/api/endpoints";
 
 export interface UserProfileResponse {
   id: string;
@@ -41,9 +42,16 @@ export const userService = {
 
   updateProfile: async (data: UpdateProfilePayload): Promise<UserProfileResponse> => {
     try {
+      const { dateOfBirth, ...restData } = data;
+
+      const formattedData = {
+        ...restData,
+        DateOfBirth: dateOfBirth && dateOfBirth.trim() !== "" ? dateOfBirth.split("T")[0] : null,
+      };
+
       const response = (await apiClient.put<ApiResponse<UserProfileResponse>>(
-        "/api/auth/me",
-        data,
+        API_ENDPOINTS.AUTH.ME,
+        formattedData,
       )) as unknown as ApiResponse<UserProfileResponse>;
       return response.value;
     } catch (error) {

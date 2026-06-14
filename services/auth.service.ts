@@ -2,8 +2,8 @@ import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import {
   LoginBodyType,
-  LoginResponse,
   RegisterBodyType,
+  LoginResponse,
   RegisterResponse,
 } from "@/types/auth.types";
 
@@ -68,5 +68,11 @@ export const authService = {
       localStorage.removeItem("token");
       return null;
     }
+  },
+
+  refreshToken: async (token: string): Promise<unknown> => {
+    return apiClient.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
+      refreshToken: token,
+    });
   },
 };

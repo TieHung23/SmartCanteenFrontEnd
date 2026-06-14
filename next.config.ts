@@ -1,43 +1,43 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   output: "standalone",
+
   images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+
     remotePatterns: [
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
-      },
-      {
-        protocol: "https",
-        hostname: "www.google.com",
-      },
-      {
-        protocol: "https",
-        hostname: "api.dicebear.com",
-      },
-      {
-        protocol: "https",
-        hostname: "png.pngtree.com",
-        port: "",
         pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "images.unsplash.com", // Cấp quyền cho ảnh demo Unsplash
+        hostname: "www.google.com",
+        pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com", // Cấp quyền cho ảnh database thực tế của Backend
+        hostname: "api.dicebear.com",
+        pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "lh3.googleusercontent.com",
+        hostname: "png.pngtree.com",
+        pathname: "/**",
       },
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com", // Cực kỳ quan trọng để hiện avatar tài khoản Google OAuth
+        pathname: "/**",
       },
     ],
   },

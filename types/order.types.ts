@@ -8,11 +8,11 @@ export const ORDER_STATUS_META: Record<
   OrderStatus,
   { label: string; color: string; bg: string; icon: string }
 > = {
-  0: { label: "Đã đặt", color: "#6b7280", bg: "#f3f4f6", icon: "📋" },
-  1: { label: "Đang nấu", color: "#f07b2e", bg: "#fff8f4", icon: "👨‍🍳" },
-  2: { label: "Sẵn sàng", color: "#2db87a", bg: "#e8f8f0", icon: "✅" },
-  3: { label: "Đã nhận", color: "#6366f1", bg: "#eef2ff", icon: "🎉" },
-  4: { label: "Đã huỷ", color: "#ef4444", bg: "#fef2f2", icon: "❌" },
+  0: { label: "Ordered", color: "#6b7280", bg: "#f3f4f6", icon: "📋" },
+  1: { label: "Preparing", color: "#f07b2e", bg: "#fff8f4", icon: "👨‍🍳" },
+  2: { label: "Ready", color: "#2db87a", bg: "#e8f8f0", icon: "✅" },
+  3: { label: "Received", color: "#6366f1", bg: "#eef2ff", icon: "🎉" },
+  4: { label: "Cancelled", color: "#ef4444", bg: "#fef2f2", icon: "❌" },
 };
 
 export interface OrderItem {
