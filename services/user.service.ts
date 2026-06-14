@@ -31,7 +31,7 @@ export const userService = {
   getProfile: async (): Promise<UserProfileResponse> => {
     try {
       const response = (await apiClient.get<ApiResponse<UserProfileResponse>>(
-        "/api/auth/me",
+        API_ENDPOINTS.AUTH.ME,
       )) as unknown as ApiResponse<UserProfileResponse>;
       return response.value;
     } catch (error) {

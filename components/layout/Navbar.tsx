@@ -23,7 +23,6 @@ export default function Navbar() {
     { name: "Meal Session", href: "/session" },
     { name: "Menu", href: "/menu" },
     { name: "About Us", href: "/about" },
-    { name: "Contact", href: "/contact" },
   ];
 
   useEffect(() => {

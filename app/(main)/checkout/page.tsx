@@ -54,7 +54,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!mealId || cartItems.length === 0) {
-      router.push(ROUTES.MENU);
+      router.push(ROUTES.SESSION);
       return;
     }
     const fetchProfile = async () => {

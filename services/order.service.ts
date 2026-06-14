@@ -36,6 +36,6 @@ export const orderService = {
     return await apiClient.put<
       { id: string; status: number; message: string },
       { id: string; status: number; message: string }
-    >(API_ENDPOINTS.ORDER.UPDATE(orderId), { id: orderId, status: 3 });
+    >(API_ENDPOINTS.ORDER.UPDATE(orderId), { id: orderId, status: 2 });
   },
 };
