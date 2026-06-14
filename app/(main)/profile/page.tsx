@@ -157,7 +157,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (!profile) return;
     if (name === "gender") {
@@ -418,6 +418,22 @@ export default function ProfilePage() {
                     />
                   </div>
 
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Gender
+                    </label>
+                    <select
+                      name="gender"
+                      value={profile?.gender ?? 1}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_16px_center] bg-no-repeat"
+                    >
+                      <option value={1}>♂ Nam</option>
+                      <option value={2}>♀ Nữ</option>
+                      <option value={3}>⚤ Khác</option>
+                    </select>
+                  </div>
+
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                       Address
@@ -430,31 +446,6 @@ export default function ProfilePage() {
                       placeholder="Your current address"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
                     />
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-100 pt-6 mt-8">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-                    Gender
-                  </label>
-                  <div className="flex gap-2">
-                    {[
-                      { val: 1, label: "Male" },
-                      { val: 2, label: "Female" },
-                      { val: 3, label: "Other" },
-                    ].map(({ val, label }) => (
-                      <button
-                        key={val}
-                        onClick={() => setProfile(profile ? { ...profile, gender: val } : null)}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all border ${
-                          profile?.gender === val
-                            ? "bg-[#D35400] text-white border-[#D35400] shadow-[0_2px_8px_rgba(211,84,0,0.25)]"
-                            : "bg-white text-gray-500 border-gray-200 hover:border-orange-200 hover:text-[#D35400]"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
                   </div>
                 </div>
 

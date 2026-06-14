@@ -74,6 +74,9 @@ export default function CartDrawer() {
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
                       <h4 className="text-sm font-bold text-gray-800 truncate">{item.name}</h4>
+                      {item.mealName && (
+                        <p className="text-[9px] text-orange-400 font-semibold">{item.mealName}</p>
+                      )}
                       <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">
                         {item.description}
                       </p>

@@ -29,10 +29,8 @@ import {
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
-  { id: 1, name: "MoMo" },
-  { id: 2, name: "ZaloPay" },
-  { id: 3, name: "VNPay" },
   { id: 4, name: "SePay (Bank Transfer)" },
+  { id: 5, name: "Smart Canteen Wallet" },
 ];
 
 function formatPts(amount: number) {
@@ -97,6 +95,7 @@ export default function CheckoutPage() {
         quantity: item.quantity,
       }));
       const result = await orderService.createOrder(mealId, cleanedItems);
+      clearCart();
       setOrderResult(result);
       toast.success(result.message || "Order placed successfully!");
     } catch (error: unknown) {
@@ -106,7 +105,7 @@ export default function CheckoutPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [mealId, cartItems]);
+  }, [mealId, cartItems, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -148,11 +147,53 @@ export default function CheckoutPage() {
     }
   };
 
+  const [fireworkParticles] = useState(() => {
+    const COLORS = ["#D35400", "#FF6B35", "#FFD700", "#FF4444", "#FF8C42", "#FFA07A", "#FFFFFF"];
+    const particles: {
+      id: number;
+      color: string;
+      x: number;
+      delay: number;
+      size: number;
+      duration: number;
+    }[] = [];
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        id: i,
+        color: COLORS[i % COLORS.length],
+        x: Math.random() * 100,
+        delay: Math.random() * 1.5,
+        size: 4 + Math.random() * 8,
+        duration: 1.2 + Math.random() * 1.2,
+      });
+    }
+    return particles;
+  });
+
   if (orderResult) {
     return (
       <>
         <Navbar />
         <main className="min-h-screen bg-[#FDFBF9] flex items-center justify-center px-4 py-12 relative overflow-hidden">
+          {/* Firework container */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+            {fireworkParticles.map((p) => (
+              <div
+                key={p.id}
+                className="absolute bottom-1/2 left-1/2 -translate-x-1/2 rounded-full"
+                style={{
+                  width: p.size,
+                  height: p.size,
+                  backgroundColor: p.color,
+                  left: `${50 + (p.x - 50) * 0.3}%`,
+                  animation: `fireworkLaunch ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s forwards`,
+                  opacity: 0,
+                  boxShadow: `0 0 ${p.size}px ${p.color}80`,
+                }}
+              />
+            ))}
+          </div>
+
           <div className="absolute inset-0 bg-gradient-to-b from-orange-100/50 via-transparent to-transparent pointer-events-none" />
           <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-200/20 rounded-full blur-[100px] pointer-events-none" />
           <div className="max-w-lg w-full relative z-10">
@@ -236,6 +277,18 @@ export default function CheckoutPage() {
               Smart Canteen &bull; Order Confirmation
             </p>
           </div>
+
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            @keyframes fireworkLaunch {
+              0% { transform: translateY(0) scale(0.5); opacity: 1; }
+              40% { transform: translateY(-160px) scale(1.5); opacity: 0.9; }
+              100% { transform: translateY(-350px) scale(0); opacity: 0; }
+            }
+          `,
+            }}
+          />
         </main>
       </>
     );
@@ -282,6 +335,11 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-bold text-gray-800 truncate">{item.name}</h4>
+                    {item.mealName && (
+                      <p className="text-[10px] text-orange-400 font-semibold mt-0.5">
+                        {item.mealName}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                       <PtsDisplay amount={item.price} /> each
                     </p>

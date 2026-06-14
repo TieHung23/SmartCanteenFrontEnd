@@ -8,6 +8,8 @@ export interface CartItem extends CreateOrderItem {
   price: number;
   imgUrl?: string;
   description?: string;
+  mealId?: string;
+  mealName?: string;
 }
 
 interface CartContextType {
