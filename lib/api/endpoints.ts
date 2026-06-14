@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     LOGOUT: "/api/Auth/logout",
     REFRESH_TOKEN: "/api/Auth/refresh-token",
     ME: "/api/Auth/me",
+    VERIFY_EMAIL: "/api/Auth/verify-email",
   },
   MEAL: {
     LIST: "/api/Meals",
@@ -31,5 +32,18 @@ export const API_ENDPOINTS = {
     CREATE: "/api/Orders",
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
+  },
+  PAYMENT: {
+    TOP_UP: "/api/payments/top-up",
+    GET: (id: string) => `/api/payments/${id}`,
+  },
+  WALLET: {
+    TRANSACTIONS: "/api/wallet/transactions",
+    GET: (id: string) => `/api/wallet/transactions/${id}`,
+  },
+  REFUND: {
+    LIST: "/api/refunds",
+    CREATE: "/api/refunds",
+    GET: (id: string) => `/api/refunds/${id}`,
   },
 } as const;

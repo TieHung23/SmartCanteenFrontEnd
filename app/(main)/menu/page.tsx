@@ -217,6 +217,42 @@ function MenuContent() {
           </div>
         </div>
 
+        {/* Meal Templates Info */}
+        {mealDetail?.mealTemplates && mealDetail.mealTemplates.length > 0 && (
+          <div className="max-w-7xl mx-auto px-6 md:px-12 mt-8 mb-4">
+            <div className="bg-white border border-orange-100 rounded-2xl p-5">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                Tray Configuration Rules
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {mealDetail.mealTemplates.map((template, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100/50"
+                  >
+                    <p className="text-sm font-bold text-[#D35400]">{template.name}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {template.settings.map((setting, sidx) => {
+                        const cat = categories.find((c) => c.id === setting.categoryId);
+                        const catName = cat?.name || setting.categoryId.slice(0, 6);
+                        return (
+                          <span
+                            key={sidx}
+                            className="text-[10px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-md border border-orange-100"
+                          >
+                            {catName}: {setting.isRequired ? "Required" : "Optional"} (
+                            {setting.minQuantity}-{setting.maxQuantity})
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="w-full max-w-[1500px] mx-auto px-6 md:px-12 mt-16">
           {isLoading ? (
             <div className="flex justify-center py-16">

@@ -1,11 +1,16 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Bell, ShoppingCart, LogOut } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 import { useCart } from "@/context/cart-context";
 export default function Navbar() {
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [userData, setUserData] = useState<UserProfileResponse | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -107,7 +112,7 @@ export default function Navbar() {
           >
             <ShoppingCart className="w-5 h-5 transition-transform group-hover:scale-105" />
 
-            {totalCount > 0 && (
+            {mounted && totalCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-[#D35400] text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center border-2 border-white animate-bounceIn">
                 {totalCount}
               </span>

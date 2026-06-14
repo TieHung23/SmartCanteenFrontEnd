@@ -3,9 +3,27 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Navbar from "@/components/layout/Navbar";
-import { User, Lock, LogOut, CheckCircle2, Wallet, Paintbrush, Wifi } from "lucide-react";
+import {
+  User,
+  Lock,
+  LogOut,
+  CheckCircle2,
+  Wallet,
+  Paintbrush,
+  Plus,
+  CreditCard,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Loader2,
+} from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
+import {
+  paymentService,
+  type TopUpResponse,
+  type WalletTransaction,
+} from "@/services/payment.service";
 import { toast } from "sonner";
+
 const getRoleName = (roleId: number) => {
   switch (roleId) {
     case 1:
@@ -82,6 +100,15 @@ const cardThemes = [
   },
 ];
 
+const PAYMENT_METHODS = [
+  { id: 1, name: "MoMo" },
+  { id: 2, name: "ZaloPay" },
+  { id: 3, name: "VNPay" },
+  { id: 4, name: "SePay (Bank Transfer)" },
+];
+
+type WalletTab = "overview" | "topup";
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [originalProfile, setOriginalProfile] = useState<UserProfileResponse | null>(null);
@@ -90,34 +117,25 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"personal" | "wallet">("personal");
   const [selectedTheme, setSelectedTheme] = useState(cardThemes[0]);
 
+  const [walletTab, setWalletTab] = useState<WalletTab>("overview");
+  const [topUpAmount, setTopUpAmount] = useState(50000);
+  const [topUpMethod, setTopUpMethod] = useState(1);
+  const [isTopUpping, setIsTopUpping] = useState(false);
+  const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response: any = await userService.getProfile();
-
-        // 📦 1. Bóc vỏ Envelope .NET
+        const response = (await userService.getProfile()) as unknown as UserProfileResponse & {
+          value?: UserProfileResponse;
+        };
         const profileData = response?.value || response;
-
-        // 🔬 2. IN THẲNG RA CONSOLE ĐỂ NHÌN TÊN BIẾN TIỀN
-        console.log("💳 [DATA THÔ TỪ SERVER ME]:", profileData);
-
-        // 🔀 3. Ép đọc cả 2 kiểu chữ (Viết hoa / Viết thường) để không sợ Backend đặt tên lệch
-        const balance =
-          profileData?.balanceAmount ?? profileData?.BalanceAmount ?? profileData?.balance ?? 0;
-
+        const balance = profileData?.balanceAmount ?? 0;
         const data = normalizeProfile(profileData);
-
-        // Gán đè số tiền vừa bẫy được vào state profile
-        setProfile({
-          ...data,
-          balanceAmount: Number(balance),
-        });
-
-        setOriginalProfile({
-          ...data,
-          balanceAmount: Number(balance),
-        });
+        setProfile({ ...data, balanceAmount: Number(balance) });
+        setOriginalProfile({ ...data, balanceAmount: Number(balance) });
       } catch (error) {
         console.error("Failed to fetch profile:", error);
       } finally {
@@ -126,6 +144,18 @@ export default function ProfilePage() {
     };
     fetchProfile();
   }, []);
+
+  const fetchTransactions = async () => {
+    setIsLoadingTx(true);
+    try {
+      const result = await paymentService.getWalletTransactions({ pageSize: 50 });
+      setTransactions(result.items || []);
+    } catch {
+      setTransactions([]);
+    } finally {
+      setIsLoadingTx(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -141,8 +171,7 @@ export default function ProfilePage() {
     if (!profile || !originalProfile) return;
     setIsSaving(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await userService.updateProfile({
+      const response = (await userService.updateProfile({
         name: profile.name,
         phoneNumber: profile.phoneNumber,
         dateOfBirth: profile.dateOfBirth,
@@ -151,13 +180,10 @@ export default function ProfilePage() {
         studentId: profile.studentId,
         majorOrClass: profile.majorOrClass,
         imgUrl: profile.imgUrl,
-      });
+      })) as unknown as UserProfileResponse & { value?: UserProfileResponse };
 
       const updatedData = response?.value || response;
-
       const updated = normalizeProfile(updatedData);
-
-      // Quét tìm các trường thay đổi
       const changedFields: string[] = [];
       if (profile.name !== originalProfile.name) changedFields.push("Full Name");
       if (profile.phoneNumber !== originalProfile.phoneNumber) changedFields.push("Phone Number");
@@ -170,14 +196,13 @@ export default function ProfilePage() {
       const originalBirth = originalProfile.dateOfBirth?.split("T")[0];
       if (currentBirth !== originalBirth) changedFields.push("Date of Birth");
 
-      // Bắn toast bằng sonner cực mượt
       if (changedFields.length > 0) {
         if (changedFields.length <= 2) {
           changedFields.forEach((field) => {
-            toast.success(`Updated ${field} successfully! 🎉`);
+            toast.success(`Updated ${field} successfully!`);
           });
         } else {
-          toast.success(`Profile updated: ${changedFields.join(", ")} 🎉`);
+          toast.success(`Profile updated: ${changedFields.join(", ")}`);
         }
       } else {
         toast.info("No changes detected.");
@@ -199,6 +224,30 @@ export default function ProfilePage() {
     window.location.href = "/login";
   };
 
+  const handleTopUp = async () => {
+    if (topUpAmount < 10000) {
+      toast.error("Minimum top-up is 10,000 VND");
+      return;
+    }
+    setIsTopUpping(true);
+    try {
+      const result = await paymentService.topUpWallet({
+        amountVnd: topUpAmount,
+        method: topUpMethod,
+      });
+      setTopUpResult(result);
+      if (result.payUrl) {
+        window.open(result.payUrl, "_blank");
+      }
+      toast.success("Top-up request created!");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(err?.response?.data?.message || err?.message || "Top-up failed");
+    } finally {
+      setIsTopUpping(false);
+    }
+  };
+
   const s = (v: string | null | undefined) => v ?? "";
 
   if (isLoading) {
@@ -212,7 +261,7 @@ export default function ProfilePage() {
   if (!profile)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500 font-sans">
-        Vui lòng đăng nhập để xem thông tin.
+        Please log in to view your profile.
       </div>
     );
 
@@ -221,7 +270,7 @@ export default function ProfilePage() {
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-12 px-4 sm:px-6 font-sans">
         <div className="max-w-[1100px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* ─── CỘT TRÁI ─── */}
+          {/* LEFT COLUMN */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col items-center">
               <div className="relative w-28 h-28 mb-4">
@@ -241,7 +290,6 @@ export default function ProfilePage() {
                 {getRoleName(profile.role)}
               </p>
 
-              {/* Tabs */}
               <div className="w-full mt-8 flex flex-col gap-2">
                 <button
                   onClick={() => setActiveTab("personal")}
@@ -252,11 +300,14 @@ export default function ProfilePage() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab("wallet")}
+                  onClick={() => {
+                    setActiveTab("wallet");
+                    fetchTransactions();
+                  }}
                   className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
                     ${activeTab === "wallet" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                 >
-                  <Wallet className="w-5 h-5" /> My Wallet &amp; Card
+                  <Wallet className="w-5 h-5" /> My Wallet & Card
                 </button>
 
                 <div className="h-px w-full bg-gray-100 my-2" />
@@ -275,13 +326,12 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* ─── CỘT PHẢI ─── */}
+          {/* RIGHT COLUMN */}
           <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[600px]">
             {activeTab === "personal" && (
               <div className="animate-fadeIn">
                 <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Personal Information</h3>
 
-                {/* Gender */}
                 <div className="flex items-center gap-8 mb-8">
                   {[
                     { val: 1, label: "Male" },
@@ -429,92 +479,346 @@ export default function ProfilePage() {
 
             {/* TAB 2: WALLET */}
             {activeTab === "wallet" && (
-              <div className="animate-fadeIn flex flex-col h-full">
-                <div className="flex items-center justify-between mb-10 border-b border-gray-100 pb-6">
-                  <h3 className="text-2xl font-extrabold text-gray-800">Digital Wallet</h3>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-                      Available Balance
-                    </p>
-                    <p className="text-3xl font-black text-[#D35400]">
-                      {new Intl.NumberFormat("vi-VN").format(profile.balanceAmount)}{" "}
-                      <span className="text-lg text-orange-400">pts</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Virtual Card */}
-                <div className="w-full max-w-md mx-auto mb-12">
-                  <div
-                    className={`relative w-full aspect-[1.586] rounded-[1.5rem] p-6 md:p-8 text-white flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.02] ${selectedTheme.background} ${selectedTheme.shadow}`}
+              <div className="animate-fadeIn">
+                {/* Wallet Sub-tabs */}
+                <div className="flex gap-2 mb-6 border-b border-gray-100 pb-4">
+                  <button
+                    onClick={() => {
+                      setWalletTab("overview");
+                      fetchTransactions();
+                    }}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      walletTab === "overview"
+                        ? "bg-orange-50 text-[#D35400]"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
                   >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-20 -mt-20 blur-2xl pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-black opacity-10 rounded-full -ml-10 -mb-10 blur-xl pointer-events-none" />
-
-                    <div className="flex justify-between items-start relative z-10">
-                      <div className="w-12 h-9 rounded bg-gradient-to-br from-yellow-100 to-yellow-500 opacity-90 shadow-inner flex flex-col justify-around py-1 px-1">
-                        <div className="w-full h-[1px] bg-yellow-700/40" />
-                        <div className="w-full h-[1px] bg-yellow-700/40" />
-                        <div className="w-full h-[1px] bg-yellow-700/40" />
-                      </div>
-                      <Wifi className="w-8 h-8 opacity-70 rotate-90 drop-shadow-md" />
-                    </div>
-
-                    <div className="relative z-10 mt-6 md:mt-8">
-                      <p className="font-mono text-xl md:text-2xl tracking-[0.2em] font-medium opacity-90 drop-shadow-md">
-                        **** **** ****{" "}
-                        {s(profile.studentId || profile.id?.substring(0, 4) || "0000")
-                          .toUpperCase()
-                          .slice(-4)}
-                      </p>
-                      <div className="flex justify-between items-end mt-4 md:mt-6">
-                        <div>
-                          <p className="text-[10px] uppercase tracking-widest opacity-60 font-bold mb-1">
-                            Card Holder
-                          </p>
-                          <p className="font-bold tracking-widest uppercase truncate max-w-[200px] drop-shadow-md">
-                            {profile.name}
-                          </p>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-red-500 opacity-80 mix-blend-screen" />
-                          <div className="w-8 h-8 rounded-full bg-yellow-400 opacity-80 mix-blend-screen -ml-4" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    Overview
+                  </button>
+                  <button
+                    onClick={() => setWalletTab("topup")}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      walletTab === "topup"
+                        ? "bg-orange-50 text-[#D35400]"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    Top Up
+                  </button>
                 </div>
 
-                {/* Theme Picker */}
-                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                  <div className="flex items-center gap-2 mb-5">
-                    <Paintbrush className="w-5 h-5 text-gray-500" />
-                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Customize Card Theme
-                    </h4>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {cardThemes.map((theme) => (
-                      <button
-                        key={theme.id}
-                        onClick={() => setSelectedTheme(theme)}
-                        className={`flex flex-col items-center gap-3 p-3 rounded-xl transition-all duration-300
-                          ${
-                            selectedTheme.id === theme.id
-                              ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.08)] ring-2 ring-[#D35400] scale-105 z-10"
-                              : "hover:bg-white hover:shadow-sm"
-                          }`}
+                {walletTab === "overview" && (
+                  <>
+                    <div className="flex items-center justify-between mb-8">
+                      <h3 className="text-2xl font-extrabold text-gray-800">Digital Wallet</h3>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                          Available Balance
+                        </p>
+                        <div className="flex items-center justify-end gap-2">
+                          <p className="text-3xl font-black text-[#D35400]">
+                            {new Intl.NumberFormat("vi-VN").format(profile.balanceAmount)}
+                          </p>
+                          <div
+                            className="relative w-7 h-7 select-none animate-bounce"
+                            style={{ animationDuration: "3s" }}
+                          >
+                            <Image
+                              src="/logo_point.png"
+                              alt="F-Point Coin"
+                              fill
+                              sizes="28px"
+                              className="object-contain drop-shadow-[0_2px_4px_rgba(211,84,0,0.2)]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Virtual Digital Pass */}
+                    <div className="w-full max-w-md mx-auto mb-12">
+                      <div
+                        className={`relative w-full aspect-[1.586] rounded-[2rem] p-6 md:p-8 text-white flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.02] ${selectedTheme.background} ${selectedTheme.shadow}`}
                       >
-                        <div
-                          className={`w-full h-10 rounded-lg ${theme.background} shadow-inner`}
-                        />
-                        <span className="text-[10px] font-bold text-gray-500 text-center uppercase leading-tight">
-                          {theme.name}
-                        </span>
-                      </button>
-                    ))}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none" />
+                        <div className="absolute -bottom-10 -left-10 w-52 h-52 bg-black opacity-15 rounded-full blur-2xl pointer-events-none" />
+
+                        <div className="flex justify-between items-center relative z-10">
+                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-sm">
+                            <Wallet className="w-5 h-5 text-white" />
+                            <span className="text-[10px] font-black tracking-wider uppercase opacity-90">
+                              Canteen Pass
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-black bg-black/20 backdrop-blur-xs px-2.5 py-1 rounded-md tracking-widest opacity-80 uppercase">
+                            Virtual Only
+                          </div>
+                        </div>
+
+                        <div className="relative z-10 mt-4">
+                          <p className="font-mono text-lg md:text-xl tracking-[0.15em] font-black uppercase opacity-90 drop-shadow-md bg-white/10 backdrop-blur-xs py-1.5 px-4 rounded-xl inline-block border border-white/10 shadow-inner">
+                            {profile.studentId && profile.studentId.trim() !== ""
+                              ? profile.studentId.toUpperCase()
+                              : "STUDENT PASS"}
+                          </p>
+
+                          <div className="flex justify-between items-end mt-4">
+                            <div>
+                              <p className="text-[9px] uppercase tracking-widest opacity-60 font-bold mb-0.5">
+                                Pass Holder
+                              </p>
+                              <p className="font-bold tracking-widest uppercase truncate max-w-[220px] drop-shadow-md text-sm md:text-base">
+                                {profile.name}
+                              </p>
+                            </div>
+                            <div className="relative w-9 h-9 rounded-full bg-white/10 backdrop-blur-xs border border-white/20 p-1.5 flex items-center justify-center">
+                              <div className="relative w-full h-full opacity-90">
+                                <Image
+                                  src="/logo_point.png"
+                                  alt="Watermark Logo"
+                                  fill
+                                  sizes="60px"
+                                  className="object-contain filter brightness-110"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Theme Picker */}
+                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                      <div className="flex items-center gap-2 mb-5">
+                        <Paintbrush className="w-5 h-5 text-gray-500" />
+                        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                          Customize Pass Theme
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {cardThemes.map((theme) => (
+                          <button
+                            key={theme.id}
+                            onClick={() => setSelectedTheme(theme)}
+                            className={`flex flex-col items-center gap-3 p-3 rounded-xl transition-all duration-300
+                              ${
+                                selectedTheme.id === theme.id
+                                  ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.08)] ring-2 ring-[#D35400] scale-105 z-10"
+                                  : "hover:bg-white hover:shadow-sm"
+                              }`}
+                          >
+                            <div
+                              className={`w-full h-10 rounded-lg ${theme.background} shadow-inner`}
+                            />
+                            <span className="text-[10px] font-bold text-gray-500 text-center uppercase leading-tight">
+                              {theme.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Transaction History */}
+                    <div className="mt-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                          Transaction History
+                        </h4>
+                        <button
+                          onClick={fetchTransactions}
+                          className="text-[10px] font-bold text-[#D35400] hover:text-[#B34700] transition-colors"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+                      {isLoadingTx ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-[#D35400]" />
+                        </div>
+                      ) : transactions.length === 0 ? (
+                        <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                          <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-gray-500">No transactions yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                          {transactions.map((tx) => {
+                            const isCredit = tx.amount > 0;
+                            const typeLabels: Record<number, string> = {
+                              1: "Top Up",
+                              2: "Order Payment",
+                              3: "Refund",
+                            };
+                            return (
+                              <div
+                                key={tx.id}
+                                className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                                      isCredit ? "bg-orange-100" : "bg-red-100"
+                                    }`}
+                                  >
+                                    {isCredit ? (
+                                      <ArrowDownLeft className="w-4 h-4 text-[#D35400]" />
+                                    ) : (
+                                      <ArrowUpRight className="w-4 h-4 text-red-500" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-800">
+                                      {typeLabels[tx.transactionType] ||
+                                        `Type ${tx.transactionType}`}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400">
+                                      {new Date(tx.createdAtUtc).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p
+                                    className={`text-sm font-black ${
+                                      isCredit ? "text-[#D35400]" : "text-red-500"
+                                    }`}
+                                  >
+                                    {isCredit ? "+" : ""}
+                                    {new Intl.NumberFormat("vi-VN").format(tx.amount)} pts
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">
+                                    Bal: {new Intl.NumberFormat("vi-VN").format(tx.balanceAfter)}{" "}
+                                    pts
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {walletTab === "topup" && (
+                  <div className="max-w-md mx-auto">
+                    <h3 className="text-xl font-extrabold text-gray-800 mb-2">Top Up Wallet</h3>
+                    <p className="text-sm text-gray-400 mb-8">
+                      Add points to your wallet to pay for meals.
+                    </p>
+
+                    {topUpResult ? (
+                      <div className="space-y-4">
+                        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center">
+                          <CheckCircle2 className="w-12 h-12 text-[#D35400] mx-auto mb-3" />
+                          <p className="text-lg font-bold text-[#B34700]">Top-up Created!</p>
+                          <p className="text-sm text-orange-500 mt-2">
+                            {new Intl.NumberFormat("vi-VN").format(topUpResult.amountVnd)} VND →{" "}
+                            {new Intl.NumberFormat("vi-VN").format(topUpResult.convertedPoints)} pts
+                          </p>
+                          <p className="text-xs text-gray-400 mt-2">Status: {topUpResult.status}</p>
+                        </div>
+                        {topUpResult.payUrl && (
+                          <a
+                            href={topUpResult.payUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl text-center transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)]"
+                          >
+                            Open Payment Gateway
+                          </a>
+                        )}
+                        <button
+                          onClick={() => {
+                            setTopUpResult(null);
+                            setTopUpAmount(50000);
+                          }}
+                          className="w-full py-3 bg-white text-gray-500 font-bold text-sm rounded-xl border border-gray-200"
+                        >
+                          Make Another Top-up
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div>
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+                            Amount (VND)
+                          </label>
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            {[20000, 50000, 100000, 200000, 500000].map((amt) => (
+                              <button
+                                key={amt}
+                                onClick={() => setTopUpAmount(amt)}
+                                className={`py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                                  topUpAmount === amt
+                                    ? "bg-orange-50 border-orange-300 text-[#D35400]"
+                                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                                }`}
+                              >
+                                {new Intl.NumberFormat("vi-VN").format(amt)}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="number"
+                            value={topUpAmount}
+                            onChange={(e) => setTopUpAmount(Number(e.target.value) || 0)}
+                            min={10000}
+                            step={10000}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200"
+                          />
+                          <p className="text-xs text-gray-400 mt-2">
+                            You will receive approximately{" "}
+                            {new Intl.NumberFormat("vi-VN").format(Math.floor(topUpAmount / 1000))}{" "}
+                            points
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
+                            Payment Method
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {PAYMENT_METHODS.map((pm) => (
+                              <button
+                                key={pm.id}
+                                onClick={() => setTopUpMethod(pm.id)}
+                                className={`p-4 rounded-xl text-sm font-bold transition-all border ${
+                                  topUpMethod === pm.id
+                                    ? "bg-orange-50 border-orange-300 text-[#D35400] ring-1 ring-orange-200"
+                                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                                }`}
+                              >
+                                {pm.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleTopUp}
+                          disabled={isTopUpping || topUpAmount < 10000}
+                          className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isTopUpping ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4" /> Top Up{" "}
+                              {new Intl.NumberFormat("vi-VN").format(topUpAmount)} VND
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>

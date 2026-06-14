@@ -1,9 +1,10 @@
 import apiClient from "@/lib/api/client";
-import type { ApiResponse } from "./meal.service"; // Tái sử dụng envelope chuẩn từ meal.service
+import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import type { ApiResponse } from "./meal.service";
 
 export interface TopUpRequest {
   amountVnd: number;
-  method: number; // 1: Momo, 2: ZaloPay, 3: VnPay, 4: SePay
+  method: number;
 }
 
 export interface TopUpResponse {
@@ -14,19 +15,96 @@ export interface TopUpResponse {
   status: string;
   gatewayOrderId: string;
   paymentContent: string;
-  payUrl: string; // Link chuyển hướng sang cổng thanh toán
+  payUrl: string | null;
+}
+
+export interface PaymentDetail {
+  paymentId: string;
+  userId: string;
+  gatewayOrderId: string;
+  gatewayTransactionId: string | null;
+  amountVnd: number;
+  convertedPoints: number;
+  method: number;
+  type: number;
+  status: string;
+  failureReason: string | null;
+  createdAtUtc: string;
+  completedAtUtc: string | null;
+}
+
+export interface WalletTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  transactionType: number;
+  paymentId: string | null;
+  createdAtUtc: string;
 }
 
 export const paymentService = {
   topUpWallet: async (data: TopUpRequest): Promise<TopUpResponse> => {
     try {
       const response = (await apiClient.post<ApiResponse<TopUpResponse>>(
-        "/api/payments/top-up",
+        API_ENDPOINTS.PAYMENT.TOP_UP,
         data,
       )) as unknown as ApiResponse<TopUpResponse>;
       return response.value;
     } catch (error) {
-      console.error("Lỗi khi tạo giao dịch nạp tiền:", error);
+      console.error("Error when creating top-up transaction:", error);
+      throw error;
+    }
+  },
+
+  getPaymentDetail: async (id: string): Promise<PaymentDetail> => {
+    try {
+      const response = (await apiClient.get<ApiResponse<PaymentDetail>>(
+        API_ENDPOINTS.PAYMENT.GET(id),
+      )) as unknown as ApiResponse<PaymentDetail>;
+      return response.value;
+    } catch (error) {
+      console.error("Error when fetching payment detail:", error);
+      throw error;
+    }
+  },
+
+  getWalletTransactions: async (params?: {
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: WalletTransaction[];
+    pageNumber: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  }> => {
+    try {
+      const response = (await apiClient.get<
+        ApiResponse<{
+          items: WalletTransaction[];
+          pageNumber: number;
+          pageSize: number;
+          totalCount: number;
+          totalPages: number;
+          hasPreviousPage: boolean;
+          hasNextPage: boolean;
+        }>
+      >(API_ENDPOINTS.WALLET.TRANSACTIONS, { params })) as unknown as ApiResponse<{
+        items: WalletTransaction[];
+        pageNumber: number;
+        pageSize: number;
+        totalCount: number;
+        totalPages: number;
+        hasPreviousPage: boolean;
+        hasNextPage: boolean;
+      }>;
+      return response.value;
+    } catch (error) {
+      console.error("Error when fetching wallet transactions:", error);
       throw error;
     }
   },
