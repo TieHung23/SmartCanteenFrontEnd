@@ -1052,11 +1052,9 @@ function DishGrid({
             notInTemplate={notInTemplate}
             canOrder={canOrder}
             noTemplateChosen={noTemplateChosen}
-            catExpired={catExpired}
             expired={expired}
             canAddMore={canAddMore}
             setting={setting}
-            cartCount={cartCount}
             categoryName={categoryName}
             categoryId={categoryId}
             sessionId={sessionId}
