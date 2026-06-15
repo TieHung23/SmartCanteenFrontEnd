@@ -39,6 +39,16 @@ const nextConfig: NextConfig = {
         hostname: "lh3.googleusercontent.com", // Cực kỳ quan trọng để hiện avatar tài khoản Google OAuth
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "qr.sepay.vn",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.sepay.vn",
+        pathname: "/**",
+      },
     ],
   },
 };

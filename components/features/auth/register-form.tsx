@@ -1,7 +1,6 @@
 "use client";
 
 import type { AxiosError } from "axios";
-
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,15 +15,18 @@ import { RegisterBodyType, RegisterSchema } from "@/types/auth.types";
 
 export const RegisterForm = () => {
   const router = useRouter();
-  const getError = (key: string) =>
-    (errors as unknown as Record<string, { message?: string } | undefined>)[key]?.message;
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<RegisterBodyType & Record<string, unknown>>({
+  } = useForm<RegisterBodyType & { category?: number }>({
     resolver: zodResolver(RegisterSchema) as never,
   });
+
+  const getError = (key: string) => {
+    const fieldError = (errors as Record<string, { message?: string } | undefined>)[key];
+    return fieldError?.message;
+  };
 
   const registerMutation = useMutation({
     mutationFn: (data: RegisterBodyType) => authService.register(data),
@@ -35,20 +37,82 @@ export const RegisterForm = () => {
       );
       router.push(ROUTES.LOGIN);
     },
-    onError: (error: AxiosError<{ message?: string }>) => {
-      toast.error(error.response?.data?.message || "Registration failed");
+    onError: (error: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
+      const serverMsg = error.response?.data?.message;
+      const serverErrors = error.response?.data?.errors;
+      if (serverErrors) {
+        const msgs = Object.entries(serverErrors).map(([field, errs]) =>
+          errs.map((e) => `${field}: ${e}`).join("\n"),
+        );
+        toast.error(msgs.join("\n"));
+      } else {
+        toast.error(serverMsg || "Registration failed. Please check all fields.");
+      }
     },
   });
 
   const onSubmit = (data: RegisterBodyType) => {
-    registerMutation.mutate(data);
+    if (!data.name || data.name.trim() === "") {
+      toast.error("Please enter your Full Name.");
+      return;
+    }
+
+    if (!data.studentId || data.studentId.trim() === "") {
+      toast.error("Please enter your Student ID.");
+      return;
+    }
+
+    if (!data.phoneNumber || data.phoneNumber.trim() === "") {
+      toast.error("Please enter your Phone Number.");
+      return;
+    }
+
+    if (!data.dateOfBirth || data.dateOfBirth.trim() === "") {
+      toast.error("Please select your Birthday.");
+      return;
+    }
+
+    if (!data.majorOrClass || data.majorOrClass.trim() === "") {
+      toast.error("Please enter your Major / Class.");
+      return;
+    }
+
+    if (!data.address || data.address.trim() === "") {
+      toast.error("Please enter your Address.");
+      return;
+    }
+
+    const formattedDate = data.dateOfBirth.split("T")[0];
+
+    const sanitizedData = {
+      ...data,
+      studentId: data.studentId.trim(),
+      majorOrClass: data.majorOrClass.trim(),
+      phoneNumber: data.phoneNumber.trim(),
+      address: data.address.trim(),
+      dateOfBirth: formattedDate,
+    };
+
+    registerMutation.mutate(sanitizedData);
   };
 
   return (
     <div className="w-full space-y-4">
-      {" "}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <input type="hidden" defaultValue={1} {...register("category", { valueAsNumber: true })} />
+
+        {Object.keys(errors).length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-xs font-bold text-red-600 mb-1">Vui long sua cac loi sau:</p>
+            <ul className="list-disc list-inside text-[11px] text-red-500 space-y-0.5">
+              {Object.entries(errors).map(([key, err]) => (
+                <li key={key}>
+                  {key}: {(err as { message?: string })?.message || "Invalid"}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>

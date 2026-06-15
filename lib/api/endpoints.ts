@@ -3,7 +3,7 @@ export const API_ENDPOINTS = {
     LOGIN: "/api/Auth/login",
     REGISTER: "/api/Auth/register",
     LOGOUT: "/api/Auth/logout",
-    REFRESH_TOKEN: "/api/Auth/refresh-token",
+    REFRESH_TOKEN: "/api/Auth/refresh",
     ME: "/api/Auth/me",
     VERIFY_EMAIL: "/api/Auth/verify-email",
   },
@@ -38,12 +38,16 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/payments/${id}`,
   },
   WALLET: {
-    TRANSACTIONS: "/api/wallet/transactions",
-    GET: (id: string) => `/api/wallet/transactions/${id}`,
+    TRANSACTIONS: "/api/Wallet/transactions",
+    GET: (id: string) => `/api/Wallet/transactions/${id}`,
   },
   REFUND: {
     LIST: "/api/refunds",
     CREATE: "/api/refunds",
     GET: (id: string) => `/api/refunds/${id}`,
+  },
+  VERIFICATION: {
+    SUBMIT: "/api/Verification/submit",
+    ME: "/api/Verification/me",
   },
 } as const;

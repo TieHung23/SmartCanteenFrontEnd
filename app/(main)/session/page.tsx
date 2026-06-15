@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useMeals } from "@/lib/hooks/useMeals";
-import { cn } from "@/lib/utils";
+import { cn, isSessionActive, isSessionExpired } from "@/lib/utils";
 import Navbar from "@/components/layout/Navbar";
 import Image from "next/image";
 import Link from "next/link";
@@ -273,61 +273,93 @@ export default function SessionPage() {
                   const type = getSessionType(meal.availableFrom);
                   const tag = SESSION_TAGS[type];
                   const icon = SESSION_ICONS[type];
+                  const expired = isSessionExpired(meal.availableTo);
+                  const active = isSessionActive(meal.availableFrom, meal.availableTo);
 
-                  return (
-                    <Link href={`/menu?sessionId=${meal.id}`} key={meal.id} className="block group">
-                      <div className="relative bg-white border-2 border-gray-100/60 rounded-3xl p-6 md:p-8 flex items-center gap-6 hover:border-orange-200 hover:shadow-[0_15px_40px_-10px_rgba(211,84,0,0.1)] transition-all duration-300 overflow-hidden min-h-[160px]">
-                        <div
-                          className="absolute left-0 top-0 bottom-0 w-2 rounded-l-3xl transition-colors duration-300"
-                          style={{ background: tag.accent }}
-                        />
+                  const cardContent = (
+                    <div
+                      className={`relative border-2 rounded-3xl p-6 md:p-8 flex items-center gap-6 transition-all duration-300 overflow-hidden min-h-[160px] ${
+                        expired
+                          ? "bg-gray-50 border-gray-200 opacity-60"
+                          : "bg-white border-gray-100/60 group-hover:border-orange-200 group-hover:shadow-[0_15px_40px_-10px_rgba(211,84,0,0.1)]"
+                      }`}
+                    >
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-2 rounded-l-3xl transition-colors duration-300"
+                        style={{ background: expired ? "#9CA3AF" : tag.accent }}
+                      />
 
-                        <div
-                          className="w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center text-4xl md:text-5xl flex-shrink-0 ml-3 shadow-sm border border-gray-50"
-                          style={{ background: tag.iconBg }}
-                        >
-                          {icon}
-                        </div>
+                      <div
+                        className="w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center text-4xl md:text-5xl flex-shrink-0 ml-3 shadow-sm border border-gray-50"
+                        style={{ background: expired ? "#F3F4F6" : tag.iconBg }}
+                      >
+                        {expired ? "⏳" : icon}
+                      </div>
 
-                        <div className="flex-1 min-w-0 py-2">
+                      <div className="flex-1 min-w-0 py-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          {expired ? (
+                            <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-gray-200 text-gray-500">
+                              EXPIRED
+                            </span>
+                          ) : active ? (
+                            <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-green-100 text-green-700">
+                              ACTIVE
+                            </span>
+                          ) : (
+                            <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-blue-100 text-blue-700">
+                              UPCOMING
+                            </span>
+                          )}
                           <span
-                            className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg mb-2"
-                            style={{ background: tag.bg, color: tag.color }}
+                            className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg"
+                            style={{
+                              background: expired ? "#F3F4F6" : tag.bg,
+                              color: expired ? "#9CA3AF" : tag.color,
+                            }}
                           >
                             {tag.label}
                           </span>
-
-                          <p className="text-xl md:text-2xl font-bold text-gray-800 truncate leading-snug mb-2 group-hover:text-[#D35400] transition-colors">
-                            {meal.name}
-                          </p>
-
-                          {meal.description && (
-                            <p className="text-base text-gray-500 truncate mb-3">
-                              {meal.description}
-                            </p>
-                          )}
-
-                          <div
-                            className="flex items-center gap-2 text-base font-semibold"
-                            style={{ color: tag.color }}
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            {formatTime(meal.availableFrom)} – {formatTime(meal.availableTo)}
-                          </div>
                         </div>
 
+                        <p
+                          className={`text-xl md:text-2xl font-bold truncate leading-snug mb-2 transition-colors ${
+                            expired ? "text-gray-400" : "text-gray-800"
+                          }`}
+                        >
+                          {meal.name}
+                        </p>
+
+                        {meal.description && (
+                          <p
+                            className={`text-base truncate mb-3 ${expired ? "text-gray-300" : "text-gray-500"}`}
+                          >
+                            {meal.description}
+                          </p>
+                        )}
+
+                        <div
+                          className="flex items-center gap-2 text-base font-semibold"
+                          style={{ color: expired ? "#9CA3AF" : tag.color }}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                          {formatTime(meal.availableFrom)} – {formatTime(meal.availableTo)}
+                        </div>
+                      </div>
+
+                      {!expired && (
                         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:bg-[#D35400] transition-colors duration-300 mr-2">
                           <svg
                             className="w-5 h-5 md:w-6 md:h-6 text-gray-400 group-hover:text-white transition-colors"
@@ -341,7 +373,21 @@ export default function SessionPage() {
                             <polyline points="9 18 15 12 9 6" />
                           </svg>
                         </div>
+                      )}
+                    </div>
+                  );
+
+                  if (expired) {
+                    return (
+                      <div key={meal.id} className="block cursor-not-allowed">
+                        {cardContent}
                       </div>
+                    );
+                  }
+
+                  return (
+                    <Link href={`/menu?sessionId=${meal.id}`} key={meal.id} className="block group">
+                      {cardContent}
                     </Link>
                   );
                 })}

@@ -10,6 +10,9 @@ export interface CartItem extends CreateOrderItem {
   description?: string;
   mealId?: string;
   mealName?: string;
+  categoryId?: string;
+  categoryName?: string;
+  mealTime?: string;
 }
 
 interface CartContextType {
@@ -64,7 +67,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prevItems, { ...item, quantity: qty }];
     });
-    setIsCartOpen(true);
+    if (!isCartOpen) {
+      setIsCartOpen(true);
+    }
   };
 
   const removeFromCart = (dishId: string) => {
