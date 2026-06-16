@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { StatsGrid } from "./_components/stats-grid";
 import { AlertTriangle, Cpu, RefreshCw } from "lucide-react";
 import apiClient from "@/lib/api/client";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useGlobalSearch } from "@/lib/stores/use-search";
 
 interface LiveOrder {
   id: string;
@@ -56,8 +57,35 @@ export default function StaffDashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Xử lý khi Robot lỗi giữa đơn (Mid-order failure) -> Staff làm thủ công
-  const handleManualFulfillment = async (_robotId: string, orderId: string) => {
+  const globalQuery = useGlobalSearch((s) => s.query);
+
+  const filteredLiveOrders = useMemo(() => {
+    const q = globalQuery.toLowerCase().trim();
+    if (!q) return liveOrders;
+    return liveOrders.filter((o) => {
+      const id = (o.id || "").toLowerCase();
+      const name = (o.userName || "").toLowerCase();
+      const itemsStr = (o.items || [])
+        .map((i) => i.dishName || "")
+        .join(" ")
+        .toLowerCase();
+      return id.includes(q) || name.includes(q) || itemsStr.includes(q);
+    });
+  }, [liveOrders, globalQuery]);
+
+  const filteredRobots = useMemo(() => {
+    const q = globalQuery.toLowerCase().trim();
+    if (!q) return robots;
+    return robots.filter((r) => {
+      const code = (r.code || "").toLowerCase();
+      const orderId = (r.currentOrderId || "").toLowerCase();
+      const status = (r.status || "").toLowerCase();
+      return code.includes(q) || orderId.includes(q) || status.includes(q);
+    });
+  }, [robots, globalQuery]);
+
+  const handleManualFulfillment = async (_robotId: string, orderId?: string) => {
+    if (!orderId) return;
     try {
       await apiClient.post(`/api/staff/orders/${orderId}/transitions`, {
         targetStatus: "Completed",
@@ -65,87 +93,81 @@ export default function StaffDashboardPage() {
       });
       toast({
         title: "Xử lý thủ công thành công",
-        description: `Đơn hàng #${orderId?.slice(0, 8)} đã được chuyển sang Trạng thái Hoàn thành.`,
+        description: `Đơn hàng #${orderId.slice(0, 8)} đã được chuyển sang Trạng thái Hoàn thành.`,
       });
       fetchOperationData();
     } catch {
       toast({
         title: "Lỗi hệ thống",
         description: "Không thể cập nhật trạng thái đơn hàng.",
-        variant: "destructive",
       });
     }
   };
 
   return (
-    <div className="space-y-8 p-2">
-      {/* Tiêu đề & Nút Refresh lớn */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-            Trung Tâm Điều Hành Nhà Ăn
-          </h1>
-          <p className="text-base text-gray-500 mt-1">
-            Hệ thống giám sát, phân phối thực phẩm và xử lý sự cố thời gian thực.
+          <h1 className="text-4xl font-extrabold text-gray-900">Trung Tâm Điều Hành</h1>
+          <p className="text-lg text-gray-500 mt-1.5">
+            Giám sát, phân phối thực phẩm và xử lý sự cố thời gian thực
           </p>
         </div>
         <button
           onClick={fetchOperationData}
-          className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-medium text-sm px-4 py-2.5 rounded-lg shadow transition"
+          className="inline-flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-base px-6 py-3 rounded-xl shadow-sm transition"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Làm mới dữ liệu (Live)
+          <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
+          Làm mới
         </button>
       </div>
 
-      {/* Grid thống kê kích thước lớn */}
       <StatsGrid />
 
-      {/* Layout chính: Bên trái là Live Queue, Bên phải là Trạng thái Robot & Thiết bị */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Khối Live Serving Queue */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-              Đơn hàng Đang Chế Biến / Phục Vụ Tại Quầy
+        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-5">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              Đơn Hàng Đang Chế Biến
             </h2>
-            <span className="text-xs bg-gray-100 text-gray-600 font-medium px-2.5 py-1 rounded-full">
-              {liveOrders.length} Đơn hàng
+            <span className="text-sm bg-gray-100 text-gray-600 font-semibold px-3 py-1.5 rounded-full">
+              {filteredLiveOrders.length} đơn
             </span>
           </div>
 
-          {liveOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 text-sm">
-              Hiện không có đơn hàng nào trong hàng đợi chế biến.
+          {filteredLiveOrders.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-base font-medium">
+              {globalQuery.trim()
+                ? "Không tìm thấy đơn hàng nào khớp"
+                : "Hiện không có đơn hàng nào trong hàng đợi"}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {liveOrders.map((order) => (
+              {filteredLiveOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                  className="py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-gray-900">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-base font-bold text-gray-900">
                         #{order.id?.slice(0, 8)}
                       </span>
-                      <span className="text-xs text-gray-400">|</span>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm text-gray-400">·</span>
+                      <span className="text-base font-semibold text-gray-800">
                         {order.userName || "Sinh viên"}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Món ăn:{" "}
+                    <p className="text-sm text-gray-500 leading-relaxed">
                       {order.items
                         ?.map((i) => `${i.dishName || "Món ăn"} x${i.quantity}`)
                         .join(", ")}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                    <span className="text-sm font-semibold text-[#FF4C24] mr-2">
-                      {order.totalPrice?.toLocaleString()}₫
+                  <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <span className="text-lg font-bold text-[#FF4C24]">
+                      {order.totalPrice?.toLocaleString()} P
                     </span>
                   </div>
                 </div>
@@ -154,49 +176,54 @@ export default function StaffDashboardPage() {
           )}
         </div>
 
-        {/* Khối Trạng thái Robot & Giám sát Sự cố Khẩn cấp */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-6">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
-              <Cpu className="w-5 h-5 text-gray-600" />
-              Trạng thái Cánh Tay Robot
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3 mb-5">
+              <Cpu className="w-6 h-6 text-gray-600" />
+              Robot
             </h2>
-            <div className="space-y-3">
-              {robots.map((bot) => (
-                <div
-                  key={bot.id}
-                  className="border border-gray-100 rounded-lg p-4 bg-gray-50 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-800">{bot.code}</span>
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                        bot.status === "Serving"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-700"
-                      }`}
-                    >
-                      {bot.status === "Serving" ? "Đang chạy ổn định" : "Lỗi Hệ Thống!"}
-                    </span>
-                  </div>
-
-                  {bot.status === "MidOrderFailure" && (
-                    <div className="bg-red-100/60 border border-red-200 rounded-md p-3 space-y-2">
-                      <p className="text-xs text-red-800 font-medium flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        Gặp sự cố khi đang ra món cho đơn #{bot.currentOrderId}
-                      </p>
-                      <button
-                        onClick={() => handleManualFulfillment(bot.id, bot.currentOrderId)}
-                        className="w-full text-center bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-1.5 rounded transition"
+            {filteredRobots.length === 0 ? (
+              <div className="text-center py-8 text-sm text-gray-400 font-medium">
+                {globalQuery.trim() ? "Không tìm thấy robot nào khớp" : "Không có robot nào"}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredRobots.map((bot) => (
+                  <div
+                    key={bot.id}
+                    className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-bold text-gray-800">{bot.code}</span>
+                      <span
+                        className={`text-sm px-3 py-1.5 rounded-full font-semibold ${
+                          bot.status === "Serving"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
-                        Tiếp quản thủ công & Hoàn thành đơn
-                      </button>
+                        {bot.status === "Serving" ? "Đang hoạt động" : "Lỗi!"}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+
+                    {bot.status === "MidOrderFailure" && (
+                      <div className="bg-red-100/70 border border-red-200 rounded-xl p-4 space-y-3">
+                        <p className="text-sm text-red-800 font-semibold flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          Sự cố đơn #{bot.currentOrderId}
+                        </p>
+                        <button
+                          onClick={() => handleManualFulfillment(bot.id, bot.currentOrderId)}
+                          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-sm py-2.5 rounded-xl transition shadow-xs"
+                        >
+                          Tiếp quản thủ công
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

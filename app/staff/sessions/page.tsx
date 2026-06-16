@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Loader2,
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
 import { mealService } from "@/services/meal.service";
 import { categoryService } from "@/services/category.service";
 import { toast } from "sonner";
+import { useGlobalSearch } from "@/lib/stores/use-search";
 
 interface MealItem {
   id?: string;
@@ -90,10 +91,10 @@ export default function StaffSessionsPage() {
     const initData = async () => {
       setLoading(true);
       try {
-        let categoriesList = [];
+        let categoriesList: CategoryItem[] = [];
         try {
           const categoryData = await categoryService.getAll({ pageSize: 100 });
-          categoriesList = categoryData?.items || [];
+          categoriesList = (categoryData?.items || []) as unknown as CategoryItem[];
         } catch (catErr) {
           console.warn("Không thể tải danh mục:", catErr);
         }
@@ -107,9 +108,9 @@ export default function StaffSessionsPage() {
         );
         setCategoriesMap(cateMap);
 
-        let dishesList = [];
+        let dishesList: DishInfo[] = [];
         try {
-          dishesList = await mealService.getAllDishes();
+          dishesList = (await mealService.getAllDishes()) as unknown as DishInfo[];
         } catch (dishErr) {
           console.warn("Không thể tải món ăn:", dishErr);
         }
@@ -125,16 +126,17 @@ export default function StaffSessionsPage() {
 
         const mealData = await mealService.getMeals({ pageSize: 100 });
         const activeMeals = mealData?.items || [];
-        setMeals(activeMeals);
+        setMeals(activeMeals as MealItem[]);
 
         if (activeMeals.length > 0) {
-          const firstMealId = activeMeals[0].id || activeMeals[0].Id;
+          const firstMealId = activeMeals[0].id;
           setActiveMealId(firstMealId);
 
           const initialOpenState: Record<string, boolean> = {};
-          (activeMeals[0].mealTemplates || []).forEach((template: TemplateItem) => {
+          const firstMealTemplates = (activeMeals[0] as MealItem).mealTemplates || [];
+          firstMealTemplates.forEach((template: TemplateItem) => {
             (template.settings || []).forEach((s: TemplateSetting) => {
-              initialOpenState[s.categoryId.toLowerCase()] = true;
+              if (s.categoryId) initialOpenState[s.categoryId.toLowerCase()] = true;
             });
           });
           setOpenCategories(initialOpenState);
@@ -274,6 +276,36 @@ export default function StaffSessionsPage() {
     return cleanUrl !== "" && cleanUrl !== "string" && !cleanUrl.includes(" ");
   };
 
+  const globalQuery = useGlobalSearch((s) => s.query);
+
+  const filteredMeals = useMemo(() => {
+    const q = globalQuery.toLowerCase().trim();
+    if (!q) return meals;
+    return meals.filter((m) => {
+      const name = (m.name || "").toLowerCase();
+      const desc = (m.description || "").toLowerCase();
+      const dishesText = (m.dishes || [])
+        .map((d: MealDishItem) => {
+          const dishId = (d.dishId || "").toLowerCase();
+          const dishInfo = dishesMap[dishId];
+          return (dishInfo?.name || "").toLowerCase();
+        })
+        .join(" ");
+      const categoriesText = (m.mealTemplates || [])
+        .flatMap((t: TemplateItem) =>
+          (t.settings || []).map((s: TemplateSetting) => {
+            const cateId = (s.categoryId || "").toLowerCase();
+            const cate = categoriesMap[cateId];
+            return (cate?.name || cate?.Name || "").toLowerCase();
+          }),
+        )
+        .join(" ");
+      return (
+        name.includes(q) || desc.includes(q) || dishesText.includes(q) || categoriesText.includes(q)
+      );
+    });
+  }, [meals, globalQuery, categoriesMap, dishesMap]);
+
   if (loading) {
     return (
       <div className="flex h-[75vh] flex-col items-center justify-center gap-3">
@@ -285,23 +317,23 @@ export default function StaffSessionsPage() {
     );
   }
 
-  const currentSelectedMeal = meals.find((m) => (m.id || m.Id) === activeMealId);
+  const currentSelectedMeal = meals.find((m) => m.id === activeMealId);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
       {/* Tiêu đề */}
-      <div>
-        <h1 className="text-4xl font-black text-gray-900 tracking-tight">
-          Điều Phối Phiên Ăn & Tồn Kho
-        </h1>
-        <p className="text-base text-gray-500 mt-2">
-          Băng chuyền danh sách ca ăn tự động chuyển động liên tục, hỗ trợ nhấn giữ kéo rê nhanh.
+      <div className="border-b border-gray-200 pb-6">
+        <h1 className="text-4xl font-extrabold text-gray-900">Điều Phối Phiên Ăn</h1>
+        <p className="text-lg text-gray-500 mt-1.5">
+          Danh sách ca ăn, khuôn mẫu, danh mục và theo dõi tồn kho
         </p>
       </div>
 
-      {meals.length === 0 ? (
+      {filteredMeals.length === 0 ? (
         <div className="bg-white border-2 border-gray-100 rounded-2xl py-20 text-center text-gray-500 font-bold shadow-sm">
-          Không tìm thấy phiên phục vụ nào hoạt động hôm nay.
+          {globalQuery.trim()
+            ? "Không tìm thấy phiên phục vụ nào khớp"
+            : "Không tìm thấy phiên phục vụ nào hoạt động hôm nay."}
         </div>
       ) : (
         <div className="space-y-8">
@@ -319,8 +351,8 @@ export default function StaffSessionsPage() {
               msOverflowStyle: "none",
             }}
           >
-            {meals.map((meal) => {
-              const mId = meal.id || meal.Id;
+            {filteredMeals.map((meal) => {
+              const mId = meal.id;
               const isSelected = mId === activeMealId;
               return (
                 <button
@@ -328,7 +360,7 @@ export default function StaffSessionsPage() {
                   onClick={() => {
                     // Chỉ cho kích hoạt sự kiện click chọn nếu người dùng không phải đang kéo rê chuột
                     if (!isDown.current) {
-                      setActiveMealId(mId);
+                      if (mId) setActiveMealId(mId);
                     }
                   }}
                   className={`shrink-0 flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-base border-2 transition-all duration-300 ${
@@ -363,8 +395,8 @@ export default function StaffSessionsPage() {
                       Thời gian phục vụ ca
                     </p>
                     <p className="text-xl font-black text-gray-900 mt-0.5">
-                      {formatTime(currentSelectedMeal.availableFrom)} —{" "}
-                      {formatTime(currentSelectedMeal.availableTo)}
+                      {formatTime(currentSelectedMeal.availableFrom || "")} —{" "}
+                      {formatTime(currentSelectedMeal.availableTo || "")}
                     </p>
                   </div>
                 </div>
@@ -378,7 +410,7 @@ export default function StaffSessionsPage() {
                       Ngày hoạt động
                     </p>
                     <p className="text-xl font-black text-gray-900 mt-0.5">
-                      {formatDate(currentSelectedMeal.availableFrom)}
+                      {formatDate(currentSelectedMeal.availableFrom || "")}
                     </p>
                   </div>
                 </div>
@@ -492,7 +524,7 @@ export default function StaffSessionsPage() {
                                 categoryDishes.map((d: MealDishItem, dIdx: number) => {
                                   const dishIdClean = (d.dishId || "").toString().toLowerCase();
                                   const dishInfo = dishesMap[dishIdClean];
-                                  const stock = d.quantity;
+                                  const stock = d.quantity ?? 0;
                                   const dishImg = dishInfo?.imgUrl || dishInfo?.ImgUrl;
 
                                   return (

@@ -14,7 +14,10 @@ import {
   DollarSign,
 } from "lucide-react";
 import { orderService } from "@/services/order.service";
+import apiClient from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useGlobalSearch } from "@/lib/stores/use-search";
 
 interface OrderItem {
   dishName?: string;
@@ -135,7 +138,8 @@ export default function StaffOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<number | "all">("all");
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const searchQuery = useGlobalSearch((s) => s.query);
+  const setSearchQuery = useGlobalSearch((s) => s.setQuery);
   const [selectedOrder, setSelectedOrder] = useState<StaffOrder | null>(null);
   const [manualQrToken, setManualQrToken] = useState("");
   const [cancelReason, setCancelReason] = useState("");
@@ -235,7 +239,6 @@ export default function StaffOrdersPage() {
       toast({
         title: "Thất bại",
         description: "Mã đơn không hợp lệ hoặc lỗi kết nối.",
-        variant: "destructive",
       });
     }
   };
@@ -243,99 +246,82 @@ export default function StaffOrdersPage() {
   const handleCancelOrderOverride = async () => {
     if (!selectedOrder || !cancelReason.trim()) return;
     try {
-      const orderId = selectedOrder.id || selectedOrder.Id;
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/Orders/${orderId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          "X-Api-Version": "1.0",
-        },
-        body: JSON.stringify({ status: 3, note: cancelReason }),
-      });
+      const orderId = selectedOrder.id ?? selectedOrder.Id;
+      if (!orderId) return;
+      await apiClient.put(API_ENDPOINTS.ORDER.UPDATE(orderId), { status: 3, note: cancelReason });
 
       toast({ title: "Đã hủy đơn", description: "Đơn hàng đã được hủy thành công." });
       setSelectedOrder(null);
       setCancelReason("");
       refetchOrders();
     } catch {
-      toast({ title: "Lỗi", description: "Không thể can thiệp hủy đơn.", variant: "destructive" });
+      toast({ title: "Lỗi", description: "Không thể can thiệp hủy đơn." });
     }
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header tiêu đề */}
-      <div>
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Dashboard</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Xin chào Staff. Chào mừng quay trở lại quầy điều hành Smart Canteen!
-        </p>
+      <div className="border-b border-gray-200 pb-6">
+        <h1 className="text-4xl font-extrabold text-gray-900">Quản Lý Đơn Hàng</h1>
+        <p className="text-lg text-gray-500 mt-1.5">Theo dõi, xử lý đơn hàng và bàn giao món ăn</p>
       </div>
 
-      {/* ── TẦNG 1: THÊM KPI CARDS CHUẨN ĐẸP ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-            Total Orders
-          </div>
+      {/* ── KPI CARDS ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Tổng đơn</div>
           <div className="flex items-baseline justify-between mt-4">
-            <span className="text-4xl font-black text-gray-900">{stats.total}</span>
-            <span className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-[#FF4C24]">
-              <ShoppingBag className="w-5 h-5" />
+            <span className="text-4xl font-extrabold text-gray-900">{stats.total}</span>
+            <span className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-[#FF4C24]">
+              <ShoppingBag className="w-6 h-6" />
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-            Total Delivered
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Đã giao</div>
           <div className="flex items-baseline justify-between mt-4">
-            <span className="text-4xl font-black text-gray-900">{stats.delivered}</span>
-            <span className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <Truck className="w-5 h-5" />
+            <span className="text-4xl font-extrabold text-gray-900">{stats.delivered}</span>
+            <span className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <Truck className="w-6 h-6" />
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-            Total Canceled
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Đã hủy</div>
           <div className="flex items-baseline justify-between mt-4">
-            <span className="text-4xl font-black text-gray-900">{stats.canceled}</span>
-            <span className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-              <Ban className="w-5 h-5" />
+            <span className="text-4xl font-extrabold text-gray-900">{stats.canceled}</span>
+            <span className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+              <Ban className="w-6 h-6" />
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-            Total Revenue
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Doanh thu</div>
           <div className="flex items-baseline justify-between mt-4">
-            <span className="text-4xl font-black text-gray-900">
+            <span className="text-4xl font-extrabold text-gray-900">
               {stats.revenue.toLocaleString()} P
             </span>
-            <span className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-              <DollarSign className="w-5 h-5" />
+            <span className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <DollarSign className="w-6 h-6" />
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── TẦNG 2: THANH BỘ LỌC VÀ THANH XÁC NHẬN QR ── */}
-      <div className="bg-white p-4 border border-gray-200 rounded-2xl grid grid-cols-1 lg:grid-cols-4 gap-4 items-center shadow-xs">
+      {/* ── THANH BỘ LỌC VÀ XÁC NHẬN QR ── */}
+      <div className="bg-white p-6 border border-gray-200 rounded-2xl grid grid-cols-1 lg:grid-cols-4 gap-5 items-center shadow-sm">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             placeholder="Tìm theo MSSV, Tên hoặc Mã đơn..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#FF4C24]/20 text-gray-900 font-medium"
+            className="w-full pl-12 pr-5 py-3.5 text-base bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#FF4C24]/20 text-gray-900 font-medium"
           />
         </div>
 
@@ -343,32 +329,32 @@ export default function StaffOrdersPage() {
           <select
             value={String(filter)}
             onChange={(e) => setFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
-            className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 outline-none font-bold focus:ring-2 focus:ring-[#FF4C24]/20"
+            className="w-full text-base bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 outline-none font-bold focus:ring-2 focus:ring-[#FF4C24]/20"
           >
             <option value="all">📍 Tất cả trạng thái</option>
             <option value="0">⏳ Chờ xử lý (Pending)</option>
-            <option value="1">📦 Sẵn sàng nhận món (Ready)</option>
-            <option value="2">✅ Đã giao món (Completed)</option>
+            <option value="1">📦 Sẵn sàng nhận (Ready)</option>
+            <option value="2">✅ Đã giao (Completed)</option>
             <option value="3">❌ Đã hủy (Cancelled)</option>
           </select>
         </div>
 
         <div className="lg:col-span-2 flex gap-3">
           <div className="relative flex-1">
-            <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <QrCode className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Nhập ID đơn / mã QR để bàn giao món..."
               value={manualQrToken}
               onChange={(e) => setManualQrToken(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-amber-50/40 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500/20 text-gray-900 font-medium"
+              className="w-full pl-12 pr-5 py-3.5 text-base bg-amber-50/40 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500/20 text-gray-900 font-medium"
             />
           </div>
           <button
             onClick={handleVerifyQrManually}
-            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-5 py-2.5 rounded-xl transition shadow-xs"
+            className="bg-amber-600 hover:bg-amber-700 text-white text-base font-bold px-6 py-3.5 rounded-xl transition shadow-xs"
           >
-            Xác nhận Món
+            Xác nhận
           </button>
         </div>
       </div>
@@ -397,49 +383,47 @@ export default function StaffOrdersPage() {
             return (
               <div
                 key={currentId}
-                className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xs hover:shadow-xs transition-shadow duration-200"
+                className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm hover:shadow-md transition-shadow duration-200"
               >
-                {/* Khối bên trái: Ảnh đại diện tròn + Tên sinh viên */}
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-orange-100 to-amber-100 flex items-center justify-center border-2 border-white shadow-xs shrink-0 text-xl font-black text-gray-700 select-none">
+                <div className="flex items-center gap-5 min-w-0">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-100 to-amber-100 flex items-center justify-center border-2 border-white shadow-xs shrink-0 text-2xl font-extrabold text-gray-700 select-none">
                     {currentUserName.charAt(0).toUpperCase()}
                   </div>
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-400 font-mono">
-                        Order Id : #{currentId.slice(0, 6)}
+                  <div className="min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-gray-400 font-mono">
+                        #{currentId.slice(0, 8)}
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${s.className}`}
+                        className={`inline-flex items-center gap-1 text-sm font-bold px-3 py-1 rounded-lg border ${s.className}`}
                       >
                         {s.label}
                       </span>
                     </div>
-                    <h4 className="font-black text-base text-gray-900 truncate">
+                    <h4 className="font-extrabold text-lg text-gray-900 truncate">
                       {currentUserName}
                     </h4>
-                    <p className="text-xs font-bold text-gray-400 font-mono">
-                      MSSV: {currentStudentId} · {currentItems.length} món ăn trong khay
+                    <p className="text-sm font-medium text-gray-500">
+                      MSSV: {currentStudentId} · {currentItems.length} món
                     </p>
                   </div>
                 </div>
 
-                {/* Khối bên phải: Giá Tiền Point + Nút Details */}
-                <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-6 border-t md:border-none pt-3 md:pt-0">
+                <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-6 border-t md:border-none pt-4 md:pt-0">
                   <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-left md:text-right">
-                      Total Point
+                    <div className="text-sm font-bold text-gray-400 uppercase tracking-wider text-left md:text-right">
+                      Tổng điểm
                     </div>
-                    <div className="text-lg font-black text-gray-900 mt-0.5 text-[#FF4C24]">
+                    <div className="text-xl font-extrabold text-gray-900 mt-1 text-[#FF4C24]">
                       {currentTotalPrice.toLocaleString()} P
                     </div>
                   </div>
                   <button
                     onClick={() => setSelectedOrder(order)}
-                    className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 font-black text-xs px-4 py-2.5 rounded-xl transition shadow-2xs"
+                    className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold text-sm px-5 py-2.5 rounded-xl transition shadow-xs"
                   >
                     <Eye className="w-4 h-4 text-gray-500" />
-                    Details
+                    Chi tiết
                   </button>
                 </div>
               </div>
@@ -487,15 +471,13 @@ export default function StaffOrdersPage() {
                   {(selectedOrder.items || selectedOrder.Items || []).map((item, idx: number) => (
                     <div key={idx} className="p-3.5 flex justify-between text-sm items-center">
                       <div>
-                        <p className="font-bold text-gray-800">
-                          {item.dishName || item.DishName || "Món ăn"}
-                        </p>
+                        <p className="font-bold text-gray-800">{item.dishName || "Món ăn"}</p>
                         <p className="text-xs text-gray-400 font-medium mt-0.5">
-                          Số lượng: {item.quantity || item.Quantity}
+                          Số lượng: {item.quantity || 0}
                         </p>
                       </div>
                       <span className="font-black text-gray-900">
-                        {(item.price || item.Price || 0) * (item.quantity || item.Quantity || 1)} P
+                        {(item.price || 0) * (item.quantity || 1)} P
                       </span>
                     </div>
                   ))}
@@ -512,7 +494,9 @@ export default function StaffOrdersPage() {
                     <button
                       onClick={async () => {
                         try {
-                          await orderService.confirmReceived(selectedOrder.id || selectedOrder.Id);
+                          const confirmId = selectedOrder.id ?? selectedOrder.Id;
+                          if (!confirmId) return;
+                          await orderService.confirmReceived(confirmId);
                           toast({
                             title: "Thành công",
                             description: "Đơn hàng đã được hoàn thành.",
@@ -523,7 +507,6 @@ export default function StaffOrdersPage() {
                           toast({
                             title: "Lỗi",
                             description: "Không thể cập nhật đơn.",
-                            variant: "destructive",
                           });
                         }
                       }}

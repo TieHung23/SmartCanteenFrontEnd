@@ -102,16 +102,16 @@ export function StatsGrid() {
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="bg-white border border-gray-200 rounded-xl p-6 flex items-center gap-5 shadow-sm hover:shadow transition"
+          className="bg-white border border-gray-200 rounded-2xl p-7 flex items-center gap-6 shadow-sm hover:shadow-md transition-all duration-200"
         >
           <div
-            className={`w-14 h-14 rounded-xl ${stat.bg} flex items-center justify-center shrink-0`}
+            className={`w-16 h-16 rounded-2xl ${stat.bg} flex items-center justify-center shrink-0`}
           >
-            <stat.icon className={`w-7 h-7 ${stat.color}`} />
+            <stat.icon className={`w-8 h-8 ${stat.color}`} />
           </div>
-          <div className="min-w-0 space-y-1">
-            <p className="text-3xl font-black text-gray-900 tracking-tight">{stat.value}</p>
-            <p className="text-sm font-medium text-gray-500">{stat.label}</p>
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-4xl font-extrabold text-gray-900">{stat.value}</p>
+            <p className="text-base font-medium text-gray-500 leading-tight">{stat.label}</p>
           </div>
         </div>
       ))}

@@ -1,13 +1,25 @@
+import { Nunito } from "next/font/google";
 import { StaffSidebar } from "./_components/staff-sidebar";
 import { StaffHeader } from "./_components/staff-header";
+import { cn } from "@/lib/utils";
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-staff",
+});
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-[#FDFBF9] overflow-hidden antialiased">
+    <div
+      className={cn("flex h-screen bg-[#FDFBF9] overflow-hidden antialiased", nunito.variable)}
+      style={{ fontFamily: "var(--font-staff), var(--font-sans), sans-serif" }}
+    >
       <StaffSidebar />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <StaffHeader />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">{children}</main>
+        <main className="flex-1 overflow-y-auto p-5 md:p-8 scroll-smooth [&_*]:tracking-[0.02em]">
+          {children}
+        </main>
       </div>
     </div>
   );
