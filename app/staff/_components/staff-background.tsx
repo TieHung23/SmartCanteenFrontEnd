@@ -1,12 +1,16 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
-import { ShaderGradient } from "@shadergradient/react";
+import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
 
 export function StaffBackground() {
   return (
     <div className="fixed inset-0 -z-10">
-      <Canvas camera={{ position: [0, 0, 3.6], fov: 45 }}>
+      <ShaderGradientCanvas
+        pointerEvents="none"
+        style={{ width: "100%", height: "100%" }}
+        pixelDensity={0.5}
+        fov={45}
+      >
         <ShaderGradient
           animate="on"
           brightness={1.5}
@@ -41,7 +45,7 @@ export function StaffBackground() {
           wireframe={false}
           zoomOut={false}
         />
-      </Canvas>
+      </ShaderGradientCanvas>
     </div>
   );
 }
