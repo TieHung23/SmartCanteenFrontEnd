@@ -15,12 +15,15 @@ export const orderService = {
     pageNumber?: number;
     status?: OrderStatus;
   }): Promise<PaginatedList<OrderListItem>> => {
-    return await apiClient.get<PaginatedList<OrderListItem>, PaginatedList<OrderListItem>>(
+    // 1. Ép kiểu response về dạng ApiResponse chứa PaginatedList
+    const response = (await apiClient.get<ApiResponse<PaginatedList<OrderListItem>>>(
       API_ENDPOINTS.ORDER.LIST,
       { params },
-    );
-  },
+    )) as unknown as ApiResponse<PaginatedList<OrderListItem>>;
 
+    // 2. Trả về đúng phần lõi dữ liệu (value)
+    return response.value;
+  },
   getOrderById: async (id: string): Promise<OrderDetail> => {
     return await apiClient.get<OrderDetail, OrderDetail>(API_ENDPOINTS.ORDER.GET(id));
   },
@@ -30,13 +33,18 @@ export const orderService = {
       API_ENDPOINTS.ORDER.CREATE,
       { mealId, items },
     )) as unknown as ApiResponse<CreateOrderResponse>;
+
     return response.value;
   },
 
   confirmReceived: async (orderId: string) => {
-    return await apiClient.put<
-      { id: string; status: number; message: string },
-      { id: string; status: number; message: string }
-    >(API_ENDPOINTS.ORDER.UPDATE(orderId), { id: orderId, status: 2 });
+    const response = (await apiClient.put<
+      ApiResponse<{ id: string; status: number; message: string }>
+    >(
+      API_ENDPOINTS.ORDER.UPDATE(orderId),
+      { id: orderId, status: 2 }, // 2 = Completed
+    )) as unknown as ApiResponse<{ id: string; status: number; message: string }>;
+
+    return response.value;
   },
 };

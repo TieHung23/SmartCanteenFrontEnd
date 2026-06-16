@@ -1,5 +1,6 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import type { Dish } from "@/types/dish.types";
 import { MealDetailSchema, type MealDetail, type MealListItem } from "@/types/meal.types";
 
 export interface ApiResponse<T> {
@@ -106,6 +107,19 @@ export const mealService = {
     } catch (error) {
       console.error(`Error when deleting meal ID ${id}:`, error);
       throw error;
+    }
+  },
+  getAllDishes: async (): Promise<Dish[]> => {
+    try {
+      const response = (await apiClient.get<ApiResponse<PaginatedList<Dish>>>(
+        API_ENDPOINTS.DISH.LIST,
+        { params: { pageSize: 100 } },
+      )) as unknown as ApiResponse<PaginatedList<Dish>>;
+
+      return response.value?.items || [];
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách Dishes:", error);
+      return [];
     }
   },
 };
