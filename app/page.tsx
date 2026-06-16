@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
+import { userService } from "@/services/user.service";
+import { verificationService } from "@/services/verification.service";
 import { ROUTES } from "@/config/routes";
 import Navbar from "@/components/layout/Navbar";
+
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -15,7 +18,7 @@ export default function Home() {
       router.push(ROUTES.LOGIN);
       return;
     }
-    authService.getProfile().then((profile) => {
+    authService.getProfile().then(async (profile) => {
       if (!profile?.role) {
         router.push(ROUTES.LOGIN);
         return;
@@ -23,20 +26,35 @@ export default function Home() {
       switch (profile.role) {
         case "ADMIN":
           router.push("/admin");
-          break;
+          return;
         case "MANAGER":
           router.push("/manager");
-          break;
+          return;
         case "STAFF":
           router.push("/staff");
-          break;
+          return;
         case "USER":
-          setIsLoading(false);
           break;
         default:
           router.push(ROUTES.LOGIN);
-          break;
+          return;
       }
+      const fullProfile = await userService.getProfile().catch(() => null);
+      if (fullProfile && !fullProfile.emailVerified) {
+        router.push(ROUTES.LOGIN);
+        return;
+      }
+      // FPT email users skip identity verification
+      if (fullProfile?.email?.endsWith("@fpt.edu.vn")) {
+        setIsLoading(false);
+        return;
+      }
+      const verification = await verificationService.getMyVerification();
+      if (!verification || verification.status !== 1) {
+        router.push(ROUTES.VERIFICATION);
+        return;
+      }
+      setIsLoading(false);
     });
   }, [router]);
 

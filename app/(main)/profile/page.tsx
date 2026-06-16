@@ -13,15 +13,12 @@ import {
   Plus,
   CreditCard,
   ArrowUpRight,
-  ArrowDownLeft,
   Loader2,
 } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
-import {
-  paymentService,
-  type TopUpResponse,
-  type WalletTransaction,
-} from "@/services/payment.service";
+import { orderService } from "@/services/order.service";
+import type { OrderListItem } from "@/types/order.types";
+import { paymentService, type TopUpResponse } from "@/services/payment.service";
 import { toast } from "sonner";
 
 const getRoleName = (roleId: number) => {
@@ -100,12 +97,8 @@ const cardThemes = [
   },
 ];
 
-const PAYMENT_METHODS = [
-  { id: 1, name: "MoMo" },
-  { id: 2, name: "ZaloPay" },
-  { id: 3, name: "VNPay" },
-  { id: 4, name: "SePay (Bank Transfer)" },
-];
+const PAYMENT_METHODS = [{ id: 4, name: "Bank Transfer" }];
+const COMING_SOON_METHODS = ["MoMo", "ZaloPay", "VNPay"];
 
 type WalletTab = "overview" | "topup";
 
@@ -119,10 +112,10 @@ export default function ProfilePage() {
 
   const [walletTab, setWalletTab] = useState<WalletTab>("overview");
   const [topUpAmount, setTopUpAmount] = useState(50000);
-  const [topUpMethod, setTopUpMethod] = useState(1);
+  const [topUpMethod, setTopUpMethod] = useState(4);
   const [isTopUpping, setIsTopUpping] = useState(false);
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
 
   useEffect(() => {
@@ -145,13 +138,14 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-  const fetchTransactions = async () => {
+  const fetchOrders = async () => {
     setIsLoadingTx(true);
     try {
-      const result = await paymentService.getWalletTransactions({ pageSize: 50 });
-      setTransactions(result.items || []);
-    } catch {
-      setTransactions([]);
+      const result = await orderService.getMyOrders({ pageSize: 50 });
+      setOrders(result.items || []);
+    } catch (err) {
+      console.error("fetchOrders error:", err);
+      setOrders([]);
     } finally {
       setIsLoadingTx(false);
     }
@@ -236,10 +230,7 @@ export default function ProfilePage() {
         method: topUpMethod,
       });
       setTopUpResult(result);
-      if (result.payUrl) {
-        window.open(result.payUrl, "_blank");
-      }
-      toast.success("Top-up request created!");
+      toast.success("Top-up request created! 🎉");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
       toast.error(err?.response?.data?.message || err?.message || "Top-up failed");
@@ -302,12 +293,12 @@ export default function ProfilePage() {
                 <button
                   onClick={() => {
                     setActiveTab("wallet");
-                    fetchTransactions();
+                    fetchOrders();
                   }}
                   className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
                     ${activeTab === "wallet" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                 >
-                  <Wallet className="w-5 h-5" /> My Wallet & Card
+                  <Wallet className="w-5 h-5" /> My Wallet &amp; Card
                 </button>
 
                 <div className="h-px w-full bg-gray-100 my-2" />
@@ -371,9 +362,8 @@ export default function ProfilePage() {
                       type="text"
                       name="studentId"
                       value={s(profile.studentId)}
-                      onChange={handleInputChange}
-                      placeholder="e.g. SE123456"
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                      disabled
+                      className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
                     />
                   </div>
 
@@ -418,7 +408,7 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 bg-transparent">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                       Gender
                     </label>
@@ -479,7 +469,7 @@ export default function ProfilePage() {
                   <button
                     onClick={() => {
                       setWalletTab("overview");
-                      fetchTransactions();
+                      fetchOrders();
                     }}
                     className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                       walletTab === "overview"
@@ -518,7 +508,7 @@ export default function ProfilePage() {
                             style={{ animationDuration: "3s" }}
                           >
                             <Image
-                              src="/logo_point.png"
+                              src="/logo_point.png" //
                               alt="F-Point Coin"
                               fill
                               sizes="28px"
@@ -566,7 +556,7 @@ export default function ProfilePage() {
                               </p>
                             </div>
                             <div className="relative w-9 h-9 rounded-full bg-white/10 backdrop-blur-xs border border-white/20 p-1.5 flex items-center justify-center">
-                              <div className="relative w-full h-full opacity-90">
+                              <div className="relative w-full h-full opacity-95">
                                 <Image
                                   src="/logo_point.png"
                                   alt="Watermark Logo"
@@ -619,7 +609,7 @@ export default function ProfilePage() {
                           Transaction History
                         </h4>
                         <button
-                          onClick={fetchTransactions}
+                          onClick={fetchOrders}
                           className="text-[10px] font-bold text-[#D35400] hover:text-[#B34700] transition-colors"
                         >
                           Refresh
@@ -629,65 +619,59 @@ export default function ProfilePage() {
                         <div className="flex justify-center py-8">
                           <Loader2 className="w-6 h-6 animate-spin text-[#D35400]" />
                         </div>
-                      ) : transactions.length === 0 ? (
+                      ) : orders.length === 0 ? (
                         <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                           <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                          <p className="text-xs font-bold text-gray-500">No transactions yet</p>
+                          <p className="text-xs font-bold text-gray-500">No orders yet</p>
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                          {transactions.map((tx) => {
-                            const isCredit = tx.amount > 0;
-                            const typeLabels: Record<number, string> = {
-                              1: "Top Up",
-                              2: "Order Payment",
-                              3: "Refund",
+                          {orders.map((order) => {
+                            const orderStatusLabels: Record<number, string> = {
+                              0: "Pending",
+                              1: "Ready for Pickup",
+                              2: "Completed",
+                              3: "Cancelled",
+                            };
+                            const orderStatusColors: Record<number, string> = {
+                              0: "text-amber-600 bg-amber-50",
+                              1: "text-emerald-600 bg-emerald-50",
+                              2: "text-indigo-600 bg-indigo-50",
+                              3: "text-red-600 bg-red-50",
                             };
                             return (
                               <div
-                                key={tx.id}
+                                key={order.id}
                                 className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div
-                                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                                      isCredit ? "bg-orange-100" : "bg-red-100"
-                                    }`}
-                                  >
-                                    {isCredit ? (
-                                      <ArrowDownLeft className="w-4 h-4 text-[#D35400]" />
-                                    ) : (
-                                      <ArrowUpRight className="w-4 h-4 text-red-500" />
-                                    )}
+                                  <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
+                                    <ArrowUpRight className="w-4 h-4 text-red-500" />
                                   </div>
                                   <div>
-                                    <p className="text-sm font-bold text-gray-800">
-                                      {typeLabels[tx.transactionType] ||
-                                        `Type ${tx.transactionType}`}
-                                    </p>
+                                    <p className="text-sm font-bold text-gray-800">Order Payment</p>
                                     <p className="text-[10px] text-gray-400">
-                                      {new Date(tx.createdAtUtc).toLocaleDateString("en-US", {
+                                      {new Date(order.createdAtUtc).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
                                         hour: "2-digit",
                                         minute: "2-digit",
-                                      })}
+                                      })}{" "}
+                                      · {order.itemCount} item{order.itemCount > 1 ? "s" : ""}
                                     </p>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p
-                                    className={`text-sm font-black ${
-                                      isCredit ? "text-[#D35400]" : "text-red-500"
+                                  <p className="text-sm font-black text-red-500">
+                                    -{new Intl.NumberFormat("vi-VN").format(order.totalPrice)} pts
+                                  </p>
+                                  <span
+                                    className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 ${
+                                      orderStatusColors[order.status] || "text-gray-500 bg-gray-100"
                                     }`}
                                   >
-                                    {isCredit ? "+" : ""}
-                                    {new Intl.NumberFormat("vi-VN").format(tx.amount)} pts
-                                  </p>
-                                  <p className="text-[10px] text-gray-400">
-                                    Bal: {new Intl.NumberFormat("vi-VN").format(tx.balanceAfter)}{" "}
-                                    pts
-                                  </p>
+                                    {orderStatusLabels[order.status] || "Unknown"}
+                                  </span>
                                 </div>
                               </div>
                             );
@@ -707,31 +691,63 @@ export default function ProfilePage() {
 
                     {topUpResult ? (
                       <div className="space-y-4">
-                        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center">
+                        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center shadow-xs">
                           <CheckCircle2 className="w-12 h-12 text-[#D35400] mx-auto mb-3" />
                           <p className="text-lg font-bold text-[#B34700]">Top-up Created!</p>
-                          <p className="text-sm text-orange-500 mt-2">
+                          {topUpResult.gatewayOrderId && (
+                            <p className="text-[10px] text-gray-400 mt-1 font-mono">
+                              Mã GD: {topUpResult.gatewayOrderId}
+                            </p>
+                          )}
+                          <p className="text-sm text-orange-500 mt-2 font-bold">
                             {new Intl.NumberFormat("vi-VN").format(topUpResult.amountVnd)} VND →{" "}
                             {new Intl.NumberFormat("vi-VN").format(topUpResult.convertedPoints)} pts
                           </p>
-                          <p className="text-xs text-gray-400 mt-2">Status: {topUpResult.status}</p>
+                          <p className="text-xs text-gray-400 mt-2 font-medium">
+                            Status: {topUpResult.status}
+                          </p>
                         </div>
+
+                        {/* ─── QR CODE ─── */}
                         {topUpResult.payUrl && (
-                          <a
-                            href={topUpResult.payUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl text-center transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)]"
-                          >
-                            Open Payment Gateway
-                          </a>
+                          <div className="mt-4 p-6 bg-white border border-gray-100 rounded-[1.5rem] flex flex-col items-center gap-4 shadow-sm">
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                              Scan QR Code to Pay
+                            </p>
+                            <div className="relative w-52 h-52 border border-gray-100 rounded-2xl overflow-hidden p-3 bg-white shadow-xs transition-transform duration-300 hover:scale-102">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={topUpResult.payUrl}
+                                alt="Payment QR Code"
+                                className="w-full h-full object-contain p-1"
+                              />
+                            </div>
+                          </div>
                         )}
+
+                        {topUpResult.paymentContent && (
+                          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 text-center">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">
+                              Noi dung chuyen khoan
+                            </p>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(topUpResult.paymentContent);
+                                toast.success("Da copy noi dung chuyen khoan!");
+                              }}
+                              className="text-sm font-black text-[#D35400] tracking-wider bg-white px-4 py-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full"
+                            >
+                              {topUpResult.paymentContent}
+                            </button>
+                          </div>
+                        )}
+
                         <button
                           onClick={() => {
                             setTopUpResult(null);
                             setTopUpAmount(50000);
                           }}
-                          className="w-full py-3 bg-white text-gray-500 font-bold text-sm rounded-xl border border-gray-200"
+                          className="w-full py-4 bg-white text-gray-500 font-extrabold text-sm rounded-xl border border-gray-200 hover:bg-gray-50 hover:text-gray-700 transition-colors mt-2"
                         >
                           Make Another Top-up
                         </button>
@@ -783,11 +799,23 @@ export default function ProfilePage() {
                                 onClick={() => setTopUpMethod(pm.id)}
                                 className={`p-4 rounded-xl text-sm font-bold transition-all border ${
                                   topUpMethod === pm.id
-                                    ? "bg-orange-50 border-orange-300 text-[#D35400] ring-1 ring-orange-200"
+                                    ? "bg-orange-50 border-orange-300 text-[#D35400]"
                                     : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                                 }`}
                               >
                                 {pm.name}
+                              </button>
+                            ))}
+                            {COMING_SOON_METHODS.map((name) => (
+                              <button
+                                key={name}
+                                disabled
+                                className="p-4 rounded-xl text-sm font-bold border border-dashed border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed relative overflow-hidden"
+                              >
+                                {name}
+                                <span className="absolute -top-1 -right-3 bg-gray-200 text-gray-400 text-[7px] font-black uppercase px-2 py-0.5 -rotate-[16deg]">
+                                  Soon
+                                </span>
                               </button>
                             ))}
                           </div>
@@ -824,6 +852,7 @@ export default function ProfilePage() {
           __html: `
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+        .hover\:scale-102:hover { transform: scale(1.02); }
       `,
         }}
       />

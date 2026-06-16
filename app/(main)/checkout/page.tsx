@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Navbar from "@/components/layout/Navbar";
-import { useCart } from "@/context/cart-context";
+import { useCart, type CartItem } from "@/context/cart-context";
+import { useMealDetail } from "@/lib/hooks/useCanteen";
 import { orderService } from "@/services/order.service";
 import { paymentService, type TopUpRequest, type TopUpResponse } from "@/services/payment.service";
 import { userService, type UserProfileResponse } from "@/services/user.service";
@@ -17,7 +18,6 @@ import {
   Plus,
   Minus,
   Trash2,
-  CreditCard,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -26,12 +26,15 @@ import {
   RotateCcw,
   PartyPopper,
   Receipt,
+  Calendar,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
-  { id: 4, name: "SePay (Bank Transfer)" },
+  { id: 4, name: "Bank Transfer" },
   { id: 5, name: "Smart Canteen Wallet" },
 ];
+
+const COMING_SOON_METHODS = ["Momo", "VNPay", "ZaloPay"];
 
 function formatPts(amount: number) {
   return new Intl.NumberFormat("vi-VN").format(amount);
@@ -40,8 +43,8 @@ function formatPts(amount: number) {
 function PtsDisplay({ amount, className }: { amount: number; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 ${className || ""}`}>
-      <Image src="/logo_point.png" alt="pts" width={18} height={18} className="object-contain" />
       <span>{formatPts(amount)}</span>
+      <Image src="/logo_point.png" alt="pts" width={18} height={18} className="object-contain" />
     </span>
   );
 }
@@ -54,7 +57,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState(0);
-  const [topUpMethod, setTopUpMethod] = useState(1);
+  const [topUpMethod, setTopUpMethod] = useState(4);
   const [isTopUpping, setIsTopUpping] = useState(false);
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
   const [orderResult, setOrderResult] = useState<{
@@ -66,7 +69,7 @@ export default function CheckoutPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!mealId || cartItems.length === 0) {
+    if (!orderResult && (!mealId || cartItems.length === 0)) {
       router.push(ROUTES.SESSION);
       return;
     }
@@ -79,12 +82,53 @@ export default function CheckoutPage() {
       }
     };
     fetchProfile();
-  }, [mealId, cartItems, router]);
+  }, [mealId, cartItems, router, orderResult]);
 
   const totalPoints = getCartTotal();
   const balance = profile?.balanceAmount ?? 0;
   const hasEnoughPoints = balance >= totalPoints;
   const neededPoints = Math.max(0, totalPoints - balance);
+
+  const { data: mealDetail } = useMealDetail(mealId);
+
+  const categoryMaxMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!mealDetail?.mealTemplates) return map;
+    for (const template of mealDetail.mealTemplates) {
+      for (const setting of template.settings) {
+        const existing = map.get(setting.categoryId) ?? Infinity;
+        map.set(setting.categoryId, Math.min(existing, setting.maxQuantity));
+      }
+    }
+    return map;
+  }, [mealDetail]);
+
+  const groupedCartItems = useMemo(() => {
+    const groups = new Map<string, CartItem[]>();
+    for (const item of cartItems) {
+      const catId = item.categoryId || "__unknown__";
+      if (!groups.has(catId)) groups.set(catId, []);
+      groups.get(catId)!.push(item);
+    }
+    return groups;
+  }, [cartItems]);
+
+  const mealInfo = useMemo(() => {
+    const first = cartItems[0];
+    if (!first) return null;
+    return { name: first.mealName, time: first.mealTime };
+  }, [cartItems]);
+
+  function formatTimeRange(t?: string) {
+    if (!t) return "";
+    const parts = t.split(" - ");
+    if (parts.length < 2) return t;
+    const fmt = (s: string) => {
+      const d = new Date(s);
+      return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    };
+    return `${fmt(parts[0])} - ${fmt(parts[1])}`;
+  }
 
   const handleCreateOrder = useCallback(async () => {
     if (!mealId) return;
@@ -117,10 +161,7 @@ export default function CheckoutPage() {
       const data: TopUpRequest = { amountVnd: topUpAmount, method: topUpMethod };
       const result = await paymentService.topUpWallet(data);
       setTopUpResult(result);
-      if (result.payUrl) {
-        window.open(result.payUrl, "_blank");
-      }
-      toast.success("Top-up request created! Complete payment to proceed.");
+      toast.success("Top-up request created!");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
       toast.error(err?.response?.data?.message || err?.message || "Top-up failed");
@@ -148,7 +189,26 @@ export default function CheckoutPage() {
   };
 
   const [fireworkParticles] = useState(() => {
-    const COLORS = ["#D35400", "#FF6B35", "#FFD700", "#FF4444", "#FF8C42", "#FFA07A", "#FFFFFF"];
+    const COLORS = [
+      "#D35400",
+      "#FF6B35",
+      "#FFD700",
+      "#FF4444",
+      "#FF8C42",
+      "#FFA07A",
+      "#FFFFFF",
+      "#00FF88",
+      "#00BFFF",
+      "#FF69B4",
+      "#FF4500",
+      "#ADFF2F",
+      "#FF00FF",
+      "#00FFFF",
+      "#FF1493",
+      "#7B68EE",
+      "#FFD700",
+      "#32CD32",
+    ];
     const particles: {
       id: number;
       color: string;
@@ -157,7 +217,7 @@ export default function CheckoutPage() {
       size: number;
       duration: number;
     }[] = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       particles.push({
         id: i,
         color: COLORS[i % COLORS.length],
@@ -174,8 +234,14 @@ export default function CheckoutPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-[#FDFBF9] flex items-center justify-center px-4 py-12 relative overflow-hidden">
-          {/* Firework container */}
+        <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
+          {/* Background image with dark overlay + blur */}
+          <div className="absolute inset-0">
+            <Image src="/uni1.jpg" alt="" fill className="object-cover" sizes="100vw" />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
+          </div>
+
+          {/* Firework particles */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
             {fireworkParticles.map((p) => (
               <div
@@ -194,10 +260,8 @@ export default function CheckoutPage() {
             ))}
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-b from-orange-100/50 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-200/20 rounded-full blur-[100px] pointer-events-none" />
           <div className="max-w-lg w-full relative z-10">
-            <div className="bg-white rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-orange-100/40 p-10 text-center">
+            <div className="bg-white rounded-[2.5rem] shadow-[0_30px_80px_rgba(211,84,0,0.25)] border border-orange-200/50 p-10 text-center">
               <div className="relative mb-6">
                 <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200/50">
                   <PartyPopper className="w-12 h-12 text-[#D35400]" />
@@ -226,7 +290,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Transaction ID</span>
                     <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
-                      {orderResult.transactionId.slice(0, 12)}...
+                      {orderResult.transactionId}
                     </span>
                   </div>
                 )}
@@ -273,9 +337,6 @@ export default function CheckoutPage() {
                 </button>
               </div>
             </div>
-            <p className="text-center text-[10px] text-gray-300 mt-4 font-bold tracking-wider uppercase">
-              Smart Canteen &bull; Order Confirmation
-            </p>
           </div>
 
           <style
@@ -299,7 +360,7 @@ export default function CheckoutPage() {
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6 font-sans">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-orange-100/30 to-transparent pointer-events-none" />
-        <div className="max-w-4xl mx-auto relative z-10">
+        <div className="max-w-5xl mx-auto relative z-10">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
@@ -307,106 +368,142 @@ export default function CheckoutPage() {
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
 
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center border border-orange-100">
-              <ShoppingBag className="w-5 h-5 text-[#D35400]" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-gray-100 pb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center border border-orange-100">
+                <ShoppingBag className="w-5 h-5 text-[#D35400]" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
+                {mealInfo?.name && (
+                  <p className="text-xs font-bold text-orange-500 mt-0.5 uppercase tracking-wide flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" /> {mealInfo.name} (
+                    {formatTimeRange(mealInfo.time)})
+                  </p>
+                )}
+              </div>
             </div>
-            <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* LEFT - Cart Summary */}
-            <div className="lg:col-span-7 space-y-4">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">
-                Order Summary
-              </h2>
-              {cartItems.map((item) => (
-                <div
-                  key={item.dishId}
-                  className="flex gap-4 p-4 rounded-2xl bg-white border border-gray-50 shadow-sm hover:border-orange-100 transition-all group"
-                >
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                    <Image
-                      src={item.imgUrl || "/placeholder-food.png"}
-                      alt={item.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold text-gray-800 truncate">{item.name}</h4>
-                    {item.mealName && (
-                      <p className="text-[10px] text-orange-400 font-semibold mt-0.5">
-                        {item.mealName}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                      <PtsDisplay amount={item.price} /> each
-                    </p>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
-                        <button
-                          onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
-                          className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="px-3 text-xs font-black text-gray-700 min-w-[24px] text-center">
-                          {item.quantity}
+            <div className="lg:col-span-7 space-y-6">
+              {Array.from(groupedCartItems.entries()).map(([catId, items]) => {
+                const catMax = catId !== "__unknown__" ? categoryMaxMap.get(catId) : undefined;
+                return (
+                  <div key={catId} className="space-y-2.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                        {items[0]?.categoryName || "Other"}
+                      </span>
+                      {catMax !== undefined && (
+                        <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded-md">
+                          Selected: {items.reduce((s, i) => s + i.quantity, 0)}/{catMax}
                         </span>
-                        <button
-                          onClick={() => updateQuantity(item.dishId, item.quantity + 1)}
-                          className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="text-sm font-black text-[#D35400]">
-                        <PtsDisplay amount={item.price * item.quantity} />
-                      </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {items.map((item) => {
+                        const catItemCount = items.reduce((s, i) => s + i.quantity, 0);
+                        const isAtMax = catMax !== undefined && catItemCount >= catMax;
+                        return (
+                          <div
+                            key={item.dishId}
+                            className="flex gap-4 p-4 rounded-2xl bg-white border border-gray-50 shadow-xs hover:border-orange-100 transition-all group"
+                          >
+                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                              <Image
+                                src={item.imgUrl || "/placeholder-food.png"}
+                                alt={item.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-gray-800 truncate">
+                                {item.name}
+                              </h4>
+                              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                                <PtsDisplay amount={item.price} /> each
+                              </p>
+                              <div className="flex items-center justify-between mt-2">
+                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
+                                  <button
+                                    onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
+                                    className="p-1.5 rounded-md text-gray-500 hover:bg-white transition-colors"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="px-3 text-xs font-black text-gray-700 min-w-[24px] text-center">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      if (isAtMax) {
+                                        toast.error(`Maximum quantity of ${catMax} items reached.`);
+                                        return;
+                                      }
+                                      updateQuantity(item.dishId, item.quantity + 1);
+                                    }}
+                                    className={`p-1.5 rounded-md text-gray-500 hover:bg-white transition-colors ${
+                                      isAtMax ? "opacity-30 cursor-not-allowed" : ""
+                                    }`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <div className="text-sm font-black text-[#D35400]">
+                                  <PtsDisplay amount={item.price * item.quantity} />
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => removeFromCart(item.dishId)}
+                              className="self-start p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeFromCart(item.dishId)}
-                    className="self-start p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* RIGHT - Payment Summary */}
             <div className="lg:col-span-5">
-              <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-orange-100/40 sticky top-24">
+              <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 sticky top-24">
                 <div className="flex items-center gap-2 mb-6">
                   <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
                     <Wallet className="w-4 h-4 text-[#D35400]" />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-700">Payment Summary</h2>
+                  <h2 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                    Payment Summary
+                  </h2>
                 </div>
 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Items ({cartItems.length})</span>
+                    <span className="text-gray-400 font-medium">Items ({cartItems.length})</span>
                     <PtsDisplay amount={totalPoints} className="font-bold text-gray-800" />
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Your Balance</span>
+                    <span className="text-gray-400 font-medium">Your Balance</span>
                     <PtsDisplay amount={balance} className="font-bold text-[#D35400]" />
                   </div>
-                  <div className="border-t border-orange-100/30 pt-4">
+                  <div className="border-t border-gray-100 pt-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-bold text-gray-800">Payment Method</span>
-                      <span className="flex items-center gap-1.5 text-sm font-bold text-gray-600 bg-orange-50 px-3 py-1 rounded-lg border border-orange-100">
-                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Wallet
+                      <span className="text-sm font-bold text-gray-800">Payment Method</span>
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-orange-50/60 px-3 py-1.5 rounded-xl border border-orange-100/40">
+                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Digital Wallet
                       </span>
                     </div>
-                    <div className="flex justify-between text-base">
-                      <span className="font-bold text-gray-800">Total</span>
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="font-bold text-gray-800">Total Price</span>
                       <PtsDisplay
                         amount={totalPoints}
-                        className="font-black text-[#D35400] text-lg"
+                        className="font-black text-[#D35400] text-xl"
                       />
                     </div>
                   </div>
@@ -436,8 +533,8 @@ export default function CheckoutPage() {
                       <div>
                         <p className="text-sm font-bold text-[#B34700]">Insufficient Balance</p>
                         <p className="text-xs text-orange-500 mt-1">
-                          You need <strong>{formatPts(neededPoints)}</strong> more points. Top up to
-                          continue.
+                          You need <strong>{formatPts(neededPoints)}</strong> more points. Please
+                          top up.
                         </p>
                       </div>
                     </div>
@@ -450,67 +547,100 @@ export default function CheckoutPage() {
                         }}
                         className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 flex items-center justify-center gap-2"
                       >
-                        <ArrowUpRight className="w-4 h-4" /> Top Up & Pay
+                        <ArrowUpRight className="w-4 h-4" /> Top Up &amp; Pay
                       </button>
                     ) : (
-                      <div className="space-y-4 bg-orange-50/70 rounded-2xl p-5 border border-orange-100">
-                        <h3 className="text-sm font-bold text-gray-700">Top Up Your Wallet</h3>
+                      <div className="space-y-4 bg-gray-50/50 rounded-2xl p-4 border border-gray-100 animate-fadeIn">
+                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                          Top Up Your Wallet
+                        </h3>
 
                         {topUpResult ? (
-                          <div className="space-y-3">
-                            <div className="bg-white border border-orange-100 rounded-xl p-4 text-center">
+                          <div className="space-y-4">
+                            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center shadow-xs">
                               <CheckCircle2 className="w-8 h-8 text-[#D35400] mx-auto mb-2" />
                               <p className="text-sm font-bold text-gray-800">
                                 Top-up request created!
                               </p>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
                                 {formatPts(topUpResult.amountVnd)} VND {" → "}
-                                {formatPts(topUpResult.convertedPoints)} pts
+                                <PtsDisplay
+                                  amount={topUpResult.convertedPoints}
+                                  className="font-bold text-[#D35400]"
+                                />
                               </p>
-                              <span className="inline-block mt-2 text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">
-                                {topUpResult.status}
-                              </span>
                             </div>
+
                             {topUpResult.payUrl && (
-                              <a
-                                href={topUpResult.payUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 w-full py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl transition-all"
-                              >
-                                <ExternalLink className="w-4 h-4" /> Open Payment Gateway
-                              </a>
+                              <div className="flex flex-col items-center gap-3 bg-white border border-gray-50 p-4 rounded-xl shadow-xs">
+                                <div className="relative w-44 h-44 overflow-hidden bg-white">
+                                  <Image
+                                    src={topUpResult.payUrl}
+                                    alt="QR Code"
+                                    fill
+                                    unoptimized
+                                    sizes="176px"
+                                    className="object-contain"
+                                  />
+                                </div>
+                                <a
+                                  href={topUpResult.payUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 text-xs font-bold text-[#D35400] hover:underline"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" /> Open payment gateway
+                                </a>
+                              </div>
                             )}
+
+                            {topUpResult.paymentContent && (
+                              <div className="bg-white border border-dashed border-gray-200 rounded-xl p-3 text-center">
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+                                  Nội dung chuyển khoản chuẩn
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(topUpResult.paymentContent || "");
+                                    toast.success("Copied to clipboard!");
+                                  }}
+                                  className="text-xs font-black text-[#D35400] tracking-wider bg-gray-50 py-2 px-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full truncate"
+                                >
+                                  {topUpResult.paymentContent}
+                                </button>
+                              </div>
+                            )}
+
                             <button
                               onClick={handleRetryCheckout}
-                              className="w-full py-3 bg-white text-[#D35400] font-bold text-sm rounded-xl border-2 border-[#D35400] hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
+                              className="w-full py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
                             >
-                              <RotateCcw className="w-4 h-4" /> I&apos;ve Paid - Check & Order
+                              <RotateCcw className="w-4 h-4" /> Check Balance &amp; Place Order
                             </button>
                             <button
                               onClick={() => {
                                 setTopUpResult(null);
                                 setIsTopUpOpen(false);
                               }}
-                              className="w-full py-2 text-gray-400 font-bold text-xs hover:text-gray-600 transition-all"
+                              className="w-full py-1.5 text-gray-400 font-bold text-xs hover:text-gray-600 transition-colors text-center"
                             >
                               Cancel
                             </button>
                           </div>
                         ) : (
                           <>
-                            <div>
-                              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                                 Amount (VND)
                               </label>
-                              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                              <div className="grid grid-cols-3 gap-1.5">
                                 {[50000, 100000, 200000].map((amt) => (
                                   <button
                                     key={amt}
                                     onClick={() => setTopUpAmount(amt)}
-                                    className={`py-2 rounded-lg text-xs font-bold transition-all border ${
+                                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${
                                       topUpAmount === amt
-                                        ? "bg-white border-[#D35400] text-[#D35400]"
+                                        ? "bg-white border-[#D35400] text-[#D35400] shadow-xs"
                                         : "bg-white border-gray-200 text-gray-500 hover:border-orange-200"
                                     }`}
                                   >
@@ -524,50 +654,51 @@ export default function CheckoutPage() {
                                 onChange={(e) => setTopUpAmount(Number(e.target.value) || 0)}
                                 min={10000}
                                 step={10000}
-                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-1 focus:ring-orange-200"
+                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400]"
                               />
-                              <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                ~ <PtsDisplay amount={Math.floor(topUpAmount / 1000)} />
-                              </p>
                             </div>
 
-                            <div>
-                              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                                 Payment Method
                               </label>
                               <div className="grid grid-cols-2 gap-1.5">
-                                {PAYMENT_METHODS.map((pm) => (
+                                {PAYMENT_METHODS.filter((m) => m.id === 4).map((pm) => (
                                   <button
                                     key={pm.id}
                                     onClick={() => setTopUpMethod(pm.id)}
-                                    className={`p-2.5 rounded-xl text-xs font-bold transition-all border ${
-                                      topUpMethod === pm.id
-                                        ? "bg-white border-[#D35400] text-[#D35400]"
-                                        : "bg-white border-gray-200 text-gray-500 hover:border-orange-200"
-                                    }`}
+                                    className="p-2.5 rounded-xl text-xs font-bold transition-all border bg-white border-[#D35400] text-[#D35400] text-center w-full shadow-xs"
                                   >
                                     {pm.name}
+                                  </button>
+                                ))}
+                                {COMING_SOON_METHODS.map((name) => (
+                                  <button
+                                    key={name}
+                                    disabled
+                                    className="p-2.5 rounded-xl text-xs font-bold border border-dashed border-gray-200 bg-gray-50/50 text-gray-300 cursor-not-allowed relative overflow-hidden text-center w-full"
+                                  >
+                                    {name}
+                                    <span className="absolute -top-1 -right-3 bg-gray-200 text-gray-400 text-[6px] font-black uppercase px-2 py-0.5 -rotate-[16deg]">
+                                      Soon
+                                    </span>
                                   </button>
                                 ))}
                               </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 pt-2">
                               <button
                                 onClick={handleTopUp}
                                 disabled={isTopUpping || topUpAmount < 10000}
-                                className="flex-1 py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                                className="flex-1 py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/10"
                               >
-                                {isTopUpping ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CreditCard className="w-4 h-4" />
-                                )}
-                                {isTopUpping ? "Processing..." : "Top Up"}
+                                {isTopUpping && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {isTopUpping ? "Processing..." : "Get QR Code"}
                               </button>
                               <button
                                 onClick={() => setIsTopUpOpen(false)}
-                                className="py-3 px-4 bg-white text-gray-500 font-bold text-sm rounded-xl border border-gray-200 hover:border-orange-200 transition-all"
+                                className="py-3 px-4 bg-white text-gray-500 font-bold text-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
                               >
                                 Cancel
                               </button>
@@ -583,6 +714,16 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        .hover\\:scale-102:hover { transform: scale(1.02); }
+      `,
+        }}
+      />
     </>
   );
 }

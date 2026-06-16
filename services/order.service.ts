@@ -7,7 +7,7 @@ import type {
   OrderListItem,
   OrderStatus,
 } from "@/types/order.types";
-import type { PaginatedList } from "./meal.service";
+import type { ApiResponse, PaginatedList } from "./meal.service";
 
 export const orderService = {
   getMyOrders: async (params?: {
@@ -26,10 +26,11 @@ export const orderService = {
   },
 
   createOrder: async (mealId: string, items: CreateOrderItem[]): Promise<CreateOrderResponse> => {
-    return await apiClient.post<CreateOrderResponse, CreateOrderResponse>(
+    const response = (await apiClient.post<ApiResponse<CreateOrderResponse>>(
       API_ENDPOINTS.ORDER.CREATE,
       { mealId, items },
-    );
+    )) as unknown as ApiResponse<CreateOrderResponse>;
+    return response.value;
   },
 
   confirmReceived: async (orderId: string) => {
