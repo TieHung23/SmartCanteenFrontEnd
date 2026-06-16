@@ -1,6 +1,7 @@
 import { Nunito } from "next/font/google";
 import { StaffSidebar } from "./_components/staff-sidebar";
 import { StaffHeader } from "./_components/staff-header";
+import { StaffBackground } from "./_components/staff-background";
 import { cn } from "@/lib/utils";
 
 const nunito = Nunito({
@@ -11,9 +12,10 @@ const nunito = Nunito({
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className={cn("flex h-screen bg-[#FDFBF9] overflow-hidden antialiased", nunito.variable)}
+      className={cn("flex h-screen overflow-hidden antialiased", nunito.variable)}
       style={{ fontFamily: "var(--font-staff), var(--font-sans), sans-serif" }}
     >
+      <StaffBackground />
       <StaffSidebar />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <StaffHeader />
