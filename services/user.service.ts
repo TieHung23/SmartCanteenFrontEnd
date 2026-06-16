@@ -40,18 +40,23 @@ export const userService = {
     }
   },
 
-  updateProfile: async (data: UpdateProfilePayload): Promise<UserProfileResponse> => {
+  updateProfile: async (data: UpdateProfilePayload | FormData): Promise<UserProfileResponse> => {
     try {
-      const { dateOfBirth, ...restData } = data;
-
-      const formattedData = {
-        ...restData,
-        DateOfBirth: dateOfBirth && dateOfBirth.trim() !== "" ? dateOfBirth.split("T")[0] : null,
-      };
+      const body =
+        data instanceof FormData
+          ? data
+          : (() => {
+              const { dateOfBirth, ...restData } = data as UpdateProfilePayload;
+              return {
+                ...restData,
+                DateOfBirth:
+                  dateOfBirth && dateOfBirth.trim() !== "" ? dateOfBirth.split("T")[0] : null,
+              };
+            })();
 
       const response = (await apiClient.put<ApiResponse<UserProfileResponse>>(
         API_ENDPOINTS.AUTH.ME,
-        formattedData,
+        body,
       )) as unknown as ApiResponse<UserProfileResponse>;
       return response.value;
     } catch (error) {

@@ -101,19 +101,6 @@ export const RegisterForm = () => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <input type="hidden" defaultValue={1} {...register("category", { valueAsNumber: true })} />
 
-        {Object.keys(errors).length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-            <p className="text-xs font-bold text-red-600 mb-1">Vui long sua cac loi sau:</p>
-            <ul className="list-disc list-inside text-[11px] text-red-500 space-y-0.5">
-              {Object.entries(errors).map(([key, err]) => (
-                <li key={key}>
-                  {key}: {(err as { message?: string })?.message || "Invalid"}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Input
@@ -121,7 +108,7 @@ export const RegisterForm = () => {
               placeholder="Name"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
-            {getError("name") && <p className="text-xs text-red-500">{getError("name")}</p>}
+            {getError("name") && <p className="text-xs text-red-500 mt-1">{getError("name")}</p>}
           </div>
 
           <div>
@@ -131,7 +118,7 @@ export const RegisterForm = () => {
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("studentId") && (
-              <p className="text-xs text-red-500">{getError("studentId")}</p>
+              <p className="text-xs text-red-500 mt-1">{getError("studentId")}</p>
             )}
           </div>
 
@@ -141,7 +128,7 @@ export const RegisterForm = () => {
               placeholder="Email"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
-            {getError("email") && <p className="text-xs text-red-500">{getError("email")}</p>}
+            {getError("email") && <p className="text-xs text-red-500 mt-1">{getError("email")}</p>}
           </div>
 
           <div>
@@ -151,7 +138,7 @@ export const RegisterForm = () => {
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("phoneNumber") && (
-              <p className="text-xs text-red-500">{getError("phoneNumber")}</p>
+              <p className="text-xs text-red-500 mt-1">{getError("phoneNumber")}</p>
             )}
           </div>
 
@@ -162,7 +149,9 @@ export const RegisterForm = () => {
               placeholder="Password"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
-            {getError("password") && <p className="text-xs text-red-500">{getError("password")}</p>}
+            {getError("password") && (
+              <p className="text-xs text-red-500 mt-1">{getError("password")}</p>
+            )}
           </div>
 
           <div>
@@ -173,7 +162,7 @@ export const RegisterForm = () => {
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("confirmPassword") && (
-              <p className="text-xs text-red-500">{getError("confirmPassword")}</p>
+              <p className="text-xs text-red-500 mt-1">{getError("confirmPassword")}</p>
             )}
           </div>
 
@@ -186,7 +175,9 @@ export const RegisterForm = () => {
               <option value={2}>Female</option>
               <option value={3}>Other</option>
             </select>
-            {getError("gender") && <p className="text-xs text-red-500">{getError("gender")}</p>}
+            {getError("gender") && (
+              <p className="text-xs text-red-500 mt-1">{getError("gender")}</p>
+            )}
           </div>
 
           <div>
@@ -199,7 +190,7 @@ export const RegisterForm = () => {
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("dateOfBirth") && (
-              <p className="text-xs text-red-500">{getError("dateOfBirth")}</p>
+              <p className="text-xs text-red-500 mt-1">{getError("dateOfBirth")}</p>
             )}
           </div>
 
@@ -210,7 +201,7 @@ export const RegisterForm = () => {
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("majorOrClass") && (
-              <p className="text-xs text-red-500">{getError("majorOrClass")}</p>
+              <p className="text-xs text-red-500 mt-1">{getError("majorOrClass")}</p>
             )}
           </div>
 
@@ -220,7 +211,9 @@ export const RegisterForm = () => {
               placeholder="Address"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
-            {getError("address") && <p className="text-xs text-red-500">{getError("address")}</p>}
+            {getError("address") && (
+              <p className="text-xs text-red-500 mt-1">{getError("address")}</p>
+            )}
           </div>
 
           <div className="md:col-span-2 pt-1">
