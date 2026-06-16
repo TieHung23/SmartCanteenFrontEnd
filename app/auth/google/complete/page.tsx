@@ -4,7 +4,7 @@ import { GoogleCompleteClient } from "@/components/features/auth/google-complete
 export default function GoogleCompletePage() {
   return (
     <Suspense
-        fallback={
+      fallback={
         <div className="flex items-center justify-center min-h-screen">
           <p className="text-lg">Processing sign-in...</p>
         </div>
