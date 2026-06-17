@@ -1,8 +1,16 @@
 "use client";
 
 import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
+import React from "react";
+
+type SafeShaderGradientProps = React.ComponentProps<typeof ShaderGradient> & {
+  fov?: number;
+  pixelDensity?: number;
+};
 
 export function StaffBackground() {
+  const ExtendedShaderGradient = ShaderGradient as React.ComponentType<SafeShaderGradientProps>;
+
   return (
     <div className="fixed inset-0 -z-10">
       <ShaderGradientCanvas
@@ -11,9 +19,9 @@ export function StaffBackground() {
         pixelDensity={0.5}
         fov={45}
       >
-        <ShaderGradient
+        <ExtendedShaderGradient
+          control="props"
           animate="on"
-          axesHelper="off"
           brightness={1.2}
           cAzimuthAngle={183}
           cDistance={2.9}
@@ -22,16 +30,8 @@ export function StaffBackground() {
           color1="#fff3ed"
           color2="#f8f2f1"
           color3="#edfcff"
-          destination="onCanvas"
-          embedMode="off"
-          envPreset="city"
-          format="gif"
-          fov={45}
-          frameRate={10}
-          gizmoHelper="hide"
           grain="off"
           lightType="3d"
-          pixelDensity={1}
           positionX={0}
           positionY={1.8}
           positionZ={0}
@@ -51,6 +51,8 @@ export function StaffBackground() {
           uStrength={3}
           uTime={0.2}
           wireframe={false}
+          fov={45}
+          pixelDensity={1}
         />
       </ShaderGradientCanvas>
     </div>
