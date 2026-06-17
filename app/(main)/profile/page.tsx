@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
+import { ROUTES } from "@/config/routes";
 import {
   User,
   Lock,
   LogOut,
   CheckCircle2,
+  ShieldCheck,
+  ExternalLink,
   Wallet,
   Paintbrush,
   Plus,
@@ -458,6 +462,66 @@ export default function ProfilePage() {
                     )}
                   </button>
                 </div>
+
+                {/* Verification Status Section */}
+                <div className="mt-10 border-t border-gray-100 pt-8">
+                  <h3 className="text-lg font-extrabold text-gray-800 mb-4">Trạng thái xác thực</h3>
+                  <div className="space-y-4">
+                    {/* Email verified */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            profile.emailVerified ? "bg-emerald-100" : "bg-red-100"
+                          }`}
+                        >
+                          <CheckCircle2
+                            className={`w-4 h-4 ${
+                              profile.emailVerified ? "text-emerald-600" : "text-red-500"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Xác thực Email</p>
+                          <p
+                            className={`text-xs font-medium ${
+                              profile.emailVerified ? "text-emerald-600" : "text-red-500"
+                            }`}
+                          >
+                            {profile.emailVerified ? "Đã xác thực" : "Chưa xác thực"}
+                          </p>
+                        </div>
+                      </div>
+                      {!profile.emailVerified && (
+                        <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md">
+                          Bắt buộc
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Identity verification */}
+                    <Link
+                      href={ROUTES.VERIFICATION}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                          <ShieldCheck className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Định danh tài khoản</p>
+                          <p className="text-xs font-medium text-amber-600">Chưa định danh</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#D35400] group-hover:underline">
+                          Nộp giấy tờ
+                        </span>
+                        <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-[#D35400]" />
+                      </div>
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -691,7 +755,7 @@ export default function ProfilePage() {
 
                     {topUpResult ? (
                       <div className="space-y-4">
-                        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center shadow-xs">
+                        <div className="bg-orange-50 border border-orange-100 rounded-3xl p-6 text-center shadow-xs">
                           <CheckCircle2 className="w-12 h-12 text-[#D35400] mx-auto mb-3" />
                           <p className="text-lg font-bold text-[#B34700]">Top-up Created!</p>
                           {topUpResult.gatewayOrderId && (
@@ -699,9 +763,21 @@ export default function ProfilePage() {
                               Mã GD: {topUpResult.gatewayOrderId}
                             </p>
                           )}
-                          <p className="text-sm text-orange-500 mt-2 font-bold">
-                            {new Intl.NumberFormat("vi-VN").format(topUpResult.amountVnd)} VND →{" "}
-                            {new Intl.NumberFormat("vi-VN").format(topUpResult.convertedPoints)} pts
+                          <p className="text-xl text-orange-500 font-bold flex items-center justify-center gap-1.5 flex-wrap">
+                            <span>
+                              {new Intl.NumberFormat("vi-VN").format(topUpResult.amountVnd)} VND
+                            </span>
+                            <span className="text-gray-400 mx-0.5">→</span>
+                            <span>
+                              {new Intl.NumberFormat("vi-VN").format(topUpResult.convertedPoints)}
+                            </span>
+                            <Image
+                              src="/logo_point.png"
+                              alt="pts"
+                              width={16}
+                              height={16}
+                              className="object-contain inline-block align-middle"
+                            />
                           </p>
                           <p className="text-xs text-gray-400 mt-2 font-medium">
                             Status: {topUpResult.status}
@@ -711,10 +787,10 @@ export default function ProfilePage() {
                         {/* ─── QR CODE ─── */}
                         {topUpResult.payUrl && (
                           <div className="mt-4 p-6 bg-white border border-gray-100 rounded-[1.5rem] flex flex-col items-center gap-4 shadow-sm">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                            <p className="text-lg font-black text-gray-400 uppercase tracking-wider">
                               Scan QR Code to Pay
                             </p>
-                            <div className="relative w-52 h-52 border border-gray-100 rounded-2xl overflow-hidden p-3 bg-white shadow-xs transition-transform duration-300 hover:scale-102">
+                            <div className="relative w-90 h-90 border border-gray-100 rounded-2xl overflow-hidden p-3 bg-white shadow-xs transition-transform duration-300 hover:scale-102">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={topUpResult.payUrl}
@@ -727,7 +803,7 @@ export default function ProfilePage() {
 
                         {topUpResult.paymentContent && (
                           <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 text-center">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">
+                            <p className="text-[14px] font-bold text-gray-400 uppercase tracking-wide mb-2">
                               Noi dung chuyen khoan
                             </p>
                             <button
@@ -747,7 +823,7 @@ export default function ProfilePage() {
                             setTopUpResult(null);
                             setTopUpAmount(50000);
                           }}
-                          className="w-full py-4 bg-white text-gray-500 font-extrabold text-sm rounded-xl border border-gray-200 hover:bg-gray-50 hover:text-gray-700 transition-colors mt-2"
+                          className="w-full py-4 bg-white text-gray-500 font-extrabold text-base rounded-xl border border-gray-200 hover:bg-gray-50 hover:text-gray-700 transition-colors mt-2"
                         >
                           Make Another Top-up
                         </button>

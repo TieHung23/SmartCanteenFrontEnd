@@ -1,7 +1,6 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type {
-  CreateOrderItem,
   CreateOrderResponse,
   OrderDetail,
   OrderListItem,
@@ -15,26 +14,23 @@ export const orderService = {
     pageNumber?: number;
     status?: OrderStatus;
   }): Promise<PaginatedList<OrderListItem>> => {
-    // 1. Ép kiểu response về dạng ApiResponse chứa PaginatedList
     const response = (await apiClient.get<ApiResponse<PaginatedList<OrderListItem>>>(
       API_ENDPOINTS.ORDER.LIST,
       { params },
     )) as unknown as ApiResponse<PaginatedList<OrderListItem>>;
 
-    // 2. Trả về đúng phần lõi dữ liệu (value)
     return response.value;
   },
   getOrderById: async (id: string): Promise<OrderDetail> => {
     return await apiClient.get<OrderDetail, OrderDetail>(API_ENDPOINTS.ORDER.GET(id));
   },
 
-  createOrder: async (mealId: string, items: CreateOrderItem[]): Promise<CreateOrderResponse> => {
-    const response = (await apiClient.post<ApiResponse<CreateOrderResponse>>(
+  createOrder: async (cartVersion: number): Promise<CreateOrderResponse> => {
+    const response = await apiClient.post<ApiResponse<CreateOrderResponse>>(
       API_ENDPOINTS.ORDER.CREATE,
-      { mealId, items },
-    )) as unknown as ApiResponse<CreateOrderResponse>;
-
-    return response.value;
+      { cartVersion },
+    );
+    return (response as unknown as ApiResponse<CreateOrderResponse>).value;
   },
 
   confirmReceived: async (orderId: string) => {

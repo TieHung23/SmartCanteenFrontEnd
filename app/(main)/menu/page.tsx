@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense, useMemo, useEffect, useState, useRef } from "react";
+import { Suspense, useMemo, useEffect, useState, useRef, useSyncExternalStore } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { useCategories, useMealDetail, useAllDishes } from "@/lib/hooks/useCanteen";
 import type { MealTemplate } from "@/types/meal.types";
@@ -58,6 +58,12 @@ function formatDate(dateStr: string): string {
 function MenuContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
+
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
@@ -217,6 +223,10 @@ function MenuContent() {
           imgUrl: finalImageUrl,
           description: description || "Fresh select item.",
           mealId: sessionId || undefined,
+          mealTemplateId:
+            selectedTemplateIdx !== null
+              ? mealDetail?.mealTemplates[selectedTemplateIdx].name
+              : undefined,
           mealName: mealDetail?.name || undefined,
           categoryId,
           categoryName,
@@ -435,8 +445,8 @@ function MenuContent() {
                 priority
               />
 
-              {cartItems.length > 0 && (
-                <div className="absolute inset-0">
+              {mounted && cartItems.length > 0 && (
+                <div className="absolute inset-0" suppressHydrationWarning>
                   {cartItems.map((item, idx) => {
                     const positions = [
                       { top: "22%", left: "22%", w: "17%", h: "19%" },
@@ -490,8 +500,11 @@ function MenuContent() {
                 </div>
               )}
 
-              {cartItems.length === 0 && !isDragOverTray && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              {(!mounted || cartItems.length === 0) && !isDragOverTray && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  suppressHydrationWarning
+                >
                   <p className="text-gray-400 text-[10px] font-bold bg-white/70 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-sm">
                     Keo tha mon vao day
                   </p>

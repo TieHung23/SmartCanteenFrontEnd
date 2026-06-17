@@ -33,6 +33,11 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
   },
+  CART: {
+    GET: "/api/Cart",
+    UPDATE: "/api/Cart",
+    DELETE: "/api/Cart",
+  },
   PAYMENT: {
     TOP_UP: "/api/payments/top-up",
     GET: (id: string) => `/api/payments/${id}`,
@@ -49,5 +54,12 @@ export const API_ENDPOINTS = {
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",
     ME: "/api/Verification/me",
+  },
+  NOTIFICATION: {
+    LIST: "/api/notifications",
+    UNREAD_COUNT: "/api/notifications/unread_count",
+    READ: (id: string) => `/api/notifications/${id}/read`,
+    READ_ALL: "/api/notifications/read_all",
+    DELETE: (id: string) => `/api/notifications/${id}`,
   },
 } as const;

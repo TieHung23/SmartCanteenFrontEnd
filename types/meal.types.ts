@@ -8,6 +8,7 @@ export interface MealTemplateSetting {
 }
 
 export interface MealTemplate {
+  id: string;
   name: string;
   settings: MealTemplateSetting[];
 }
@@ -40,6 +41,7 @@ export const MealTemplateSettingSchema = z.object({
 }) satisfies z.ZodType<MealTemplateSetting>;
 
 export const MealTemplateSchema = z.object({
+  id: z.string().uuid(),
   name: z.string(),
   settings: z.array(MealTemplateSettingSchema),
 }) satisfies z.ZodType<MealTemplate>;
