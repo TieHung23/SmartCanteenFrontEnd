@@ -9,6 +9,7 @@ export interface CartItem extends CreateOrderItem {
   imgUrl?: string;
   description?: string;
   mealId?: string;
+  mealTemplateId?: string;
   mealName?: string;
   categoryId?: string;
   categoryName?: string;

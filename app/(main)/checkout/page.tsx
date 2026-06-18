@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { isAxiosError } from "axios";
 import Navbar from "@/components/layout/Navbar";
 import { useCart, type CartItem } from "@/context/cart-context";
 import { useMealDetail } from "@/lib/hooks/useCanteen";
@@ -10,6 +11,9 @@ import { orderService } from "@/services/order.service";
 import { paymentService, type TopUpRequest, type TopUpResponse } from "@/services/payment.service";
 import { userService, type UserProfileResponse } from "@/services/user.service";
 import { ROUTES } from "@/config/routes";
+import { cartService } from "@/services/cart.service";
+import type { CartData } from "@/types/cart.types";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -27,6 +31,7 @@ import {
   PartyPopper,
   Receipt,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -134,22 +139,40 @@ export default function CheckoutPage() {
     if (!mealId) return;
     setIsSubmitting(true);
     try {
-      const cleanedItems = cartItems.map((item) => ({
-        dishId: item.dishId,
-        quantity: item.quantity,
-      }));
-      const result = await orderService.createOrder(mealId, cleanedItems);
+      let currentVersion = 0;
+      try {
+        const serverCart = await cartService.getCart();
+        currentVersion = serverCart.version;
+      } catch {}
+
+      const mealTemplateId =
+        mealDetail?.mealTemplates?.[0]?.id || "00000000-0000-0000-0000-000000000000";
+
+      const cartData: CartData = {
+        mealId,
+        mealTemplateId,
+        items: cartItems.map((item) => ({
+          dishId: item.dishId,
+          quantity: item.quantity,
+        })),
+      };
+      const updatedCart = await cartService.updateCart(cartData, currentVersion);
+
+      const result = await orderService.createOrder(updatedCart.version);
       clearCart();
       setOrderResult(result);
       toast.success(result.message || "Order placed successfully!");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-      const msg = err?.response?.data?.message || err?.message || "Order failed";
+      const msg = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Order failed";
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
-  }, [mealId, cartItems, clearCart]);
+  }, [mealId, cartItems, mealDetail, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -237,7 +260,7 @@ export default function CheckoutPage() {
         <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
           {/* Background image with dark overlay + blur */}
           <div className="absolute inset-0">
-            <Image src="/uni1.jpg" alt="" fill className="object-cover" sizes="100vw" />
+            <Image src="/uni1.webp" alt="" fill className="object-cover" sizes="100vw" />
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
           </div>
 
@@ -376,7 +399,10 @@ export default function CheckoutPage() {
               <div>
                 <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
                 {mealInfo?.name && (
-                  <p className="text-xs font-bold text-orange-500 mt-0.5 uppercase tracking-wide flex items-center gap-1.5">
+                  <p
+                    suppressHydrationWarning
+                    className="text-xs font-bold text-orange-500 mt-0.5 uppercase tracking-wide flex items-center gap-1.5"
+                  >
                     <Calendar className="w-3.5 h-3.5" /> {mealInfo.name} (
                     {formatTimeRange(mealInfo.time)})
                   </p>
@@ -508,8 +534,38 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-
-                {hasEnoughPoints ? (
+                {!profile?.emailVerified ? (
+                  <div className="space-y-4">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-red-800">
+                          Tài khoản chưa được xác thực
+                        </p>
+                        <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                          Bạn cần xác thực email và hoàn tất định danh tài khoản trước khi có thể
+                          đặt hàng.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <Link
+                        href={ROUTES.PROFILE}
+                        className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm rounded-xl text-center transition-all"
+                      >
+                        Đến trang cá nhân
+                      </Link>
+                      <Link
+                        href={ROUTES.VERIFICATION}
+                        className="flex-1 py-3.5 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl text-center transition-all shadow-md"
+                      >
+                        Định danh ngay
+                      </Link>
+                    </div>
+                  </div>
+                ) : hasEnoughPoints ? (
                   <button
                     onClick={handleCreateOrder}
                     disabled={isSubmitting}
