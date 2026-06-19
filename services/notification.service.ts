@@ -1,6 +1,6 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
-import type { ApiResponse, PaginatedList } from "./meal.service";
+import type { ApiResponse, PaginatedList } from "./session.service";
 import type { NotificationItem, UnreadCount } from "@/types/notification.types";
 
 export const notificationService = {
@@ -21,9 +21,9 @@ export const notificationService = {
     return data?.count ?? 0;
   },
   markAsRead: async (id: string) => {
-    await apiClient.put(API_ENDPOINTS.NOTIFICATION.READ(id));
+    await apiClient.patch(API_ENDPOINTS.NOTIFICATION.READ(id));
   },
   markAllAsRead: async () => {
-    await apiClient.put(API_ENDPOINTS.NOTIFICATION.READ_ALL);
+    await apiClient.patch(API_ENDPOINTS.NOTIFICATION.READ_ALL);
   },
 };

@@ -13,12 +13,12 @@ import {
   Clock,
   Calendar,
 } from "lucide-react";
-import { mealService } from "@/services/meal.service";
+import { sessionService } from "@/services/session.service";
 import { categoryService } from "@/services/category.service";
 import { toast } from "sonner";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 
-interface MealItem {
+interface SessionItem {
   id?: string;
   Id?: string;
   name?: string;
@@ -27,7 +27,7 @@ interface MealItem {
   availableFrom?: string;
   availableTo?: string;
   mealTemplates?: TemplateItem[];
-  dishes?: MealDishItem[];
+  dishes?: SessionDishItem[];
 }
 
 interface TemplateItem {
@@ -62,18 +62,18 @@ interface DishInfo {
   CategoryId?: string;
 }
 
-interface MealDishItem {
+interface SessionDishItem {
   dishId?: string;
   quantity?: number;
 }
 
 export default function StaffSessionsPage() {
-  const [meals, setMeals] = useState<MealItem[]>([]);
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Record<string, CategoryItem>>({});
   const [dishesMap, setDishesMap] = useState<Record<string, DishInfo>>({});
   const [loading, setLoading] = useState<boolean>(true);
 
-  const [activeMealId, setActiveMealId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
   // ── REFS ĐIỀU KHIỂN CUỘN TỰ ĐỘNG VÀ KÉO RÊ ──
@@ -110,7 +110,7 @@ export default function StaffSessionsPage() {
 
         let dishesList: DishInfo[] = [];
         try {
-          dishesList = (await mealService.getAllDishes()) as unknown as DishInfo[];
+          dishesList = (await sessionService.getAllDishes()) as unknown as DishInfo[];
         } catch (dishErr) {
           console.warn("Không thể tải món ăn:", dishErr);
         }
@@ -124,17 +124,17 @@ export default function StaffSessionsPage() {
         );
         setDishesMap(dishMap);
 
-        const mealData = await mealService.getMeals({ pageSize: 100 });
-        const activeMeals = mealData?.items || [];
-        setMeals(activeMeals as MealItem[]);
+        const sessionData = await sessionService.getSessions({ pageSize: 100 });
+        const activeSessions = sessionData?.items || [];
+        setSessions(activeSessions as SessionItem[]);
 
-        if (activeMeals.length > 0) {
-          const firstMealId = activeMeals[0].id;
-          setActiveMealId(firstMealId);
+        if (activeSessions.length > 0) {
+          const firstSessionId = activeSessions[0].id;
+          setActiveSessionId(firstSessionId);
 
           const initialOpenState: Record<string, boolean> = {};
-          const firstMealTemplates = (activeMeals[0] as MealItem).mealTemplates || [];
-          firstMealTemplates.forEach((template: TemplateItem) => {
+          const firstSessionTemplates = (activeSessions[0] as SessionItem).mealTemplates || [];
+          firstSessionTemplates.forEach((template: TemplateItem) => {
             (template.settings || []).forEach((s: TemplateSetting) => {
               if (s.categoryId) initialOpenState[s.categoryId.toLowerCase()] = true;
             });
@@ -153,7 +153,7 @@ export default function StaffSessionsPage() {
 
   // ── CƠ CHẾ SỬA LỖI TỰ ĐỘNG CHẠY TUYỆT ĐỐI (DÙNG ANIMATION FRAME + ĐỘ TRỄ) ──
   useEffect(() => {
-    if (loading || meals.length === 0) return;
+    if (loading || sessions.length === 0) return;
 
     // Hàm thực hiện vòng lặp cuộn tịnh tiến
     const initAutoScroll = () => {
@@ -196,7 +196,7 @@ export default function StaffSessionsPage() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [loading, meals]);
+  }, [loading, sessions]);
 
   // Điều khiển trạng thái tạm hoãn khi tương tác trực tiếp
   const handleMouseEnter = () => {
@@ -278,14 +278,14 @@ export default function StaffSessionsPage() {
 
   const globalQuery = useGlobalSearch((s) => s.query);
 
-  const filteredMeals = useMemo(() => {
+  const filteredSessions = useMemo(() => {
     const q = globalQuery.toLowerCase().trim();
-    if (!q) return meals;
-    return meals.filter((m) => {
+    if (!q) return sessions;
+    return sessions.filter((m) => {
       const name = (m.name || "").toLowerCase();
       const desc = (m.description || "").toLowerCase();
       const dishesText = (m.dishes || [])
-        .map((d: MealDishItem) => {
+        .map((d: SessionDishItem) => {
           const dishId = (d.dishId || "").toLowerCase();
           const dishInfo = dishesMap[dishId];
           return (dishInfo?.name || "").toLowerCase();
@@ -304,7 +304,7 @@ export default function StaffSessionsPage() {
         name.includes(q) || desc.includes(q) || dishesText.includes(q) || categoriesText.includes(q)
       );
     });
-  }, [meals, globalQuery, categoriesMap, dishesMap]);
+  }, [sessions, globalQuery, categoriesMap, dishesMap]);
 
   if (loading) {
     return (
@@ -317,7 +317,7 @@ export default function StaffSessionsPage() {
     );
   }
 
-  const currentSelectedMeal = meals.find((m) => m.id === activeMealId);
+  const currentSelectedSession = sessions.find((m) => m.id === activeSessionId);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
@@ -329,7 +329,7 @@ export default function StaffSessionsPage() {
         </p>
       </div>
 
-      {filteredMeals.length === 0 ? (
+      {filteredSessions.length === 0 ? (
         <div className="bg-white border-2 border-gray-100 rounded-2xl py-20 text-center text-gray-500 font-bold shadow-sm">
           {globalQuery.trim()
             ? "Không tìm thấy phiên phục vụ nào khớp"
@@ -351,16 +351,16 @@ export default function StaffSessionsPage() {
               msOverflowStyle: "none",
             }}
           >
-            {filteredMeals.map((meal) => {
-              const mId = meal.id;
-              const isSelected = mId === activeMealId;
+            {filteredSessions.map((session) => {
+              const sId = session.id;
+              const isSelected = sId === activeSessionId;
               return (
                 <button
-                  key={mId}
+                  key={sId}
                   onClick={() => {
                     // Chỉ cho kích hoạt sự kiện click chọn nếu người dùng không phải đang kéo rê chuột
                     if (!isDown.current) {
-                      if (mId) setActiveMealId(mId);
+                      if (sId) setActiveSessionId(sId);
                     }
                   }}
                   className={`shrink-0 flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-base border-2 transition-all duration-300 ${
@@ -372,8 +372,8 @@ export default function StaffSessionsPage() {
                   <Coffee
                     className={`w-5 h-5 ${isSelected ? "text-[#FF4C24]" : "text-gray-400"}`}
                   />
-                  <span className="whitespace-nowrap">{meal.name}</span>
-                  {meal.isActive && (
+                  <span className="whitespace-nowrap">{session.name}</span>
+                  {session.isActive && (
                     <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
                   )}
                 </button>
@@ -382,7 +382,7 @@ export default function StaffSessionsPage() {
           </div>
 
           {/* ── TẦNG 2: NỘI DUNG CHI TIẾT CỦA CA ĂN ĐANG CHỌN ── */}
-          {currentSelectedMeal && (
+          {currentSelectedSession && (
             <div className="space-y-6 animate-fade-in">
               {/* 🕒 BOX THỜI GIAN MỞ / ĐÓNG CA ĂN */}
               <div className="bg-gradient-to-r from-orange-50 to-amber-50/60 border-2 border-orange-100 rounded-2xl p-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center shadow-xs">
@@ -395,8 +395,8 @@ export default function StaffSessionsPage() {
                       Thời gian phục vụ ca
                     </p>
                     <p className="text-xl font-black text-gray-900 mt-0.5">
-                      {formatTime(currentSelectedMeal.availableFrom || "")} —{" "}
-                      {formatTime(currentSelectedMeal.availableTo || "")}
+                      {formatTime(currentSelectedSession.availableFrom || "")} —{" "}
+                      {formatTime(currentSelectedSession.availableTo || "")}
                     </p>
                   </div>
                 </div>
@@ -410,7 +410,7 @@ export default function StaffSessionsPage() {
                       Ngày hoạt động
                     </p>
                     <p className="text-xl font-black text-gray-900 mt-0.5">
-                      {formatDate(currentSelectedMeal.availableFrom || "")}
+                      {formatDate(currentSelectedSession.availableFrom || "")}
                     </p>
                   </div>
                 </div>
@@ -418,12 +418,12 @@ export default function StaffSessionsPage() {
                 <div className="flex justify-start md:justify-end">
                   <span
                     className={`inline-flex text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border-2 ${
-                      currentSelectedMeal.isActive
+                      currentSelectedSession.isActive
                         ? "bg-green-100 text-green-800 border-green-200"
                         : "bg-gray-200 text-gray-500 border-gray-300"
                     }`}
                   >
-                    {currentSelectedMeal.isActive ? "● Đang Mở Bán" : "○ Ca Đã Khóa"}
+                    {currentSelectedSession.isActive ? "● Đang Mở Bán" : "○ Ca Đã Khóa"}
                   </span>
                 </div>
               </div>
@@ -432,12 +432,12 @@ export default function StaffSessionsPage() {
               <div className="text-base text-gray-600 font-medium px-2">
                 📝{" "}
                 <span className="italic">
-                  {currentSelectedMeal.description || "Chưa có mô tả cho phiên làm việc này."}
+                  {currentSelectedSession.description || "Chưa có mô tả cho phiên làm việc này."}
                 </span>
               </div>
 
               {/* Cấu trúc Accordion */}
-              {(currentSelectedMeal.mealTemplates || []).map((template: TemplateItem) => (
+              {(currentSelectedSession.mealTemplates || []).map((template: TemplateItem) => (
                 <div key={template.id} className="space-y-4">
                   <div className="text-sm font-black text-gray-400 flex items-center gap-2 px-1 uppercase tracking-wider">
                     <LayoutGrid className="w-4 h-4" /> Định dạng khuôn mẫu: {template.name}
@@ -455,8 +455,8 @@ export default function StaffSessionsPage() {
                         `Danh mục (#${targetCateId.slice(0, 6).toUpperCase()})`;
                       const targetCateImg = dbCategory?.imgUrl || dbCategory?.ImgUrl;
 
-                      const categoryDishes = (currentSelectedMeal.dishes || []).filter(
-                        (d: MealDishItem) => {
+                      const categoryDishes = (currentSelectedSession.dishes || []).filter(
+                        (d: SessionDishItem) => {
                           const globalDishInfo =
                             dishesMap[(d.dishId || "").toString().toLowerCase()];
                           return (
@@ -521,7 +521,7 @@ export default function StaffSessionsPage() {
                                   Không có món ăn nào trong nhóm này được phân phối ca phục vụ.
                                 </p>
                               ) : (
-                                categoryDishes.map((d: MealDishItem, dIdx: number) => {
+                                categoryDishes.map((d: SessionDishItem, dIdx: number) => {
                                   const dishIdClean = (d.dishId || "").toString().toLowerCase();
                                   const dishInfo = dishesMap[dishIdClean];
                                   const stock = d.quantity ?? 0;

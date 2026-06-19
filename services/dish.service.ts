@@ -1,7 +1,7 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { Dish } from "@/types/dish.types";
-import { type ApiResponse, type PaginatedList } from "./meal.service";
+import { type ApiResponse, type PaginatedList } from "./session.service";
 
 export const dishService = {
   getDishes: async (params?: {

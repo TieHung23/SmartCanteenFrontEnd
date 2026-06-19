@@ -6,7 +6,7 @@ import Image from "next/image";
 import { isAxiosError } from "axios";
 import Navbar from "@/components/layout/Navbar";
 import { useCart, type CartItem } from "@/context/cart-context";
-import { useMealDetail } from "@/lib/hooks/useCanteen";
+import { useSessionDetail } from "@/lib/hooks/useCanteen";
 import { orderService } from "@/services/order.service";
 import { paymentService, type TopUpRequest, type TopUpResponse } from "@/services/payment.service";
 import { userService, type UserProfileResponse } from "@/services/user.service";
@@ -56,7 +56,8 @@ function PtsDisplay({ amount, className }: { amount: number; className?: string 
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, mealId, getCartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cartItems, sessionId, getCartTotal, updateQuantity, removeFromCart, clearCart } =
+    useCart();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +75,7 @@ export default function CheckoutPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!orderResult && (!mealId || cartItems.length === 0)) {
+    if (!orderResult && (!sessionId || cartItems.length === 0)) {
       router.push(ROUTES.SESSION);
       return;
     }
@@ -87,14 +88,14 @@ export default function CheckoutPage() {
       }
     };
     fetchProfile();
-  }, [mealId, cartItems, router, orderResult]);
+  }, [sessionId, cartItems, router, orderResult]);
 
   const totalPoints = getCartTotal();
   const balance = profile?.balanceAmount ?? 0;
   const hasEnoughPoints = balance >= totalPoints;
   const neededPoints = Math.max(0, totalPoints - balance);
 
-  const { data: mealDetail } = useMealDetail(mealId);
+  const { data: mealDetail } = useSessionDetail(sessionId);
 
   const categoryMaxMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -121,7 +122,7 @@ export default function CheckoutPage() {
   const mealInfo = useMemo(() => {
     const first = cartItems[0];
     if (!first) return null;
-    return { name: first.mealName, time: first.mealTime };
+    return { name: first.sessionName, time: first.sessionTime };
   }, [cartItems]);
 
   function formatTimeRange(t?: string) {
@@ -136,7 +137,7 @@ export default function CheckoutPage() {
   }
 
   const handleCreateOrder = useCallback(async () => {
-    if (!mealId) return;
+    if (!sessionId) return;
     setIsSubmitting(true);
     try {
       let currentVersion = 0;
@@ -146,19 +147,25 @@ export default function CheckoutPage() {
       } catch {}
 
       const mealTemplateId =
-        mealDetail?.mealTemplates?.[0]?.id || "00000000-0000-0000-0000-000000000000";
+        cartItems[0]?.sessionTemplateId ||
+        mealDetail?.mealTemplates?.[0]?.id ||
+        "00000000-0000-0000-0000-000000000000";
 
       const cartData: CartData = {
-        mealId,
-        mealTemplateId,
-        items: cartItems.map((item) => ({
-          dishId: item.dishId,
-          quantity: item.quantity,
-        })),
+        sessions: [
+          {
+            sessionId,
+            mealTemplateId,
+            items: cartItems.map((item) => ({
+              dishId: item.dishId,
+              quantity: item.quantity,
+            })),
+          },
+        ],
       };
       const updatedCart = await cartService.updateCart(cartData, currentVersion);
 
-      const result = await orderService.createOrder(updatedCart.version);
+      const result = await orderService.createOrder(sessionId, updatedCart.version);
       clearCart();
       setOrderResult(result);
       toast.success(result.message || "Order placed successfully!");
@@ -172,7 +179,7 @@ export default function CheckoutPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [mealId, cartItems, mealDetail, clearCart]);
+  }, [sessionId, cartItems, mealDetail, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -381,7 +388,7 @@ export default function CheckoutPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6 font-sans">
+      <main className="min-h-screen bg-[#FDFBF9] py-10 px-4 sm:px-8">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-orange-100/30 to-transparent pointer-events-none" />
         <div className="max-w-5xl mx-auto relative z-10">
           <button
@@ -412,32 +419,32 @@ export default function CheckoutPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-7 space-y-8">
               {Array.from(groupedCartItems.entries()).map(([catId, items]) => {
                 const catMax = catId !== "__unknown__" ? categoryMaxMap.get(catId) : undefined;
                 return (
-                  <div key={catId} className="space-y-2.5">
+                  <div key={catId} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                      <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
                         {items[0]?.categoryName || "Other"}
                       </span>
                       {catMax !== undefined && (
-                        <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded-md">
-                          Selected: {items.reduce((s, i) => s + i.quantity, 0)}/{catMax}
+                        <span className="text-xs text-gray-400 font-semibold bg-gray-100 px-3 py-1 rounded-lg">
+                          Đã chọn: {items.reduce((s, i) => s + i.quantity, 0)}/{catMax}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {items.map((item) => {
                         const catItemCount = items.reduce((s, i) => s + i.quantity, 0);
                         const isAtMax = catMax !== undefined && catItemCount >= catMax;
                         return (
                           <div
                             key={item.dishId}
-                            className="flex gap-4 p-4 rounded-2xl bg-white border border-gray-50 shadow-xs hover:border-orange-100 transition-all group"
+                            className="flex gap-5 p-5 rounded-2xl bg-white border border-gray-50 shadow-sm hover:border-orange-100 hover:shadow-md transition-all"
                           >
-                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-50">
                               <Image
                                 src={item.imgUrl || "/placeholder-food.png"}
                                 alt={item.name}
@@ -446,46 +453,46 @@ export default function CheckoutPage() {
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-bold text-gray-800 truncate">
+                              <h4 className="text-base font-semibold text-gray-800 truncate">
                                 {item.name}
                               </h4>
-                              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                                <PtsDisplay amount={item.price} /> each
+                              <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                                <PtsDisplay amount={item.price} /> mỗi món
                               </p>
-                              <div className="flex items-center justify-between mt-2">
-                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between mt-3">
+                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl">
                                   <button
                                     onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
-                                    className="p-1.5 rounded-md text-gray-500 hover:bg-white transition-colors"
+                                    className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors"
                                   >
-                                    <Minus className="w-3 h-3" />
+                                    <Minus className="w-4 h-4" />
                                   </button>
-                                  <span className="px-3 text-xs font-black text-gray-700 min-w-[24px] text-center">
+                                  <span className="px-4 text-sm font-bold text-gray-700 min-w-[28px] text-center">
                                     {item.quantity}
                                   </span>
                                   <button
                                     onClick={() => {
                                       if (isAtMax) {
-                                        toast.error(`Maximum quantity of ${catMax} items reached.`);
+                                        toast.error(`Tối đa ${catMax} món cho danh mục này.`);
                                         return;
                                       }
                                       updateQuantity(item.dishId, item.quantity + 1);
                                     }}
-                                    className={`p-1.5 rounded-md text-gray-500 hover:bg-white transition-colors ${
+                                    className={`p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors ${
                                       isAtMax ? "opacity-30 cursor-not-allowed" : ""
                                     }`}
                                   >
-                                    <Plus className="w-3 h-3" />
+                                    <Plus className="w-4 h-4" />
                                   </button>
                                 </div>
-                                <div className="text-sm font-black text-[#D35400]">
+                                <div className="text-base font-bold text-[#D35400]">
                                   <PtsDisplay amount={item.price * item.quantity} />
                                 </div>
                               </div>
                             </div>
                             <button
                               onClick={() => removeFromCart(item.dishId)}
-                              className="self-start p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                              className="self-start p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { User, Mail, ShieldCheck, Loader2, Save, Camera } from "lucide-react";
-import { userService } from "@/services/user.service";
+import { userService, type UpdateProfilePayload } from "@/services/user.service";
 import { toast } from "sonner";
 import Image from "next/image";
 
@@ -79,23 +79,20 @@ export default function StaffProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const formData = new FormData();
-      formData.append("Name", profile.name);
-      formData.append("PhoneNumber", profile.phoneNumber);
-      formData.append("Gender", profile.gender.toString());
-      formData.append("Address", profile.address);
-      formData.append("MajorOrClass", profile.majorOrClass);
-      formData.append("StudentId", profile.studentId);
+      const payload: UpdateProfilePayload = {
+        name: profile.name,
+        phoneNumber: profile.phoneNumber,
+        gender: profile.gender,
+        address: profile.address,
+        majorOrClass: profile.majorOrClass,
+        studentId: profile.studentId,
+        dateOfBirth: profile.dateOfBirth || undefined,
+        imageFile: avatarFile || undefined,
+      };
 
-      if (profile.dateOfBirth && profile.dateOfBirth.trim() !== "") {
-        formData.append("DateOfBirth", profile.dateOfBirth.split("T")[0]);
-      }
+      await userService.updateProfile(payload);
 
-      if (avatarFile) {
-        formData.append("Avatar", avatarFile);
-      }
-
-      await userService.updateProfile(formData);
+      window.dispatchEvent(new Event("profileUpdated"));
 
       toast.success("Cập nhật thành công", {
         description: "Thông tin cá nhân & Ảnh đại diện đã được lưu lại.",

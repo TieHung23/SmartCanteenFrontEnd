@@ -1,13 +1,26 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import { useOrderDetail } from "@/lib/hooks/useCanteen";
 import { ORDER_STATUS_META, type OrderStatus } from "@/types/order.types";
 import { orderService } from "@/services/order.service";
-import { ArrowLeft, Package, CheckCircle, XCircle } from "lucide-react";
+import { refundService } from "@/services/refund.service";
+import { REFUND_STATUS_META, type RefundStatus } from "@/types/refund.types";
+import { ROUTES } from "@/config/routes";
+import {
+  ArrowLeft,
+  Package,
+  CheckCircle,
+  XCircle,
+  ShieldAlert,
+  Clock,
+  ThumbsUp,
+  ThumbsDown,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -27,6 +40,20 @@ export default function OrderDetailPage() {
   const orderId = (params.id as string) || null;
   const { data: order, isLoading } = useOrderDetail(orderId);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [existingRefund, setExistingRefund] = useState<{ status: RefundStatus } | null>(null);
+  const [checkingRefund, setCheckingRefund] = useState(true);
+
+  useEffect(() => {
+    if (!orderId) return;
+    refundService
+      .getMyRefunds()
+      .then((res) => {
+        const found = (res?.items || []).find((r: { orderId: string }) => r.orderId === orderId);
+        setExistingRefund(found ? { status: found.status as RefundStatus } : null);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingRefund(false));
+  }, [orderId]);
 
   const handleConfirmReceived = async () => {
     if (!orderId) return;
@@ -170,6 +197,60 @@ export default function OrderDetailPage() {
                   </p>
                 </div>
               </div>
+            )}
+
+            {/* Refund status / button */}
+            {!checkingRefund && existingRefund && (
+              <div
+                className="mt-6 rounded-2xl p-5 flex items-start gap-4 border"
+                style={{
+                  background: REFUND_STATUS_META[existingRefund.status].bg,
+                  borderColor: REFUND_STATUS_META[existingRefund.status].color + "20",
+                }}
+              >
+                {existingRefund.status === 0 ? (
+                  <Clock
+                    className="w-6 h-6 shrink-0 mt-0.5"
+                    style={{ color: REFUND_STATUS_META[existingRefund.status].color }}
+                  />
+                ) : existingRefund.status === 1 ? (
+                  <ThumbsUp
+                    className="w-6 h-6 shrink-0 mt-0.5"
+                    style={{ color: REFUND_STATUS_META[existingRefund.status].color }}
+                  />
+                ) : (
+                  <ThumbsDown
+                    className="w-6 h-6 shrink-0 mt-0.5"
+                    style={{ color: REFUND_STATUS_META[existingRefund.status].color }}
+                  />
+                )}
+                <div>
+                  <p
+                    className="text-base font-bold"
+                    style={{ color: REFUND_STATUS_META[existingRefund.status].color }}
+                  >
+                    Yêu cầu hoàn tiền: {REFUND_STATUS_META[existingRefund.status].label}
+                  </p>
+                  <p
+                    className="text-sm mt-1"
+                    style={{ color: REFUND_STATUS_META[existingRefund.status].color, opacity: 0.7 }}
+                  >
+                    {existingRefund.status === 0
+                      ? "Đang chờ quản lý xử lý"
+                      : existingRefund.status === 1
+                        ? "Yêu cầu hoàn tiền đã được duyệt"
+                        : "Yêu cầu hoàn tiền đã bị từ chối"}
+                  </p>
+                </div>
+              </div>
+            )}
+            {!checkingRefund && !existingRefund && order.status === 2 && (
+              <Link
+                href={`${ROUTES.REFUND}?orderId=${orderId}`}
+                className="w-full mt-6 py-5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-base rounded-2xl transition-all flex items-center justify-center gap-3 shadow-[0_4px_16px_rgba(249,115,22,0.3)]"
+              >
+                <ShieldAlert className="w-5 h-5" /> Yêu cầu hoàn tiền
+              </Link>
             )}
           </div>
         </div>

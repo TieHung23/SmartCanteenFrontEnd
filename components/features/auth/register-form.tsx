@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import Image from "next/image";
 import { ROUTES } from "@/config/routes";
 import { authService } from "@/services/auth.service";
@@ -30,12 +31,12 @@ export const RegisterForm = () => {
 
   const registerMutation = useMutation({
     mutationFn: (data: RegisterBodyType) => authService.register(data),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       toast.success(
         data.message ||
-          "Registration successful. Please check your email and verify your account before signing in.",
+          "Registration successful. Please check your email and enter the verification code.",
       );
-      router.push(ROUTES.LOGIN);
+      router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
     },
     onError: (error: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
       const serverMsg = error.response?.data?.message;
@@ -143,11 +144,10 @@ export const RegisterForm = () => {
           </div>
 
           <div>
-            <Input
-              type="password"
+            <PasswordInput
               {...register("password")}
               placeholder="Password"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("password") && (
               <p className="text-xs text-red-500 mt-1">{getError("password")}</p>
@@ -155,11 +155,10 @@ export const RegisterForm = () => {
           </div>
 
           <div>
-            <Input
-              type="password"
+            <PasswordInput
               {...register("confirmPassword")}
               placeholder="Confirm password"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
+              inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("confirmPassword") && (
               <p className="text-xs text-red-500 mt-1">{getError("confirmPassword")}</p>
@@ -251,9 +250,9 @@ export const RegisterForm = () => {
           type="button"
           onClick={() => (window.location.href = "/api/auth/google")}
           variant="outline"
-          className="h-12 w-full rounded-xl border border-gray-200 bg-white/90 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+          className="h-12 w-full rounded-xl border border-gray-200 bg-white/90 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 mb-10"
         >
-          <span className="flex items-center gap-3">
+          <span className="flex items-center gap-3 pt-0.5">
             <Image src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
             <span className="text-sm font-semibold">Continue with Google</span>
           </span>

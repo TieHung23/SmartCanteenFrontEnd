@@ -8,19 +8,19 @@ export interface CartItem extends CreateOrderItem {
   price: number;
   imgUrl?: string;
   description?: string;
-  mealId?: string;
-  mealTemplateId?: string;
-  mealName?: string;
+  sessionId?: string;
+  sessionTemplateId?: string;
+  sessionName?: string;
   categoryId?: string;
   categoryName?: string;
-  mealTime?: string;
+  sessionTime?: string;
 }
 
 interface CartContextType {
   cartItems: CartItem[];
   isCartOpen: boolean;
-  mealId: string | null;
-  setMealId: (id: string | null) => void;
+  sessionId: string | null;
+  setSessionId: (id: string | null) => void;
   openCart: () => void;
   closeCart: () => void;
   addToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
@@ -35,7 +35,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [mealId, setMealId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -54,6 +54,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem("smart_canteen_cart", JSON.stringify(cartItems));
   }, [cartItems]);
+
+  useEffect(() => {
+    if (!sessionId && cartItems.length > 0) {
+      const sid = cartItems[0].sessionId;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (sid) {
+        setSessionId(sid);
+      }
+    }
+  }, [sessionId, cartItems]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
@@ -89,7 +99,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => {
     setCartItems([]);
-    setMealId(null);
+    setSessionId(null);
   };
 
   const getCartTotal = () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -100,8 +110,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       value={{
         cartItems,
         isCartOpen,
-        mealId,
-        setMealId,
+        sessionId,
+        setSessionId,
         openCart,
         closeCart,
         addToCart,

@@ -6,7 +6,7 @@ import type {
   OrderListItem,
   OrderStatus,
 } from "@/types/order.types";
-import type { ApiResponse, PaginatedList } from "./meal.service";
+import type { ApiResponse, PaginatedList } from "./session.service";
 
 export const orderService = {
   getMyOrders: async (params?: {
@@ -25,10 +25,10 @@ export const orderService = {
     return await apiClient.get<OrderDetail, OrderDetail>(API_ENDPOINTS.ORDER.GET(id));
   },
 
-  createOrder: async (cartVersion: number): Promise<CreateOrderResponse> => {
+  createOrder: async (sessionId: string, cartVersion: number): Promise<CreateOrderResponse> => {
     const response = await apiClient.post<ApiResponse<CreateOrderResponse>>(
       API_ENDPOINTS.ORDER.CREATE,
-      { cartVersion },
+      { sessionId, cartVersion },
     );
     return (response as unknown as ApiResponse<CreateOrderResponse>).value;
   },

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useMeals } from "@/lib/hooks/useMeals";
+import { useSessions } from "@/lib/hooks/use-sessions";
 import { cn, isSessionActive, isSessionExpired } from "@/lib/utils";
 import Navbar from "@/components/layout/Navbar";
 import Image from "next/image";
 import Link from "next/link";
-import type { MealListItem } from "@/types/meal.types";
+import type { SessionListItem } from "@/types/session.types";
 
 const generateCalendarDays = () => {
   const dates = [];
@@ -85,7 +85,7 @@ export default function SessionPage() {
     return calendarDays.find((d) => isSameDay(d, today)) || calendarDays[3];
   });
 
-  const { data: mealsData, isLoading, isSuccess } = useMeals(true);
+  const { data: sessionsData, isLoading, isSuccess } = useSessions(true);
   const [activePlate, setActivePlate] = useState(0);
 
   useEffect(() => {
@@ -95,10 +95,10 @@ export default function SessionPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredMeals = useMemo(() => {
-    const responseData = mealsData as unknown as {
-      value?: { items: MealListItem[] };
-      items?: MealListItem[];
+  const filteredSessions = useMemo(() => {
+    const responseData = sessionsData as unknown as {
+      value?: { items: SessionListItem[] };
+      items?: SessionListItem[];
     };
     const items = responseData?.value?.items || responseData?.items;
 
@@ -106,17 +106,17 @@ export default function SessionPage() {
       return [];
     }
 
-    return items.filter((meal: MealListItem) => {
-      if (!meal || !meal.availableFrom) return false;
-      const mealDate = new Date(meal.availableFrom);
-      return isSameDay(mealDate, selectedDate);
+    return items.filter((session: SessionListItem) => {
+      if (!session || !session.availableFrom) return false;
+      const sessionDate = new Date(session.availableFrom);
+      return isSameDay(sessionDate, selectedDate);
     });
-  }, [mealsData, isSuccess, selectedDate]);
+  }, [sessionsData, isSuccess, selectedDate]);
 
-  const daysWithMeals = useMemo(() => {
-    const responseData = mealsData as unknown as {
-      value?: { items: MealListItem[] };
-      items?: MealListItem[];
+  const daysWithSessions = useMemo(() => {
+    const responseData = sessionsData as unknown as {
+      value?: { items: SessionListItem[] };
+      items?: SessionListItem[];
     };
     const items = responseData?.value?.items || responseData?.items;
 
@@ -126,17 +126,17 @@ export default function SessionPage() {
 
     return new Set(
       items
-        .map((meal: MealListItem) => {
-          if (!meal || !meal.availableFrom) return "";
-          const d = new Date(meal.availableFrom);
+        .map((session: SessionListItem) => {
+          if (!session || !session.availableFrom) return "";
+          const d = new Date(session.availableFrom);
           return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
         })
         .filter(Boolean),
     );
-  }, [mealsData, isSuccess]);
+  }, [sessionsData, isSuccess]);
 
-  const hasMeal = (date: Date) =>
-    daysWithMeals.has(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`);
+  const hasSessionOnDate = (date: Date) =>
+    daysWithSessions.has(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`);
 
   return (
     <>
@@ -214,7 +214,7 @@ export default function SessionPage() {
                 ? "Today"
                 : date.toLocaleDateString("en-US", { weekday: "short" });
               const dayNumber = date.getDate();
-              const hasSession = hasMeal(date);
+              const hasSession = hasSessionOnDate(date);
 
               return (
                 <button
@@ -256,7 +256,7 @@ export default function SessionPage() {
                 <div key={i} className="h-48 rounded-3xl bg-gray-100 animate-pulse" />
               ))}
             </div>
-          ) : filteredMeals.length === 0 ? (
+          ) : filteredSessions.length === 0 ? (
             <div className="text-center py-32 bg-white rounded-3xl border-2 border-dashed border-gray-100 shadow-sm">
               <p className="text-6xl mb-6 opacity-60">🍽️</p>
               <p className="text-lg md:text-xl font-medium text-gray-500">
@@ -266,15 +266,15 @@ export default function SessionPage() {
           ) : (
             <>
               <p className="text-base font-bold text-gray-400 mb-6 tracking-wide">
-                {filteredMeals.length} SESSION{filteredMeals.length > 1 ? "S" : ""} AVAILABLE
+                {filteredSessions.length} SESSION{filteredSessions.length > 1 ? "S" : ""} AVAILABLE
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                {filteredMeals.map((meal: MealListItem) => {
-                  const type = getSessionType(meal.availableFrom);
+                {filteredSessions.map((session: SessionListItem) => {
+                  const type = getSessionType(session.availableFrom);
                   const tag = SESSION_TAGS[type];
                   const icon = SESSION_ICONS[type];
-                  const expired = isSessionExpired(meal.availableTo);
-                  const active = isSessionActive(meal.availableFrom, meal.availableTo);
+                  const expired = isSessionExpired(session.availableTo);
+                  const active = isSessionActive(session.availableFrom, session.availableTo);
 
                   const cardContent = (
                     <div
@@ -327,14 +327,14 @@ export default function SessionPage() {
                             expired ? "text-gray-400" : "text-gray-800"
                           }`}
                         >
-                          {meal.name}
+                          {session.name}
                         </p>
 
-                        {meal.description && (
+                        {session.description && (
                           <p
                             className={`text-base truncate mb-3 ${expired ? "text-gray-300" : "text-gray-500"}`}
                           >
-                            {meal.description}
+                            {session.description}
                           </p>
                         )}
 
@@ -355,7 +355,7 @@ export default function SessionPage() {
                             <circle cx="12" cy="12" r="10" />
                             <polyline points="12 6 12 12 16 14" />
                           </svg>
-                          {formatTime(meal.availableFrom)} – {formatTime(meal.availableTo)}
+                          {formatTime(session.availableFrom)} – {formatTime(session.availableTo)}
                         </div>
                       </div>
 
@@ -379,14 +379,18 @@ export default function SessionPage() {
 
                   if (expired) {
                     return (
-                      <div key={meal.id} className="block cursor-not-allowed">
+                      <div key={session.id} className="block cursor-not-allowed">
                         {cardContent}
                       </div>
                     );
                   }
 
                   return (
-                    <Link href={`/menu?sessionId=${meal.id}`} key={meal.id} className="block group">
+                    <Link
+                      href={`/menu?sessionId=${session.id}`}
+                      key={session.id}
+                      className="block group"
+                    >
                       {cardContent}
                     </Link>
                   );
