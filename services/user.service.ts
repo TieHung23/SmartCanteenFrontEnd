@@ -71,7 +71,8 @@ export const userService = {
         },
       )) as unknown as ApiResponse<UserProfileResponse>;
 
-      const dataResponse = (response as Record<string, unknown>).value || response;
+      const dataResponse = ((response as unknown as { value: UserProfileResponse }).value ||
+        response) as unknown as UserProfileResponse;
       return dataResponse;
     } catch (error) {
       console.error("Lỗi khi cập nhật thông tin cá nhân:", error);

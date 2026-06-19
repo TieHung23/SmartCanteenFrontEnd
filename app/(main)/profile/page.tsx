@@ -201,7 +201,8 @@ export default function ProfilePage() {
         imageFile: selectedFile,
       });
 
-      const updatedData = (response as Record<string, unknown>)?.value || response;
+      const updatedData = ((response as unknown as { value: UserProfileResponse }).value ||
+        response) as unknown as UserProfileResponse;
       const updated = normalizeProfile(updatedData);
       window.dispatchEvent(new Event("profileUpdated"));
       toast.success("Profile updated successfully!");
@@ -230,13 +231,14 @@ export default function ProfilePage() {
       toast.success("Password changed successfully! 🎉");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err: unknown) {
-      const serverErrors = (
-        err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } }
-      )?.response?.data?.errors;
+      const axiosErr = err as {
+        response?: { data?: { errors?: Record<string, string[]>; message?: string } };
+      };
+      const serverErrors = axiosErr.response?.data?.errors;
       if (serverErrors && serverErrors.NewPassword) {
         serverErrors.NewPassword.forEach((msg: string) => toast.error(msg));
       } else {
-        toast.error(err.response?.data?.message || "Failed to change password.");
+        toast.error(axiosErr.response?.data?.message || "Failed to change password.");
       }
     } finally {
       setIsSaving(false);

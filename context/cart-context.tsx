@@ -35,7 +35,12 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("smart_canteen_session");
+    }
+    return null;
+  });
 
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -56,14 +61,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cartItems]);
 
   useEffect(() => {
-    if (!sessionId && cartItems.length > 0) {
-      const sid = cartItems[0].sessionId;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (sid) {
-        setSessionId(sid);
-      }
+    if (sessionId) {
+      localStorage.setItem("smart_canteen_session", sessionId);
+    } else {
+      localStorage.removeItem("smart_canteen_session");
     }
-  }, [sessionId, cartItems]);
+  }, [sessionId]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
