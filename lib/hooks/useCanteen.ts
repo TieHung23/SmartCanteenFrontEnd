@@ -3,11 +3,11 @@
 import { useApiData } from "./useApiData";
 import { dishService } from "@/services/dish.service";
 import { categoryService } from "@/services/category.service";
-import { mealService, type PaginatedList } from "@/services/meal.service";
+import { sessionService, type PaginatedList } from "@/services/session.service";
 import { orderService } from "@/services/order.service";
 import type { Dish } from "@/types/dish.types";
 import type { Category } from "@/types/category.types";
-import type { MealDetail } from "@/types/meal.types";
+import type { SessionDetail } from "@/types/session.types";
 import type { OrderDetail, OrderListItem, OrderStatus } from "@/types/order.types";
 
 const EMPTY_PAGE = <T>(): PaginatedList<T> => ({
@@ -20,10 +20,10 @@ const EMPTY_PAGE = <T>(): PaginatedList<T> => ({
   hasNextPage: false,
 });
 
-export function useMealDetail(mealId: string | null) {
-  return useApiData<MealDetail | null>(
-    () => (mealId ? mealService.getMealDetail(mealId) : Promise.resolve(null)),
-    [mealId],
+export function useSessionDetail(sessionId: string | null) {
+  return useApiData<SessionDetail | null>(
+    () => (sessionId ? sessionService.getSessionDetail(sessionId) : Promise.resolve(null)),
+    [sessionId],
   );
 }
 

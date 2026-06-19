@@ -23,7 +23,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Meal Session", href: "/session" },
+    { name: "Session", href: "/session" },
     { name: "Menu", href: "/menu" },
     { name: "About Us", href: "/about" },
   ];
@@ -45,6 +45,19 @@ export default function Navbar() {
     };
 
     fetchNavbarProfile();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchNavbarProfile();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", fetchNavbarProfile);
+    window.addEventListener("profileUpdated", fetchNavbarProfile);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", fetchNavbarProfile);
+      window.removeEventListener("profileUpdated", fetchNavbarProfile);
+    };
   }, []);
 
   useEffect(() => {
@@ -89,7 +102,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/logo.png"
-            alt="Meal Session Logo"
+            alt="Smart Canteen Logo"
             width={55}
             height={55}
             className="w-auto h-55 object-contain rounded-full pb-2"

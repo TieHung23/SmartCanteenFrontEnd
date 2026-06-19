@@ -1,7 +1,11 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { Dish } from "@/types/dish.types";
-import { MealDetailSchema, type MealDetail, type MealListItem } from "@/types/meal.types";
+import {
+  SessionDetailSchema,
+  type SessionDetail,
+  type SessionListItem,
+} from "@/types/session.types";
 
 export interface ApiResponse<T> {
   value: T;
@@ -20,51 +24,51 @@ export interface PaginatedList<T> {
   hasNextPage: boolean;
 }
 
-export type CreateMealPayload = Omit<MealDetail, "id" | "isActive">;
-export type UpdateMealPayload = Partial<Omit<CreateMealPayload, "id">>;
+export type CreateSessionPayload = Omit<SessionDetail, "id" | "isActive">;
+export type UpdateSessionPayload = Partial<Omit<CreateSessionPayload, "id">>;
 
-export const mealService = {
-  getMeals: async (params?: {
+export const sessionService = {
+  getSessions: async (params?: {
     pageNumber?: number;
     pageSize?: number;
     isActive?: boolean;
-  }): Promise<PaginatedList<MealListItem>> => {
+  }): Promise<PaginatedList<SessionListItem>> => {
     try {
-      const response = (await apiClient.get<ApiResponse<PaginatedList<MealListItem>>>(
-        API_ENDPOINTS.MEAL.LIST,
+      const response = (await apiClient.get<ApiResponse<PaginatedList<SessionListItem>>>(
+        API_ENDPOINTS.SESSION.LIST,
         { params },
-      )) as unknown as ApiResponse<PaginatedList<MealListItem>>;
+      )) as unknown as ApiResponse<PaginatedList<SessionListItem>>;
 
       return response.value;
     } catch (error) {
-      console.error("Error when listing meals session:", error);
+      console.error("Error when listing sessions:", error);
       throw error;
     }
   },
 
-  getMealDetail: async (id: string): Promise<MealDetail> => {
+  getSessionDetail: async (id: string): Promise<SessionDetail> => {
     try {
       const response = (await apiClient.get<ApiResponse<unknown>>(
-        API_ENDPOINTS.MEAL.GET(id),
+        API_ENDPOINTS.SESSION.GET(id),
       )) as unknown as ApiResponse<unknown>;
 
       const rawData = response.value;
-      const validatedData = MealDetailSchema.parse(rawData);
+      const validatedData = SessionDetailSchema.parse(rawData);
 
       return validatedData;
     } catch (error) {
-      console.error(`Error when fetching meal detail ID ${id}:`, error);
+      console.error(`Error when fetching session detail ID ${id}:`, error);
       throw error;
     }
   },
 
-  createMeal: async (
-    data: CreateMealPayload,
+  createSession: async (
+    data: CreateSessionPayload,
   ): Promise<ApiResponse<{ id: string; name: string; message: string }>> => {
     try {
       const response = (await apiClient.post<
         ApiResponse<{ id: string; name: string; message: string }>
-      >(API_ENDPOINTS.MEAL.CREATE, data)) as unknown as ApiResponse<{
+      >(API_ENDPOINTS.SESSION.CREATE, data)) as unknown as ApiResponse<{
         id: string;
         name: string;
         message: string;
@@ -77,14 +81,14 @@ export const mealService = {
     }
   },
 
-  updateMeal: async (
+  updateSession: async (
     id: string,
-    data: UpdateMealPayload,
+    data: UpdateSessionPayload,
   ): Promise<ApiResponse<{ id: string; name: string; message: string }>> => {
     try {
       const response = (await apiClient.put<
         ApiResponse<{ id: string; name: string; message: string }>
-      >(API_ENDPOINTS.MEAL.UPDATE(id), data)) as unknown as ApiResponse<{
+      >(API_ENDPOINTS.SESSION.UPDATE(id), data)) as unknown as ApiResponse<{
         id: string;
         name: string;
         message: string;
@@ -92,20 +96,20 @@ export const mealService = {
 
       return response;
     } catch (error) {
-      console.error(`Error when updating meal ID ${id}:`, error);
+      console.error(`Error when updating session ID ${id}:`, error);
       throw error;
     }
   },
 
-  deleteMeal: async (id: string): Promise<ApiResponse<{ id: string; message: string }>> => {
+  deleteSession: async (id: string): Promise<ApiResponse<{ id: string; message: string }>> => {
     try {
       const response = (await apiClient.delete<ApiResponse<{ id: string; message: string }>>(
-        API_ENDPOINTS.MEAL.DELETE(id),
+        API_ENDPOINTS.SESSION.DELETE(id),
       )) as unknown as ApiResponse<{ id: string; message: string }>;
 
       return response;
     } catch (error) {
-      console.error(`Error when deleting meal ID ${id}:`, error);
+      console.error(`Error when deleting session ID ${id}:`, error);
       throw error;
     }
   },

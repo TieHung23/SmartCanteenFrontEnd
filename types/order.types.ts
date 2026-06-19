@@ -22,7 +22,7 @@ export interface OrderItem {
 
 export interface OrderListItem {
   id: string;
-  mealId: string;
+  sessionId: string;
   transactionId: string | null;
   userId: string;
   status: OrderStatus;
@@ -57,7 +57,7 @@ export const OrderItemSchema = z.object({
 
 export const OrderListItemSchema = z.object({
   id: z.string(),
-  mealId: z.string(),
+  sessionId: z.string(),
   transactionId: z.string().nullable(),
   userId: z.string(),
   status: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),

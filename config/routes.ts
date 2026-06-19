@@ -9,4 +9,7 @@ export const ROUTES = {
   ORDERS: "/orders",
   PROFILE: "/profile",
   VERIFICATION: "/verification",
+  REFUND: "/refund",
+  FORGOT_PASSWORD: "/forgot-password",
+  RESET_PASSWORD: "/reset-password",
 } as const;

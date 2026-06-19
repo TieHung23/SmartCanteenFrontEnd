@@ -1,6 +1,6 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
-import type { ApiResponse } from "./meal.service";
+import type { ApiResponse } from "./session.service";
 
 export interface TopUpRequest {
   amountVnd: number;

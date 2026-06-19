@@ -14,6 +14,7 @@ import { authService } from "@/services/auth.service";
 import { ROUTES } from "@/config/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   google_domain_invalid: "Unable to sign in, please try again",
@@ -61,18 +62,8 @@ export const LoginForm = () => {
       router.push(ROUTES.HOME);
     },
     onError: (error: AxiosError<{ message?: string }>) => {
-      const serverMessage = error.response?.data?.message || "";
-
-      const isNotVerified = /verify|xác minh|chưa xác minh|verified/i.test(serverMessage);
-
-      if (isNotVerified) {
-        toast.error(
-          "Account not verified. Please check your email and verify your account before signing in.",
-        );
-        return;
-      }
-
-      toast.error(serverMessage || "Login error");
+      const serverMessage = error.response?.data?.message || "Login error";
+      toast.error(serverMessage);
     },
   });
 
@@ -97,11 +88,10 @@ export const LoginForm = () => {
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
         </div>
         <div className="space-y-1">
-          <Input
-            type="password"
+          <PasswordInput
             {...register("password")}
             placeholder="Password"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
+            inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
           />
           {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
         </div>
@@ -113,19 +103,30 @@ export const LoginForm = () => {
           {loginMutation.isPending ? "Signing In..." : "Sign In"}
         </Button>
         <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
-          <button type="button" className="hover:text-orange-500 transition-colors">
+          <button
+            type="button"
+            onClick={() => router.push(ROUTES.FORGOT_PASSWORD)}
+            className="hover:text-orange-500 transition-colors"
+          >
             Forgot password?
           </button>
-          <div className="flex gap-1">
-            <span>Does not have account?</span>
-            <button
-              type="button"
-              onClick={() => router.push(ROUTES.REGISTER)}
-              className="text-blue-400 hover:underline"
-            >
-              Sign up
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => router.push(ROUTES.VERIFY_EMAIL)}
+            className="hover:text-orange-500 transition-colors"
+          >
+            Verify email
+          </button>
+        </div>
+        <div className="flex justify-center gap-1 text-xs text-gray-500 font-medium">
+          <span>Does not have account?</span>
+          <button
+            type="button"
+            onClick={() => router.push(ROUTES.REGISTER)}
+            className="text-blue-400 hover:underline"
+          >
+            Sign up
+          </button>
         </div>
       </form>
       <div className="relative py-4">

@@ -3,10 +3,14 @@ export interface CartItemData {
   quantity: number;
 }
 
-export interface CartData {
-  mealId: string;
+export interface CartSessionData {
+  sessionId: string;
   mealTemplateId: string;
   items: CartItemData[];
+}
+
+export interface CartData {
+  sessions: CartSessionData[];
 }
 
 export interface CartResponse {

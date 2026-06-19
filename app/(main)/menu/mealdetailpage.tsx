@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useCart } from "@/context/cart-context";
 import Image from "next/image";
 
-interface MealData {
+interface SessionData {
   id: string;
   mainDishId: string;
   name?: string;
@@ -13,30 +13,30 @@ interface MealData {
   description?: string;
 }
 
-interface MealDetailPageProps {
-  mealData: MealData;
+interface SessionDetailPageProps {
+  sessionData: SessionData;
 }
 
-export default function MealDetailPage({ mealData }: MealDetailPageProps) {
+export default function SessionDetailPage({ sessionData }: SessionDetailPageProps) {
   const [quantity, setQuantity] = useState(1);
-  const { addToCart, setMealId } = useCart();
+  const { addToCart, setSessionId } = useCart();
 
   useEffect(() => {
-    if (mealData?.id) {
-      setMealId(mealData.id);
+    if (sessionData?.id) {
+      setSessionId(sessionData.id);
     }
-  }, [mealData, setMealId]);
+  }, [sessionData, setSessionId]);
 
   const handleAddToCart = () => {
-    if (!mealData.mainDishId) return;
+    if (!sessionData.mainDishId) return;
 
     addToCart(
       {
-        dishId: mealData.mainDishId,
-        name: mealData.name || "Classic Lunch",
-        price: mealData.price || 35000,
-        imgUrl: mealData.imgUrl,
-        description: mealData.description || "Rice, Bruised Shrimp, Soup",
+        dishId: sessionData.mainDishId,
+        name: sessionData.name || "Classic Lunch",
+        price: sessionData.price || 35000,
+        imgUrl: sessionData.imgUrl,
+        description: sessionData.description || "Rice, Bruised Shrimp, Soup",
       },
       quantity,
     );
@@ -51,7 +51,7 @@ export default function MealDetailPage({ mealData }: MealDetailPageProps) {
         </h2>
         <div className="relative w-full aspect-square max-w-[380px] bg-white rounded-3xl p-4 shadow-xs border border-gray-100">
           <Image
-            src={mealData?.imgUrl || "/placeholder-tray.png"}
+            src={sessionData?.imgUrl || "/placeholder-tray.png"}
             alt="Canteen Tray"
             fill
             sizes="(max-width: 768px) 100vw, 380px" // Cấu hình tối ưu kích thước ảnh cho Next.js

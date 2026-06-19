@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
@@ -18,11 +18,14 @@ import {
   CreditCard,
   ArrowUpRight,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 import { orderService } from "@/services/order.service";
 import type { OrderListItem } from "@/types/order.types";
 import { paymentService, type TopUpResponse } from "@/services/payment.service";
+import { authService } from "@/services/auth.service";
+import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
 
 const getRoleName = (roleId: number) => {
@@ -105,13 +108,14 @@ const PAYMENT_METHODS = [{ id: 4, name: "Bank Transfer" }];
 const COMING_SOON_METHODS = ["MoMo", "ZaloPay", "VNPay"];
 
 type WalletTab = "overview" | "topup";
+type ProfileTab = "personal" | "wallet" | "security";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [originalProfile, setOriginalProfile] = useState<UserProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"personal" | "wallet">("personal");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
   const [selectedTheme, setSelectedTheme] = useState(cardThemes[0]);
 
   const [walletTab, setWalletTab] = useState<WalletTab>("overview");
@@ -121,6 +125,16 @@ export default function ProfilePage() {
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -147,11 +161,10 @@ export default function ProfilePage() {
     try {
       const result = await orderService.getMyOrders({ pageSize: 50 });
       setOrders(result.items || []);
-    } catch (err) {
-      console.error("fetchOrders error:", err);
-      setOrders([]);
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
     } finally {
-      setIsLoadingTx(false);
+      setIsSaving(false);
     }
   };
 
@@ -165,11 +178,19 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleSave = async () => {
     if (!profile || !originalProfile) return;
     setIsSaving(true);
     try {
-      const response = (await userService.updateProfile({
+      const response = await userService.updateProfile({
         name: profile.name,
         phoneNumber: profile.phoneNumber,
         dateOfBirth: profile.dateOfBirth,
@@ -177,40 +198,46 @@ export default function ProfilePage() {
         gender: profile.gender,
         studentId: profile.studentId,
         majorOrClass: profile.majorOrClass,
-        imgUrl: profile.imgUrl,
-      })) as unknown as UserProfileResponse & { value?: UserProfileResponse };
+        imageFile: selectedFile,
+      });
 
-      const updatedData = response?.value || response;
+      const updatedData = (response as Record<string, unknown>)?.value || response;
       const updated = normalizeProfile(updatedData);
-      const changedFields: string[] = [];
-      if (profile.name !== originalProfile.name) changedFields.push("Full Name");
-      if (profile.phoneNumber !== originalProfile.phoneNumber) changedFields.push("Phone Number");
-      if (profile.address !== originalProfile.address) changedFields.push("Address");
-      if (profile.majorOrClass !== originalProfile.majorOrClass) changedFields.push("Major/Class");
-      if (profile.gender !== originalProfile.gender) changedFields.push("Gender");
-      if (profile.studentId !== originalProfile.studentId) changedFields.push("Student ID");
+      window.dispatchEvent(new Event("profileUpdated"));
+      toast.success("Profile updated successfully!");
 
-      const currentBirth = profile.dateOfBirth?.split("T")[0];
-      const originalBirth = originalProfile.dateOfBirth?.split("T")[0];
-      if (currentBirth !== originalBirth) changedFields.push("Date of Birth");
-
-      if (changedFields.length > 0) {
-        if (changedFields.length <= 2) {
-          changedFields.forEach((field) => {
-            toast.success(`Updated ${field} successfully!`);
-          });
-        } else {
-          toast.success(`Profile updated: ${changedFields.join(", ")}`);
-        }
-      } else {
-        toast.info("No changes detected.");
-      }
-
+      setSelectedFile(null);
+      setPreviewUrl(null);
       setProfile(updated);
       setOriginalProfile(updated);
     } catch (error) {
       console.error(error);
       toast.error("An unexpected error occurred while saving your profile.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("Confirm password does not match.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await authService.changePassword(passwordForm);
+      toast.success("Password changed successfully! 🎉");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: unknown) {
+      const serverErrors = (
+        err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } }
+      )?.response?.data?.errors;
+      if (serverErrors && serverErrors.NewPassword) {
+        serverErrors.NewPassword.forEach((msg: string) => toast.error(msg));
+      } else {
+        toast.error(err.response?.data?.message || "Failed to change password.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -265,19 +292,31 @@ export default function ProfilePage() {
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-12 px-4 sm:px-6 font-sans">
         <div className="max-w-[1100px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* LEFT COLUMN */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col items-center">
-              <div className="relative w-28 h-28 mb-4">
+              <div
+                className="relative w-28 h-28 mb-4 group cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md">
                   <Image
-                    src={getSafeImageUrl(profile.imgUrl)}
+                    src={previewUrl || getSafeImageUrl(profile.imgUrl)}
                     alt="Profile Avatar"
                     fill
                     sizes="112px"
                     className="object-cover"
                   />
                 </div>
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
               </div>
 
               <h2 className="text-xl font-extrabold text-gray-800 text-center">{profile.name}</h2>
@@ -307,7 +346,11 @@ export default function ProfilePage() {
 
                 <div className="h-px w-full bg-gray-100 my-2" />
 
-                <button className="flex items-center gap-4 w-full text-gray-500 hover:bg-gray-50 hover:text-gray-800 px-5 py-3.5 rounded-2xl font-bold text-sm transition-colors">
+                <button
+                  onClick={() => setActiveTab("security")}
+                  className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
+                    ${activeTab === "security" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
+                >
                   <Lock className="w-5 h-5" /> Change Password
                 </button>
 
@@ -321,7 +364,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[600px]">
             {activeTab === "personal" && (
               <div className="animate-fadeIn">
@@ -445,7 +487,11 @@ export default function ProfilePage() {
 
                 <div className="flex flex-col sm:flex-row items-center justify-end gap-4 mt-6 border-t border-gray-100 pt-8">
                   <button
-                    onClick={() => setProfile(originalProfile)}
+                    onClick={() => {
+                      setProfile(originalProfile);
+                      setSelectedFile(null);
+                      setPreviewUrl(null);
+                    }}
                     className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-800 transition-all"
                   >
                     Discard Changes
@@ -463,11 +509,9 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
-                {/* Verification Status Section */}
                 <div className="mt-10 border-t border-gray-100 pt-8">
                   <h3 className="text-lg font-extrabold text-gray-800 mb-4">Trạng thái xác thực</h3>
                   <div className="space-y-4">
-                    {/* Email verified */}
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <div className="flex items-center gap-3">
                         <div
@@ -499,7 +543,6 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    {/* Identity verification */}
                     <Link
                       href={ROUTES.VERIFICATION}
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-all group"
@@ -525,10 +568,8 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* TAB 2: WALLET */}
             {activeTab === "wallet" && (
               <div className="animate-fadeIn">
-                {/* Wallet Sub-tabs */}
                 <div className="flex gap-2 mb-6 border-b border-gray-100 pb-4">
                   <button
                     onClick={() => {
@@ -572,7 +613,7 @@ export default function ProfilePage() {
                             style={{ animationDuration: "3s" }}
                           >
                             <Image
-                              src="/logo_point.png" //
+                              src="/logo_point.png"
                               alt="F-Point Coin"
                               fill
                               sizes="28px"
@@ -583,7 +624,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Virtual Digital Pass */}
                     <div className="w-full max-w-md mx-auto mb-12">
                       <div
                         className={`relative w-full aspect-[1.586] rounded-[2rem] p-6 md:p-8 text-white flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.02] ${selectedTheme.background} ${selectedTheme.shadow}`}
@@ -635,7 +675,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Theme Picker */}
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
                       <div className="flex items-center gap-2 mb-5">
                         <Paintbrush className="w-5 h-5 text-gray-500" />
@@ -666,7 +705,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Transaction History */}
                     <div className="mt-8">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
@@ -755,7 +793,7 @@ export default function ProfilePage() {
 
                     {topUpResult ? (
                       <div className="space-y-4">
-                        <div className="bg-orange-50 border border-orange-100 rounded-3xl p-6 text-center shadow-xs">
+                        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center shadow-xs">
                           <CheckCircle2 className="w-12 h-12 text-[#D35400] mx-auto mb-3" />
                           <p className="text-lg font-bold text-[#B34700]">Top-up Created!</p>
                           {topUpResult.gatewayOrderId && (
@@ -784,18 +822,19 @@ export default function ProfilePage() {
                           </p>
                         </div>
 
-                        {/* ─── QR CODE ─── */}
                         {topUpResult.payUrl && (
                           <div className="mt-4 p-6 bg-white border border-gray-100 rounded-[1.5rem] flex flex-col items-center gap-4 shadow-sm">
                             <p className="text-lg font-black text-gray-400 uppercase tracking-wider">
                               Scan QR Code to Pay
                             </p>
-                            <div className="relative w-90 h-90 border border-gray-100 rounded-2xl overflow-hidden p-3 bg-white shadow-xs transition-transform duration-300 hover:scale-102">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
+                            <div className="relative w-[360px] h-[360px] border border-gray-100 rounded-2xl overflow-hidden p-3 bg-white shadow-xs transition-transform duration-300 hover:scale-102">
+                              <Image
                                 src={topUpResult.payUrl}
                                 alt="Payment QR Code"
-                                className="w-full h-full object-contain p-1"
+                                fill
+                                unoptimized
+                                sizes="360px"
+                                className="object-contain p-1"
                               />
                             </div>
                           </div>
@@ -804,12 +843,12 @@ export default function ProfilePage() {
                         {topUpResult.paymentContent && (
                           <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 text-center">
                             <p className="text-[14px] font-bold text-gray-400 uppercase tracking-wide mb-2">
-                              Noi dung chuyen khoan
+                              Nội dung chuyển khoản
                             </p>
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(topUpResult.paymentContent);
-                                toast.success("Da copy noi dung chuyen khoan!");
+                                navigator.clipboard.writeText(topUpResult.paymentContent || "");
+                                toast.success("Đã copy nội dung chuyển khoản!");
                               }}
                               className="text-sm font-black text-[#D35400] tracking-wider bg-white px-4 py-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full"
                             >
@@ -919,6 +958,69 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
+
+            {activeTab === "security" && (
+              <div className="animate-fadeIn">
+                <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Security Setting</h3>
+                <form onSubmit={handleUpdatePassword} className="space-y-6 max-w-md">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Current Password
+                    </label>
+                    <PasswordInput
+                      required
+                      value={passwordForm.currentPassword}
+                      onChange={(e) =>
+                        setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                      }
+                      inputClassName="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      New Password
+                    </label>
+                    <PasswordInput
+                      required
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                      }
+                      inputClassName="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Confirm Password
+                    </label>
+                    <PasswordInput
+                      required
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                      }
+                      inputClassName="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="pt-4">
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm text-white bg-[#D35400] hover:bg-[#B34700] shadow-[0_4px_14px_0_rgba(211,84,0,0.39)] transition-all disabled:opacity-70 flex items-center justify-center min-w-[160px]"
+                    >
+                      {isSaving ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        "Update Password"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -928,7 +1030,7 @@ export default function ProfilePage() {
           __html: `
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
-        .hover\:scale-102:hover { transform: scale(1.02); }
+        .hover\\:scale-102:hover { transform: scale(1.02); }
       `,
         }}
       />

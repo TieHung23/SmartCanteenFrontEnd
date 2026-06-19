@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { LoginForm } from "@/components/features/auth/login-form";
+import { ResetPasswordForm } from "@/components/features/auth/reset-password-form";
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-white">
       <div className="hidden lg:block w-1/2 relative bg-gray-100">
@@ -14,9 +14,9 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-linear-to-t from-black/40 via-black/18 to-black/6" />
       </div>
 
-      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 bg-white">
-        <div className="w-full max-w-sm flex flex-col items-center">
-          <div className="mb-4 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-16 bg-white">
+        <div className="w-full max-w-sm flex flex-col items-center -mt-40">
+          <div className="mb-6 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
@@ -25,18 +25,17 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="w-full mb-4">
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Sign in</h1>
+          <div className="w-full mb-6">
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Reset Password</h1>
+            <p className="text-sm text-gray-400">Enter your new password.</p>
           </div>
 
           <Suspense
             fallback={
-              <div className="w-full py-8 text-center text-sm text-gray-500">
-                Loading login form...
-              </div>
+              <div className="w-full py-8 text-center text-sm text-gray-500">Loading...</div>
             }
           >
-            <LoginForm />
+            <ResetPasswordForm />
           </Suspense>
         </div>
       </div>

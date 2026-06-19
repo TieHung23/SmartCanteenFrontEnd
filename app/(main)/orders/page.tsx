@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import { useMyOrders } from "@/lib/hooks/useCanteen";
 import { ORDER_STATUS_META, type OrderStatus } from "@/types/order.types";
+import { refundService } from "@/services/refund.service";
+import { REFUND_STATUS_META } from "@/types/refund.types";
 import { ROUTES } from "@/config/routes";
-import { ClipboardList, ChevronRight, ShoppingBag } from "lucide-react";
+import { ClipboardList, ChevronRight, ShoppingBag, Clock } from "lucide-react";
 
 const TABS: { label: string; status: OrderStatus | null }[] = [
   { label: "All", status: null },
@@ -27,7 +30,9 @@ function formatDate(dateStr: string) {
 }
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<OrderStatus | null>(null);
+  const [refundMap, setRefundMap] = useState<Record<string, number>>({});
 
   const { data: ordersData, isLoading } = useMyOrders(
     activeTab !== null ? { status: activeTab, pageSize: 50 } : { pageSize: 50 },
@@ -36,7 +41,7 @@ export default function OrdersPage() {
   const responseData = ordersData as unknown as {
     items?: Array<{
       id: string;
-      mealId: string;
+      sessionId: string;
       transactionId: string | null;
       userId: string;
       status: number;
@@ -47,6 +52,19 @@ export default function OrdersPage() {
   };
 
   const orders = responseData?.items || [];
+
+  useEffect(() => {
+    refundService
+      .getMyRefunds()
+      .then((res) => {
+        const map: Record<string, number> = {};
+        (res?.items || []).forEach((r: { orderId: string; status: number }) => {
+          map[r.orderId] = r.status;
+        });
+        setRefundMap(map);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <>
@@ -106,27 +124,43 @@ export default function OrdersPage() {
               {orders.map((order) => {
                 const meta = ORDER_STATUS_META[order.status as OrderStatus] || ORDER_STATUS_META[0];
                 return (
-                  <Link
+                  <div
                     key={order.id}
-                    href={`/orders/${order.id}`}
-                    className="block bg-white rounded-2xl border border-gray-50 p-5 hover:shadow-md hover:border-orange-100 transition-all group"
+                    className="bg-white rounded-2xl border border-gray-50 p-5 hover:shadow-md hover:border-orange-100 transition-all group cursor-pointer"
+                    onClick={() => router.push(`/orders/${order.id}`)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center text-xl"
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0"
                           style={{ background: meta.bg }}
                         >
                           {meta.icon}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span
                               className="text-[11px] font-bold px-2.5 py-1 rounded-md"
                               style={{ background: meta.bg, color: meta.color }}
                             >
                               {meta.label}
                             </span>
+                            {refundMap[order.id] !== undefined && (
+                              <span
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1"
+                                style={{
+                                  background:
+                                    REFUND_STATUS_META[refundMap[order.id] as 0 | 1 | 2]?.bg ||
+                                    "#fef2f2",
+                                  color:
+                                    REFUND_STATUS_META[refundMap[order.id] as 0 | 1 | 2]?.color ||
+                                    "#ef4444",
+                                }}
+                              >
+                                <Clock className="w-3 h-3" />
+                                {REFUND_STATUS_META[refundMap[order.id] as 0 | 1 | 2]?.label}
+                              </span>
+                            )}
                             <span className="text-[10px] text-gray-400 font-medium">
                               {formatDate(order.createdAtUtc)}
                             </span>
@@ -142,9 +176,22 @@ export default function OrdersPage() {
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#D35400] transition-colors" />
+                      <div className="flex items-center gap-2 shrink-0">
+                        {refundMap[order.id] === undefined && order.status === 2 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`${ROUTES.REFUND}?orderId=${order.id}`);
+                            }}
+                            className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-[0_2px_8px_rgba(249,115,22,0.3)]"
+                          >
+                            Yêu cầu hoàn tiền
+                          </button>
+                        )}
+                        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#D35400] transition-colors" />
+                      </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

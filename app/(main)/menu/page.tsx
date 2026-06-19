@@ -5,14 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense, useMemo, useEffect, useState, useRef, useSyncExternalStore } from "react";
 import Navbar from "@/components/layout/Navbar";
-import { useCategories, useMealDetail, useAllDishes } from "@/lib/hooks/useCanteen";
-import type { MealTemplate } from "@/types/meal.types";
+import { useCategories, useSessionDetail, useAllDishes } from "@/lib/hooks/useCanteen";
+import type { SessionTemplate } from "@/types/session.types";
 import type { Dish } from "@/types/dish.types";
 import type { CartItem } from "@/context/cart-context";
 import { useCart } from "@/context/cart-context";
-import { ROUTES } from "@/config/routes";
 import { toast } from "sonner";
-import { ShoppingCart, X, Clock, Trash2, CalendarDays } from "lucide-react";
+import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
 import { isSessionExpired, isSessionUpcoming } from "@/lib/utils";
 
 const getSafeImageUrl = (
@@ -67,22 +66,14 @@ function MenuContent() {
 
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
-  const { data: mealDetail, isLoading: loadingMeal } = useMealDetail(sessionId);
+  const { data: sessionDetail, isLoading: loadingMeal } = useSessionDetail(sessionId);
 
-  const {
-    addToCart,
-    setMealId,
-    cartItems,
-    getCartTotal,
-    getCartCount,
-    removeFromCart,
-    updateQuantity,
-    isCartOpen,
-    openCart,
-    closeCart,
-  } = useCart();
+  const { addToCart, setSessionId, cartItems, getCartCount, openCart } = useCart();
 
   const isLoading = loadingCats || loadingDishes || loadingMeal;
+
+  // mealDetail alias for backward compatibility in JSX
+  const mealDetail = sessionDetail;
 
   const [selectedTemplateIdx, setSelectedTemplateIdx] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -117,13 +108,13 @@ function MenuContent() {
 
   useEffect(() => {
     if (sessionId) {
-      setMealId(sessionId);
+      setSessionId(sessionId);
       if (prevSessionId.current !== sessionId) {
         setSelectedTemplateIdx(null);
         prevSessionId.current = sessionId;
       }
     }
-  }, [sessionId, setMealId]);
+  }, [sessionId, setSessionId]);
 
   useEffect(() => {
     if (selectedCategoryId === null && categoriesData?.items && categoriesData.items.length > 0) {
@@ -222,15 +213,15 @@ function MenuContent() {
           price: dishPrice,
           imgUrl: finalImageUrl,
           description: description || "Fresh select item.",
-          mealId: sessionId || undefined,
-          mealTemplateId:
+          sessionId: sessionId || undefined,
+          sessionTemplateId:
             selectedTemplateIdx !== null
-              ? mealDetail?.mealTemplates[selectedTemplateIdx].name
+              ? mealDetail?.mealTemplates[selectedTemplateIdx].id
               : undefined,
-          mealName: mealDetail?.name || undefined,
+          sessionName: mealDetail?.name || undefined,
           categoryId,
           categoryName,
-          mealTime: mealDetail?.availableForOrder || undefined,
+          sessionTime: mealDetail?.availableForOrder || undefined,
         },
         1,
       );
@@ -249,7 +240,7 @@ function MenuContent() {
     return allDishesData.items;
   }, [mealDetail, allDishesData]);
 
-  const templates: MealTemplate[] = mealDetail?.mealTemplates || [];
+  const templates: SessionTemplate[] = mealDetail?.mealTemplates || [];
   const selectedTemplate = selectedTemplateIdx !== null ? templates[selectedTemplateIdx] : null;
 
   const categories = useMemo(() => {
@@ -271,18 +262,6 @@ function MenuContent() {
       .filter((item) => catDishIds.has(item.dishId))
       .reduce((sum, item) => sum + item.quantity, 0);
   };
-
-  const drawerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node) && isCartOpen) {
-        closeCart();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isCartOpen, closeCart]);
 
   if (!sessionId) {
     return (
@@ -711,142 +690,12 @@ function MenuContent() {
           className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#FF4C24] text-white rounded-full shadow-[0_4px_15px_rgba(255,76,36,0.3)] flex items-center justify-center active:scale-90"
         >
           <ShoppingCart className="w-6 h-6" />
-          {getCartCount() > 0 && (
+          {mounted && getCartCount() > 0 && (
             <span className="absolute -top-1 -right-1 bg-white text-[#FF4C24] text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#FF4C24]">
               {getCartCount()}
             </span>
           )}
         </button>
-
-        {/* ── CART DRAWER (slide from right) ── */}
-        <div
-          className={`fixed inset-0 bg-black/25 backdrop-blur-xs z-50 transition-opacity duration-300 ${isCartOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-        />
-        <div
-          ref={drawerRef}
-          className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
-            isCartOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-[#FF4C24]" />
-              <h2 className="text-base font-extrabold text-gray-800">Gio hang cua ban</h2>
-            </div>
-            <button onClick={closeCart} className="p-1.5 rounded-lg hover:bg-gray-100">
-              <X className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-          <div className="overflow-y-auto h-[calc(100%-140px)] p-4 space-y-4">
-            {cartItems.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-xs font-bold">
-                Gio hang dang trong.
-              </div>
-            ) : (
-              cartItems.map((item, idx) => (
-                <div key={`${item.dishId}-${idx}`}>
-                  {(idx === 0 || cartItems[idx - 1].mealName !== item.mealName) && (
-                    <div className="flex items-center gap-2 mb-2 mt-2 first:mt-0">
-                      <span className="text-[10px] font-extrabold text-[#FF4C24] uppercase tracking-wider">
-                        {item.mealName || "Current Session"}
-                      </span>
-                      {item.mealTime && (
-                        <span className="text-[9px] text-gray-400 font-medium bg-gray-100 px-1.5 py-0.5 rounded-full">
-                          {item.mealTime}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
-                    <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0">
-                      <Image
-                        src={item.imgUrl || "/placeholder-food.png"}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        sizes="32px"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-800 truncate">{item.name}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] font-bold text-[#FF4C24] inline-flex items-center gap-1">
-                          {item.price}
-                          <Image
-                            src="/logo_point.png"
-                            alt=""
-                            width={12}
-                            height={12}
-                            className="object-contain"
-                          />
-                        </p>
-                        {item.categoryName && (
-                          <span className="text-[9px] text-gray-400 bg-white px-1 py-0.5 rounded border border-gray-100">
-                            {item.categoryName}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
-                        className="p-1 text-gray-400 hover:text-[#FF4C24]"
-                      >
-                        -
-                      </button>
-                      <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.dishId, item.quantity + 1)}
-                        className="p-1 text-gray-400 hover:text-[#FF4C24]"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => removeFromCart(item.dishId)}
-                        className="p-1 text-gray-300 hover:text-red-500 ml-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 border-t border-gray-100 bg-white p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500">Tong diem</span>
-              <span className="text-base font-black text-[#FF4C24] inline-flex items-center gap-1">
-                {getCartTotal()}
-                <Image
-                  src="/logo_point.png"
-                  alt=""
-                  width={16}
-                  height={16}
-                  className="object-contain"
-                />
-              </span>
-            </div>
-            <Link
-              href={canOrder ? ROUTES.CHECKOUT : "#"}
-              onClick={(e) => {
-                if (!canOrder) {
-                  e.preventDefault();
-                  toast.error(expired ? "Phien an da ket thuc" : "Phien an chua bat dau");
-                } else {
-                  closeCart();
-                }
-              }}
-              className={`flex items-center justify-center w-full py-3 font-black text-xs rounded-xl uppercase tracking-wider transition-all ${
-                canOrder
-                  ? "bg-[#FF4C24] hover:bg-[#E03A14] text-white"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              }`}
-            >
-              Tien hanh thanh toan
-            </Link>
-          </div>
-        </div>
       </main>
 
       <style
@@ -947,11 +796,11 @@ function DishCard({
             price: dishPrice,
             imgUrl: finalImageUrl,
             description: dish.description || "Fresh select item.",
-            mealId: sessionId || undefined,
-            mealName: mealDetail?.name || undefined,
+            sessionId: sessionId || undefined,
+            sessionName: mealDetail?.name || undefined,
             categoryId,
             categoryName,
-            mealTime: mealDetail?.availableForOrder || undefined,
+            sessionTime: mealDetail?.availableForOrder || undefined,
           },
           1,
         );
@@ -1029,6 +878,7 @@ function DishGrid({
   expired: boolean;
   sessionId: string | null;
   mealDetail: { name?: string; availableForOrder?: string } | null;
+  // ^ kept as alias for sessionDetail
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
   getSafeImageUrl: (url: string | null | undefined, fallback?: string) => string;

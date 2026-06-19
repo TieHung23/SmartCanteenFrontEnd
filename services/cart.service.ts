@@ -1,7 +1,7 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { CartResponse, CartData } from "@/types/cart.types";
-import type { ApiResponse } from "./meal.service";
+import type { ApiResponse } from "./session.service";
 
 export const cartService = {
   getCart: async (): Promise<CartResponse> => {
