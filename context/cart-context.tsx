@@ -58,8 +58,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!sessionId && cartItems.length > 0) {
       const sid = cartItems[0].sessionId;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (sid) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSessionId(sid);
       }
     }

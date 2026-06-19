@@ -94,6 +94,9 @@ export default function CheckoutPage() {
   const balance = profile?.balanceAmount ?? 0;
   const hasEnoughPoints = balance >= totalPoints;
   const neededPoints = Math.max(0, totalPoints - balance);
+  const accountStatus = profile?.status ?? 0;
+  const isBlocked = accountStatus === 3 || accountStatus === 4 || accountStatus === 5;
+  const isLoadingChecks = profile === null;
 
   const { data: mealDetail } = useSessionDetail(sessionId);
 
@@ -541,7 +544,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                {!profile?.emailVerified ? (
+                {isBlocked ? (
                   <div className="space-y-4">
                     <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
                       <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
@@ -549,11 +552,12 @@ export default function CheckoutPage() {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-red-800">
-                          Tài khoản chưa được xác thực
+                          {accountStatus === 3 ? "Chưa định danh tài khoản" : "Tài khoản bị khóa"}
                         </p>
                         <p className="text-xs text-red-600 mt-1 leading-relaxed">
-                          Bạn cần xác thực email và hoàn tất định danh tài khoản trước khi có thể
-                          đặt hàng.
+                          {accountStatus === 3
+                            ? "Bạn cần hoàn tất định danh tài khoản trước khi có thể đặt hàng."
+                            : "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."}
                         </p>
                       </div>
                     </div>
@@ -564,14 +568,23 @@ export default function CheckoutPage() {
                       >
                         Đến trang cá nhân
                       </Link>
-                      <Link
-                        href={ROUTES.VERIFICATION}
-                        className="flex-1 py-3.5 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl text-center transition-all shadow-md"
-                      >
-                        Định danh ngay
-                      </Link>
+                      {accountStatus === 3 && (
+                        <Link
+                          href={ROUTES.VERIFICATION}
+                          className="flex-1 py-3.5 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl text-center transition-all shadow-md"
+                        >
+                          Định danh ngay
+                        </Link>
+                      )}
                     </div>
                   </div>
+                ) : isLoadingChecks ? (
+                  <button
+                    disabled
+                    className="w-full py-4 bg-gray-300 text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin" /> Checking...
+                  </button>
                 ) : hasEnoughPoints ? (
                   <button
                     onClick={handleCreateOrder}
