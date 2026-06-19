@@ -71,8 +71,8 @@ export const authService = {
     }
   },
 
-  verifyEmail: async (token: string): Promise<unknown> => {
-    return apiClient.get(`${API_ENDPOINTS.AUTH.VERIFY_EMAIL}?token=${encodeURIComponent(token)}`);
+  verifyEmail: async (email: string, code: string): Promise<unknown> => {
+    return apiClient.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { email, code });
   },
 
   refreshToken: async (token: string): Promise<unknown> => {

@@ -8,22 +8,30 @@ import { authService } from "@/services/auth.service";
 import { CheckCircle2, XCircle, Loader2, Mail, ShieldCheck, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from "@/components/ui/input-otp";
 import { toast } from "sonner";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
-  const urlToken = searchParams.get("token") || "";
+  const urlEmail = searchParams.get("email") || "";
+  const urlCode = searchParams.get("code") || "";
 
-  const [token, setToken] = useState(urlToken);
+  const [email, setEmail] = useState(urlEmail);
+  const [code, setCode] = useState(urlCode);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
-    urlToken ? "loading" : "idle",
+    urlEmail && urlCode ? "loading" : "idle",
   );
   const [message, setMessage] = useState("");
 
-  const verify = async (t: string) => {
+  const verify = async (e: string, c: string) => {
     setStatus("loading");
     try {
-      const res = (await authService.verifyEmail(t)) as { message?: string };
+      const res = (await authService.verifyEmail(e, c)) as { message?: string };
       setStatus("success");
       setMessage(res?.message || "Email verified successfully!");
     } catch (error: unknown) {
@@ -36,19 +44,23 @@ function VerifyEmailContent() {
   };
 
   useEffect(() => {
-    if (!urlToken) return;
+    if (!urlEmail || !urlCode) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    verify(urlToken);
+    verify(urlEmail, urlCode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token.trim()) {
-      toast.error("Please enter the verification token");
+    if (!email.trim()) {
+      toast.error("Please enter your email");
       return;
     }
-    verify(token.trim());
+    if (!code.trim()) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+    verify(email.trim(), code.trim());
   };
 
   return (
@@ -110,7 +122,7 @@ function VerifyEmailContent() {
               <button
                 onClick={() => {
                   setStatus("idle");
-                  setToken("");
+                  setCode("");
                 }}
                 className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)]"
               >
@@ -134,20 +146,38 @@ function VerifyEmailContent() {
             <div>
               <h1 className="text-2xl font-extrabold text-gray-800">Verify Email</h1>
               <p className="text-gray-400 text-sm mt-1">
-                Enter the verification token sent to your email.
+                Enter the verification code sent to your email.
               </p>
             </div>
             <form onSubmit={handleSubmit} className="w-full space-y-6 text-center">
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-2">
-                  Verification Token
-                </label>
+                <label className="text-sm font-bold text-gray-700 block mb-2">Email</label>
                 <Input
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Paste your verification token"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
                   className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base text-center bg-transparent"
                 />
+              </div>
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-3">
+                  Verification Code
+                </label>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={code} onChange={(value) => setCode(value)}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <InputOTPSeparator />
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
               </div>
               <Button
                 type="submit"
