@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { dishService } from "@/services/dish.service";
 import { categoryService } from "@/services/category.service";
 import type { Dish } from "@/types/dish.types";
 import type { Category } from "@/types/category.types";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export default function ManagerMenuPage() {
@@ -80,19 +81,23 @@ export default function ManagerMenuPage() {
         </div>
         <button
           onClick={() => router.push("/manager/menu/new")}
-          className="px-5 py-2.5 bg-[#D35400] text-white rounded-xl text-sm font-semibold hover:bg-[#b84900] transition-colors shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#D35400] text-white rounded-xl text-sm font-semibold hover:bg-[#b84900] transition-colors shadow-sm"
         >
-          + New Dish
+          <Plus className="w-4 h-4" />
+          New Dish
         </button>
       </div>
 
       <div className="flex items-center gap-3">
-        <input
-          placeholder="Search dishes..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-10 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all w-72"
-        />
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            placeholder="Search dishes..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all bg-white"
+          />
+        </div>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
@@ -107,73 +112,43 @@ export default function ManagerMenuPage() {
         </select>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">
-                  Dish
-                </th>
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">
-                  Category
-                </th>
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">
-                  Price
-                </th>
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">
-                  Status
-                </th>
-                <th className="text-right px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-16 text-center text-sm text-gray-400">
-                    Loading...
-                  </td>
-                </tr>
-              )}
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-16 text-center text-sm text-gray-400">
-                    No dishes found.
-                  </td>
-                </tr>
-              )}
-              {filtered.map((dish) => (
-                <tr key={dish.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      {dish.imgUrl && (
-                        <Image
-                          src={dish.imgUrl}
-                          alt={dish.name}
-                          width={40}
-                          height={40}
-                          className="w-10 h-10 rounded-lg object-cover bg-gray-100"
-                        />
-                      )}
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{dish.name}</p>
-                        <p className="text-xs text-gray-400 line-clamp-1">{dish.description}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm text-gray-600">
-                    {categoryMap[dish.categoryId] || "—"}
-                  </td>
-                  <td className="px-4 py-3.5 text-sm font-semibold text-gray-700">
-                    {dish.price} <span className="text-xs text-gray-400 font-normal">Point</span>
-                  </td>
-                  <td className="px-4 py-3.5">
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
+          <span className="ml-3 text-sm text-gray-400">Loading...</span>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <p className="text-gray-400 font-medium">No dishes found.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filtered.map((dish) => (
+            <div
+              key={dish.id}
+              className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                {dish.imgUrl ? (
+                  <Image
+                    src={dish.imgUrl}
+                    alt={dish.name}
+                    width={52}
+                    height={52}
+                    className="w-13 h-13 rounded-xl object-cover bg-gray-100 shrink-0"
+                  />
+                ) : (
+                  <div className="w-13 h-13 rounded-xl bg-gray-100 flex items-center justify-center text-xl shrink-0">
+                    🍽️
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-sm font-bold text-gray-900 truncate">{dish.name}</h3>
                     <button
                       onClick={() => handleToggleActive(dish)}
                       className={cn(
-                        "inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold transition-colors",
+                        "shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors",
                         dish.isActive
                           ? "bg-green-50 text-green-700 hover:bg-green-100"
                           : "bg-gray-100 text-gray-500 hover:bg-gray-200",
@@ -181,27 +156,33 @@ export default function ManagerMenuPage() {
                     >
                       {dish.isActive ? "Active" : "Inactive"}
                     </button>
-                  </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <button
-                      onClick={() => router.push(`/manager/menu/${dish.id}/edit`)}
-                      className="text-sm text-[#D35400] hover:text-[#b84900] font-medium mr-3"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(dish.id, dish.name)}
-                      className="text-sm text-red-500 hover:text-red-600 font-medium"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <span>{categoryMap[dish.categoryId] || "—"}</span>
+                    <span className="font-semibold text-gray-700">
+                      {dish.price} <span className="font-normal text-gray-400">Point</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => router.push(`/manager/menu/${dish.id}/edit`)}
+                    className="px-4 py-2 bg-[#D35400]/10 text-[#D35400] rounded-xl text-sm font-semibold hover:bg-[#D35400]/20 transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(dish.id, dish.name)}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

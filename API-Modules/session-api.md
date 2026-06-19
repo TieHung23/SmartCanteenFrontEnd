@@ -64,7 +64,41 @@ Paginated response shape:
   "availableFrom": "2024-01-01T00:00:00Z",
   "availableTo": "2024-01-01T00:00:00Z",
   "availableForOrder": "2024-01-01T00:00:00Z",
-  "dishes": [{ "dishId": "guid", "quantity": 1 }]
+  "finalizationDeadline": "2024-01-01T00:00:00Z",
+  "autoFinalizePolicy": 0,
+  "isFinalized": false,
+  "finalizedAtUtc": null,
+  "createdAtUtc": "2024-01-01T00:00:00Z",
+  "updatedAtUtc": null,
+  "createdBy": "guid",
+  "mealTemplates": [
+    {
+      "id": "guid",
+      "name": "string",
+      "settings": [
+        {
+          "id": "guid",
+          "mealTemplateId": "guid",
+          "categoryId": "guid",
+          "minQuantity": 1,
+          "maxQuantity": 3,
+          "isRequired": true
+        }
+      ]
+    }
+  ],
+  "dishes": [
+    {
+      "id": "guid",
+      "dishId": "guid",
+      "dishName": "string",
+      "imgUrl": "string",
+      "priceAmount": 25.0,
+      "priceCurrency": "Point",
+      "categoryId": "guid",
+      "preparedQuantity": null
+    }
+  ]
 }
 ```
 
@@ -84,16 +118,41 @@ Paginated response shape:
     "availableFrom": "2024-01-01T00:00:00Z",
     "availableTo": "2024-01-01T00:00:00Z",
     "availableForOrder": "2024-01-01T00:00:00Z",
+    "finalizationDeadline": "2024-01-01T00:00:00Z",
+    "autoFinalizePolicy": 0,
+    "isFinalized": false,
+    "finalizedAtUtc": null,
+    "createdAtUtc": "2024-01-01T00:00:00Z",
+    "updatedAtUtc": null,
+    "createdBy": "guid",
     "mealTemplates": [
       {
         "id": "guid",
         "name": "string",
         "settings": [
-          { "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }
+          {
+            "id": "guid",
+            "mealTemplateId": "guid",
+            "categoryId": "guid",
+            "minQuantity": 1,
+            "maxQuantity": 3,
+            "isRequired": true
+          }
         ]
       }
     ],
-    "dishes": [{ "dishId": "guid", "quantity": 1 }]
+    "dishes": [
+      {
+        "id": "guid",
+        "dishId": "guid",
+        "dishName": "string",
+        "imgUrl": "string",
+        "priceAmount": 25.0,
+        "priceCurrency": "Point",
+        "categoryId": "guid",
+        "preparedQuantity": null
+      }
+    ]
   },
   "isSuccess": true,
   "message": "string"
@@ -113,13 +172,15 @@ Paginated response shape:
   "availableFrom": "2024-01-01T00:00:00Z",
   "availableTo": "2024-01-01T00:00:00Z",
   "availableForOrder": "2024-01-01T00:00:00Z",
+  "finalizationDeadline": "2024-01-01T00:00:00Z",
+  "autoFinalizePolicy": 0,
   "mealTemplates": [
     {
       "name": "string",
       "settings": [{ "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }]
     }
   ],
-  "dishes": [{ "dishId": "guid", "quantity": 1 }]
+  "dishes": [{ "dishId": "guid" }]
 }
 ```
 
@@ -130,7 +191,16 @@ Paginated response shape:
   "value": {
     "id": "guid",
     "name": "string",
-    "message": "string"
+    "description": "string",
+    "isActive": true,
+    "availableFrom": "2024-01-01T00:00:00Z",
+    "availableTo": "2024-01-01T00:00:00Z",
+    "availableForOrder": "2024-01-01T00:00:00Z",
+    "finalizationDeadline": "2024-01-01T00:00:00Z",
+    "autoFinalizePolicy": 0,
+    "createdAtUtc": "2024-01-01T00:00:00Z",
+    "createdBy": "guid",
+    "message": "Session created successfully."
   },
   "isSuccess": true,
   "message": "string"
@@ -157,7 +227,7 @@ Paginated response shape:
       "settings": [{ "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }]
     }
   ],
-  "dishes": [{ "dishId": "guid", "quantity": 1 }]
+  "dishes": [{ "dishId": "guid" }]
 }
 ```
 

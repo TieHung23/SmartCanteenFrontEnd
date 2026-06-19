@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Suspense, useMemo, useEffect, useState, useRef, useSyncExternalStore } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { useCategories, useSessionDetail, useAllDishes } from "@/lib/hooks/useCanteen";
-import type { SessionTemplate } from "@/types/session.types";
 import type { Dish } from "@/types/dish.types";
 import type { CartItem } from "@/context/cart-context";
 import { useCart } from "@/context/cart-context";
@@ -115,11 +114,6 @@ function MenuContent() {
       }
     }
   }, [sessionId, setSessionId]);
-
-  useEffect(() => {
-    if (selectedCategoryId === null && categoriesData?.items && categoriesData.items.length > 0) {
-    }
-  }, [categoriesData, selectedCategoryId]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!carouselRef.current) return;
@@ -232,15 +226,35 @@ function MenuContent() {
   };
 
   const dishes = useMemo(() => {
-    if (!allDishesData?.items) return [];
     if (mealDetail?.dishes && mealDetail.dishes.length > 0) {
+      const hasRichData = mealDetail.dishes.some((d) => d.dishName);
+      if (hasRichData && allDishesData?.items) {
+        const dishMap = new Map(allDishesData.items.map((d) => [d.id, d]));
+        return mealDetail.dishes
+          .map(
+            (sd) =>
+              dishMap.get(sd.dishId) ??
+              ({
+                id: sd.dishId,
+                dishId: sd.dishId,
+                name: sd.dishName ?? "",
+                imgUrl: sd.imgUrl ?? null,
+                price: sd.priceAmount ?? 0,
+                priceAmount: sd.priceAmount ?? 0,
+                description: "",
+                categoryId: sd.categoryId ?? "",
+                isActive: true,
+              } as Dish),
+          )
+          .filter(Boolean);
+      }
       const allowedDishIds = new Set(mealDetail.dishes.map((d) => d.dishId));
-      return allDishesData.items.filter((dish) => allowedDishIds.has(dish.id));
+      return allDishesData?.items?.filter((dish) => allowedDishIds.has(dish.id)) ?? [];
     }
-    return allDishesData.items;
+    return allDishesData?.items ?? [];
   }, [mealDetail, allDishesData]);
 
-  const templates: SessionTemplate[] = mealDetail?.mealTemplates || [];
+  const templates = useMemo(() => mealDetail?.mealTemplates || [], [mealDetail?.mealTemplates]);
   const selectedTemplate = selectedTemplateIdx !== null ? templates[selectedTemplateIdx] : null;
 
   const categories = useMemo(() => {
@@ -253,8 +267,7 @@ function MenuContent() {
   }, [categoriesData, selectedTemplate]);
 
   const getSettingForCategory = (categoryId: string) =>
-    (selectedTemplate ?? templates[0] ?? null)?.settings.find((s) => s.categoryId === categoryId) ||
-    null;
+    selectedTemplate?.settings.find((s) => s.categoryId === categoryId) || null;
 
   const getCartCountForCategory = (categoryId: string) => {
     const catDishIds = new Set(dishes.filter((d) => d.categoryId === categoryId).map((d) => d.id));
@@ -262,6 +275,14 @@ function MenuContent() {
       .filter((item) => catDishIds.has(item.dishId))
       .reduce((sum, item) => sum + item.quantity, 0);
   };
+
+  // Auto-select first template when templates load
+  useEffect(() => {
+    if (templates.length > 0 && selectedTemplateIdx === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedTemplateIdx(0);
+    }
+  }, [templates, selectedTemplateIdx]);
 
   if (!sessionId) {
     return (
@@ -577,7 +598,7 @@ function MenuContent() {
 
                 {/* Dishes: All or selected category */}
                 {selectedCategoryId === null ? (
-                  /* ── ALL: show all categories with dishes ── */
+                  /* ── ALL: show all dishes from template categories ── */
                   <div className="space-y-6">
                     {categories.map((cat) => {
                       const catDishes = dishes.filter((d) => d.categoryId === cat.id);
@@ -585,8 +606,7 @@ function MenuContent() {
                       const setting = getSettingForCategory(cat.id);
                       const cartCount = getCartCountForCategory(cat.id);
                       const catExpired = expired;
-                      const notInTemplate =
-                        setting === null && (selectedTemplate ?? templates[0] ?? null) !== null;
+                      const notInTemplate = setting === null && selectedTemplate !== null;
 
                       return (
                         <div
@@ -644,8 +664,7 @@ function MenuContent() {
                     const setting = getSettingForCategory(activeCat.id);
                     const cartCount = getCartCountForCategory(activeCat.id);
                     const catExpired = expired;
-                    const notInTemplate =
-                      setting === null && (selectedTemplate ?? templates[0] ?? null) !== null;
+                    const notInTemplate = setting === null && selectedTemplate !== null;
 
                     return (
                       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">

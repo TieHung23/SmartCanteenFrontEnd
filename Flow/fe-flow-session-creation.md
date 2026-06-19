@@ -9,7 +9,7 @@
 Manager tạo một session (phiên ăn) gồm:
 
 - Thông tin cơ bản: tên, mô tả, thời gian
-- Danh sách món ăn (Dish) kèm số lượng dự kiến
+- Danh sách món ăn (Dish) có trong phiên
 - Các MealTemplate (mẫu suất ăn) với cấu hình danh mục
 
 ---
@@ -31,14 +31,13 @@ Manager (FE)                    Backend                      DB
     │<───────────────────────────────│                        │
     │                               │                        │
     │  3. Manager nhập form          │                        │
-    │  ┌──────────────────────┐    │                        │
-    │  │ Tên: "Buổi trưa T2"  │    │                        │
-    │  │ Giờ mở: 10:00       │    │                        │
-    │  │ Giờ đóng: 13:00     │    │                        │
-    │  │ Món: Cơm gà x 50    │    │                        │
-    │  │       Cơm sườn x 30 │    │                        │
-    │  │ Template: Mặc định   │    │                        │
-    │  └──────────────────────┘    │                        │
+  │  ┌──────────────────────────┐    │                        │
+  │  │ Tên: "Buổi trưa T2"      │    │                        │
+  │  │ Giờ mở: 10:00           │    │                        │
+  │  │ Giờ đóng: 13:00         │    │                        │
+  │  │ Món: Cơm gà, Cơm sườn   │    │                        │
+  │  │ Template: Mặc định       │    │                        │
+  │  └──────────────────────────┘    │                        │
     │                               │                        │
     │  4. Tạo session                │                        │
     │  POST /api/sessions            │                        │
@@ -132,9 +131,9 @@ Auth: Authorize (Manager)
     }
   ],
   "dishes": [
-    { "dishId": "guid-cơm-gà", "quantity": 50 },
-    { "dishId": "guid-cơm-sườn", "quantity": 30 },
-    { "dishId": "guid-canh-chua", "quantity": 20 }
+    { "dishId": "guid-cơm-gà" },
+    { "dishId": "guid-cơm-sườn" },
+    { "dishId": "guid-canh-chua" }
   ]
 }
 ```
@@ -165,10 +164,10 @@ Auth: Authorize (Manager)
 │                                                         │
 │  Danh sách món (từ /api/dishes)                         │
 │  ┌────────────────────────────────────────────────┐    │
-│  │ ☐ Cơm gà     25 Point  │ SL dự kiến: [50]    │    │
-│  │ ☐ Cơm sườn   30 Point  │ SL dự kiến: [30]    │    │
-│  │ ☐ Canh chua  10 Point  │ SL dự kiến: [20]    │    │
-│  │ ☐ Rau muống  15 Point  │ SL dự kiến: [__]    │    │
+│  │ ☐ Cơm gà     25 Point                         │    │
+│  │ ☐ Cơm sườn   30 Point                         │    │
+│  │ ☐ Canh chua  10 Point                         │    │
+│  │ ☐ Rau muống  15 Point                         │    │
 │  └────────────────────────────────────────────────┘    │
 │                                                         │
 │  [Thêm món đã chọn vào session]                         │
@@ -192,11 +191,11 @@ Auth: Authorize (Manager)
 │  Nếu quá hạn:  ▼ Hủy đơn (AutoReject)                   │
 │                    Xác nhận tất cả (AutoConfirmAll)      │
 │                                                         │
-│  ──── Các món trong phiên ────                          │
-│  🥘 Cơm gà                    SL dự kiến: 50            │
-│  🥘 Cơm sườn                  SL dự kiến: 30            │
-│  🥘 Canh chua                 SL dự kiến: 20            │
-│                                                         │
+  │  ──── Các món trong phiên ────                          │
+  │  🥘 Cơm gà                                             │
+  │  🥘 Cơm sườn                                           │
+  │  🥘 Canh chua                                          │
+  │                                                         │
 │  ──── Mẫu suất ăn ────                                  │
 │  [+ Thêm mẫu]                                            │
 │  📋 Suất chuẩn:                                          │
@@ -229,18 +228,18 @@ Auth: Authorize (Manager)
 
 ## 5. Validation notes
 
-| Field                      | Validation                                           |
-| -------------------------- | ---------------------------------------------------- |
-| `name`                     | Required, max 200 ký tự                              |
-| `description`              | Required, max 500 ký tự                              |
-| `availableFrom`            | Phải trước `availableTo`                             |
-| `availableTo`              | Phải sau `availableFrom`                             |
-| `availableForOrder`        | Phải trước `availableFrom` (cho phép user đặt trước) |
-| `finalizationDeadline`     | Optional; nếu có phải > thời điểm hiện tại           |
-| `dishes`                   | Phải có ít nhất 1 món                                |
-| `dishId`                   | Phải tồn tại và đang active                          |
-| `quantity`                 | > 0                                                  |
-| `mealTemplates[].settings` | `maxQuantity` >= `minQuantity`, `minQuantity` >= 0   |
+| Field                      | Validation                                                         |
+| -------------------------- | ------------------------------------------------------------------ |
+| `name`                     | Required, max 200 ký tự                                            |
+| `description`              | Required, max 500 ký tự                                            |
+| `availableFrom`            | Phải trước `availableTo`                                           |
+| `availableTo`              | Phải sau `availableFrom`                                           |
+| `availableForOrder`        | Phải trước `availableFrom` (cho phép user đặt trước)               |
+| `finalizationDeadline`     | Optional; nếu có phải > thời điểm hiện tại                         |
+| `autoFinalizePolicy`       | `0` = AutoReject (hủy đơn), `1` = AutoConfirmAll (xác nhận tất cả) |
+| `dishes`                   | Phải có ít nhất 1 món                                              |
+| `dishId`                   | Phải tồn tại và đang active                                        |
+| `mealTemplates[].settings` | `maxQuantity` >= `minQuantity`, `minQuantity` >= 0                 |
 
 ---
 
