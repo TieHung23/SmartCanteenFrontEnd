@@ -16,10 +16,14 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/Sessions/${id}`,
     UPDATE: (id: string) => `/api/Sessions/${id}`,
     DELETE: (id: string) => `/api/Sessions/${id}`,
+    FINALIZE: (id: string) => `/api/Sessions/${id}/finalize`,
   },
   CATEGORY: {
     LIST: "/api/Categories",
     GET: (id: string) => `/api/Categories/${id}`,
+    CREATE: "/api/Categories",
+    UPDATE: (id: string) => `/api/Categories/${id}`,
+    DELETE: (id: string) => `/api/Categories/${id}`,
   },
   DISH: {
     LIST: "/api/Dishes",
@@ -64,5 +68,11 @@ export const API_ENDPOINTS = {
     READ: (id: string) => `/api/notifications/${id}/read`,
     READ_ALL: "/api/notifications/read-all",
     DELETE: (id: string) => `/api/notifications/${id}`,
+  },
+  ADMIN: {
+    LOGS: {
+      LIST: "/api/admin/logs",
+      GET: (id: string) => `/api/admin/logs/${id}`,
+    },
   },
 } as const;

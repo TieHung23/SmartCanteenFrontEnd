@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export interface SessionTemplateSetting {
   categoryId: string;
   minQuantity: number;
@@ -32,6 +30,30 @@ export interface SessionListItem {
 export interface SessionDetail extends SessionListItem {
   mealTemplates: SessionTemplate[];
 }
+
+export interface CreateSessionTemplateSetting {
+  categoryId: string;
+  minQuantity: number;
+  maxQuantity: number;
+  isRequired: boolean;
+}
+
+export interface CreateSessionTemplate {
+  name: string;
+  settings: CreateSessionTemplateSetting[];
+}
+
+export interface CreateSessionRequest {
+  name: string;
+  description: string;
+  availableFrom: string;
+  availableTo: string;
+  availableForOrder: string;
+  mealTemplates: CreateSessionTemplate[];
+  dishes: SessionDishInfo[];
+}
+
+import { z } from "zod";
 
 export const SessionTemplateSettingSchema = z.object({
   categoryId: z.string().uuid(),

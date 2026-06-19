@@ -2,10 +2,11 @@ import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { Dish } from "@/types/dish.types";
 import {
-  SessionDetailSchema,
   type SessionDetail,
   type SessionListItem,
+  type CreateSessionRequest,
 } from "@/types/session.types";
+import { SessionDetailSchema } from "@/types/session.types";
 
 export interface ApiResponse<T> {
   value: T;
@@ -24,14 +25,12 @@ export interface PaginatedList<T> {
   hasNextPage: boolean;
 }
 
-export type CreateSessionPayload = Omit<SessionDetail, "id" | "isActive">;
-export type UpdateSessionPayload = Partial<Omit<CreateSessionPayload, "id">>;
-
 export const sessionService = {
   getSessions: async (params?: {
     pageNumber?: number;
     pageSize?: number;
     isActive?: boolean;
+    name?: string;
   }): Promise<PaginatedList<SessionListItem>> => {
     try {
       const response = (await apiClient.get<ApiResponse<PaginatedList<SessionListItem>>>(
@@ -63,7 +62,7 @@ export const sessionService = {
   },
 
   createSession: async (
-    data: CreateSessionPayload,
+    data: CreateSessionRequest,
   ): Promise<ApiResponse<{ id: string; name: string; message: string }>> => {
     try {
       const response = (await apiClient.post<
@@ -83,7 +82,7 @@ export const sessionService = {
 
   updateSession: async (
     id: string,
-    data: UpdateSessionPayload,
+    data: Partial<CreateSessionRequest> & { isActive?: boolean },
   ): Promise<ApiResponse<{ id: string; name: string; message: string }>> => {
     try {
       const response = (await apiClient.put<
@@ -113,6 +112,24 @@ export const sessionService = {
       throw error;
     }
   },
+
+  finalizeSession: async (
+    id: string,
+    preparedDishes: { dishId: string; preparedQuantity: number }[],
+  ): Promise<ApiResponse<{ message: string }>> => {
+    try {
+      const response = (await apiClient.post<ApiResponse<{ message: string }>>(
+        API_ENDPOINTS.SESSION.FINALIZE(id),
+        { preparedDishes },
+      )) as unknown as ApiResponse<{ message: string }>;
+
+      return response;
+    } catch (error) {
+      console.error(`Error finalizing session ID ${id}:`, error);
+      throw error;
+    }
+  },
+
   getAllDishes: async (): Promise<Dish[]> => {
     try {
       const response = (await apiClient.get<ApiResponse<PaginatedList<Dish>>>(
