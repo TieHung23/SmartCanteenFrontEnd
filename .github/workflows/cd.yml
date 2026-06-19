@@ -49,12 +49,17 @@ jobs:
             TARGET_PATH="$BASE_PATH/$BRANCH_NAME"
             SIMULATE="${DEPLOY_SIMULATE:-true}"
 
-            mkdir -p "$TARGET_PATH"
             if [ "$SIMULATE" = "true" ]; then
+              mkdir -p "$TARGET_PATH"
               echo "[SIMULATE] SSH connected to Ubuntu"
+              echo "[SIMULATE] Would clean up old files in $TARGET_PATH"
               echo "[SIMULATE] Would extract /tmp/sc-frontend-release.tar.gz to $TARGET_PATH"
               echo "[SIMULATE] Would run docker compose up -d --build in $TARGET_PATH"
             else
+              # Xóa toàn bộ nội dung cũ trước khi giải nén để tránh trùng lặp code/thư mục
+              rm -rf "$TARGET_PATH"
+              mkdir -p "$TARGET_PATH"
+              
               tar -xzf /tmp/sc-frontend-release.tar.gz -C "$TARGET_PATH"
               rm -f /tmp/sc-frontend-release.tar.gz # Dọn dẹp file tạm
               
