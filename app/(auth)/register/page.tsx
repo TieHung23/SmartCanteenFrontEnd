@@ -14,19 +14,19 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-linear-to-t from-black/40 via-black/18 to-black/6" />
       </div>
 
-      <div className="w-full lg:w-1/2 flex flex-col items-center overflow-y-auto bg-white px-8 sm:px-10 lg:px-12 py-6">
-        <div className="w-full max-w-2xl flex flex-col items-center -mt-26">
-          <div className="mt-6 mb-2 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center overflow-hidden bg-white px-8 sm:px-10 py-4">
+        <div className="w-full max-w-2xl flex flex-col items-center">
+          <div className="mb-2 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
               alt="Mascot"
-              className="w-60 h-60 lg:w-56 lg:h-56 object-contain drop-shadow-2xl"
+              className="w-40 h-40 lg:w-44 lg:h-44 object-contain drop-shadow-2xl"
             />
           </div>
 
-          <div className="w-full mb-6">
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Create Account</h1>
+          <div className="w-full mb-4">
+            <h1 className="text-2xl font-extrabold text-gray-800 mb-1">Create Account</h1>
             <p className="text-sm text-gray-500">
               Fill in your details to create your canteen account.
             </p>

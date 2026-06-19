@@ -6,13 +6,16 @@ export const API_ENDPOINTS = {
     REFRESH_TOKEN: "/api/Auth/refresh",
     ME: "/api/Auth/me",
     VERIFY_EMAIL: "/api/Auth/verify-email",
+    FORGOT_PASSWORD: "/api/Auth/forgot-password",
+    RESET_PASSWORD: "/api/Auth/reset-password",
+    CHANGE_PASSWORD: "/api/Auth/change-password",
   },
-  MEAL: {
-    LIST: "/api/Meals",
-    CREATE: "/api/Meals",
-    GET: (id: string) => `/api/Meals/${id}`,
-    UPDATE: (id: string) => `/api/Meals/${id}`,
-    DELETE: (id: string) => `/api/Meals/${id}`,
+  SESSION: {
+    LIST: "/api/Sessions",
+    CREATE: "/api/Sessions",
+    GET: (id: string) => `/api/Sessions/${id}`,
+    UPDATE: (id: string) => `/api/Sessions/${id}`,
+    DELETE: (id: string) => `/api/Sessions/${id}`,
   },
   CATEGORY: {
     LIST: "/api/Categories",
@@ -33,6 +36,11 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
   },
+  CART: {
+    GET: "/api/Cart",
+    UPDATE: "/api/Cart",
+    DELETE: "/api/Cart",
+  },
   PAYMENT: {
     TOP_UP: "/api/payments/top-up",
     GET: (id: string) => `/api/payments/${id}`,
@@ -49,5 +57,12 @@ export const API_ENDPOINTS = {
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",
     ME: "/api/Verification/me",
+  },
+  NOTIFICATION: {
+    LIST: "/api/notifications",
+    UNREAD_COUNT: "/api/notifications/unread-count",
+    READ: (id: string) => `/api/notifications/${id}/read`,
+    READ_ALL: "/api/notifications/read-all",
+    DELETE: (id: string) => `/api/notifications/${id}`,
   },
 } as const;

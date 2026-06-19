@@ -1,8 +1,16 @@
 "use client";
 
 import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
+import React from "react";
+
+type SafeShaderGradientProps = React.ComponentProps<typeof ShaderGradient> & {
+  fov?: number;
+  pixelDensity?: number;
+};
 
 export function StaffBackground() {
+  const ExtendedShaderGradient = ShaderGradient as React.ComponentType<SafeShaderGradientProps>;
+
   return (
     <div className="fixed inset-0 -z-10">
       <ShaderGradientCanvas
@@ -11,39 +19,40 @@ export function StaffBackground() {
         pixelDensity={0.5}
         fov={45}
       >
-        <ShaderGradient
+        <ExtendedShaderGradient
+          control="props"
           animate="on"
-          brightness={1.5}
-          cAzimuthAngle={180}
-          cDistance={3.6}
-          cPolarAngle={90}
+          brightness={1.2}
+          cAzimuthAngle={183}
+          cDistance={2.9}
+          cPolarAngle={88}
           cameraZoom={1}
-          color1="#bdf4ff"
-          color2="#d4bcdb"
-          color3="#e1c2bd"
-          envPreset="city"
+          color1="#fff3ed"
+          color2="#f8f2f1"
+          color3="#edfcff"
           grain="off"
           lightType="3d"
-          positionX={-1.4}
-          positionY={0}
+          positionX={0}
+          positionY={1.8}
           positionZ={0}
           range="disabled"
           rangeEnd={40}
-          rangeStart={2}
+          rangeStart={0}
           reflection={0.1}
           rotationX={0}
-          rotationY={10}
-          rotationZ={50}
+          rotationY={0}
+          rotationZ={-90}
           shader="defaults"
-          type="plane"
-          uAmplitude={1}
-          uDensity={1.3}
+          type="waterPlane"
+          uAmplitude={0}
+          uDensity={1}
           uFrequency={5.5}
           uSpeed={0.3}
-          uStrength={4}
-          uTime={2}
+          uStrength={3}
+          uTime={0.2}
           wireframe={false}
-          zoomOut={false}
+          fov={45}
+          pixelDensity={1}
         />
       </ShaderGradientCanvas>
     </div>

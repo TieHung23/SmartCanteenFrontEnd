@@ -113,3 +113,38 @@ export interface RegisterResponse {
   statusCode?: number;
   message?: string;
 }
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+});
+
+export const ResetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "Token không hợp lệ"),
+    newPassword: PasswordSchema,
+    confirmPassword: PasswordSchema,
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Mật khẩu xác nhận không khớp",
+    path: ["confirmPassword"],
+  });
+
+export interface ForgotPasswordBody {
+  email: string;
+}
+
+export type ForgotPasswordBodyType = z.infer<typeof ForgotPasswordSchema>;
+
+export interface ResetPasswordBody {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export type ResetPasswordBodyType = z.infer<typeof ResetPasswordSchema>;
+
+export interface ChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}

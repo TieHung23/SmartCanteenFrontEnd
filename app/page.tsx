@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { userService } from "@/services/user.service";
-import { verificationService } from "@/services/verification.service";
 import { ROUTES } from "@/config/routes";
 import Navbar from "@/components/layout/Navbar";
 
@@ -40,18 +39,8 @@ export default function Home() {
           return;
       }
       const fullProfile = await userService.getProfile().catch(() => null);
-      if (fullProfile && !fullProfile.emailVerified) {
+      if (fullProfile && (fullProfile.status === 4 || fullProfile.status === 5)) {
         router.push(ROUTES.LOGIN);
-        return;
-      }
-      // FPT email users skip identity verification
-      if (fullProfile?.email?.endsWith("@fpt.edu.vn")) {
-        setIsLoading(false);
-        return;
-      }
-      const verification = await verificationService.getMyVerification();
-      if (!verification || verification.status !== 1) {
-        router.push(ROUTES.VERIFICATION);
         return;
       }
       setIsLoading(false);

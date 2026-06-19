@@ -3,13 +3,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { isAxiosError } from "axios";
 import Navbar from "@/components/layout/Navbar";
 import { useCart, type CartItem } from "@/context/cart-context";
-import { useMealDetail } from "@/lib/hooks/useCanteen";
+import { useSessionDetail } from "@/lib/hooks/useCanteen";
 import { orderService } from "@/services/order.service";
 import { paymentService, type TopUpRequest, type TopUpResponse } from "@/services/payment.service";
 import { userService, type UserProfileResponse } from "@/services/user.service";
 import { ROUTES } from "@/config/routes";
+import { cartService } from "@/services/cart.service";
+import type { CartData } from "@/types/cart.types";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -27,6 +31,7 @@ import {
   PartyPopper,
   Receipt,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -51,7 +56,8 @@ function PtsDisplay({ amount, className }: { amount: number; className?: string 
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, mealId, getCartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cartItems, sessionId, getCartTotal, updateQuantity, removeFromCart, clearCart } =
+    useCart();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +75,7 @@ export default function CheckoutPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!orderResult && (!mealId || cartItems.length === 0)) {
+    if (!orderResult && (!sessionId || cartItems.length === 0)) {
       router.push(ROUTES.SESSION);
       return;
     }
@@ -82,14 +88,17 @@ export default function CheckoutPage() {
       }
     };
     fetchProfile();
-  }, [mealId, cartItems, router, orderResult]);
+  }, [sessionId, cartItems, router, orderResult]);
 
   const totalPoints = getCartTotal();
   const balance = profile?.balanceAmount ?? 0;
   const hasEnoughPoints = balance >= totalPoints;
   const neededPoints = Math.max(0, totalPoints - balance);
+  const accountStatus = profile?.status ?? 0;
+  const isBlocked = accountStatus === 3 || accountStatus === 4 || accountStatus === 5;
+  const isLoadingChecks = profile === null;
 
-  const { data: mealDetail } = useMealDetail(mealId);
+  const { data: mealDetail } = useSessionDetail(sessionId);
 
   const categoryMaxMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -116,7 +125,7 @@ export default function CheckoutPage() {
   const mealInfo = useMemo(() => {
     const first = cartItems[0];
     if (!first) return null;
-    return { name: first.mealName, time: first.mealTime };
+    return { name: first.sessionName, time: first.sessionTime };
   }, [cartItems]);
 
   function formatTimeRange(t?: string) {
@@ -131,25 +140,49 @@ export default function CheckoutPage() {
   }
 
   const handleCreateOrder = useCallback(async () => {
-    if (!mealId) return;
+    if (!sessionId) return;
     setIsSubmitting(true);
     try {
-      const cleanedItems = cartItems.map((item) => ({
-        dishId: item.dishId,
-        quantity: item.quantity,
-      }));
-      const result = await orderService.createOrder(mealId, cleanedItems);
+      let currentVersion = 0;
+      try {
+        const serverCart = await cartService.getCart();
+        currentVersion = serverCart.version;
+      } catch {}
+
+      const mealTemplateId =
+        cartItems[0]?.sessionTemplateId ||
+        mealDetail?.mealTemplates?.[0]?.id ||
+        "00000000-0000-0000-0000-000000000000";
+
+      const cartData: CartData = {
+        sessions: [
+          {
+            sessionId,
+            mealTemplateId,
+            items: cartItems.map((item) => ({
+              dishId: item.dishId,
+              quantity: item.quantity,
+            })),
+          },
+        ],
+      };
+      const updatedCart = await cartService.updateCart(cartData, currentVersion);
+
+      const result = await orderService.createOrder(sessionId, updatedCart.version);
       clearCart();
       setOrderResult(result);
       toast.success(result.message || "Order placed successfully!");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-      const msg = err?.response?.data?.message || err?.message || "Order failed";
+      const msg = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Order failed";
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
-  }, [mealId, cartItems, clearCart]);
+  }, [sessionId, cartItems, mealDetail, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -237,7 +270,7 @@ export default function CheckoutPage() {
         <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
           {/* Background image with dark overlay + blur */}
           <div className="absolute inset-0">
-            <Image src="/uni1.jpg" alt="" fill className="object-cover" sizes="100vw" />
+            <Image src="/uni1.webp" alt="" fill className="object-cover" sizes="100vw" />
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
           </div>
 
@@ -358,7 +391,7 @@ export default function CheckoutPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6 font-sans">
+      <main className="min-h-screen bg-[#FDFBF9] py-10 px-4 sm:px-8">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-orange-100/30 to-transparent pointer-events-none" />
         <div className="max-w-5xl mx-auto relative z-10">
           <button
@@ -376,7 +409,10 @@ export default function CheckoutPage() {
               <div>
                 <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
                 {mealInfo?.name && (
-                  <p className="text-xs font-bold text-orange-500 mt-0.5 uppercase tracking-wide flex items-center gap-1.5">
+                  <p
+                    suppressHydrationWarning
+                    className="text-xs font-bold text-orange-500 mt-0.5 uppercase tracking-wide flex items-center gap-1.5"
+                  >
                     <Calendar className="w-3.5 h-3.5" /> {mealInfo.name} (
                     {formatTimeRange(mealInfo.time)})
                   </p>
@@ -386,32 +422,32 @@ export default function CheckoutPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-7 space-y-8">
               {Array.from(groupedCartItems.entries()).map(([catId, items]) => {
                 const catMax = catId !== "__unknown__" ? categoryMaxMap.get(catId) : undefined;
                 return (
-                  <div key={catId} className="space-y-2.5">
+                  <div key={catId} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                      <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
                         {items[0]?.categoryName || "Other"}
                       </span>
                       {catMax !== undefined && (
-                        <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded-md">
-                          Selected: {items.reduce((s, i) => s + i.quantity, 0)}/{catMax}
+                        <span className="text-xs text-gray-400 font-semibold bg-gray-100 px-3 py-1 rounded-lg">
+                          Đã chọn: {items.reduce((s, i) => s + i.quantity, 0)}/{catMax}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {items.map((item) => {
                         const catItemCount = items.reduce((s, i) => s + i.quantity, 0);
                         const isAtMax = catMax !== undefined && catItemCount >= catMax;
                         return (
                           <div
                             key={item.dishId}
-                            className="flex gap-4 p-4 rounded-2xl bg-white border border-gray-50 shadow-xs hover:border-orange-100 transition-all group"
+                            className="flex gap-5 p-5 rounded-2xl bg-white border border-gray-50 shadow-sm hover:border-orange-100 hover:shadow-md transition-all"
                           >
-                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-50">
                               <Image
                                 src={item.imgUrl || "/placeholder-food.png"}
                                 alt={item.name}
@@ -420,46 +456,46 @@ export default function CheckoutPage() {
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-bold text-gray-800 truncate">
+                              <h4 className="text-base font-semibold text-gray-800 truncate">
                                 {item.name}
                               </h4>
-                              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                                <PtsDisplay amount={item.price} /> each
+                              <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                                <PtsDisplay amount={item.price} /> mỗi món
                               </p>
-                              <div className="flex items-center justify-between mt-2">
-                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between mt-3">
+                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl">
                                   <button
                                     onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
-                                    className="p-1.5 rounded-md text-gray-500 hover:bg-white transition-colors"
+                                    className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors"
                                   >
-                                    <Minus className="w-3 h-3" />
+                                    <Minus className="w-4 h-4" />
                                   </button>
-                                  <span className="px-3 text-xs font-black text-gray-700 min-w-[24px] text-center">
+                                  <span className="px-4 text-sm font-bold text-gray-700 min-w-[28px] text-center">
                                     {item.quantity}
                                   </span>
                                   <button
                                     onClick={() => {
                                       if (isAtMax) {
-                                        toast.error(`Maximum quantity of ${catMax} items reached.`);
+                                        toast.error(`Tối đa ${catMax} món cho danh mục này.`);
                                         return;
                                       }
                                       updateQuantity(item.dishId, item.quantity + 1);
                                     }}
-                                    className={`p-1.5 rounded-md text-gray-500 hover:bg-white transition-colors ${
+                                    className={`p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors ${
                                       isAtMax ? "opacity-30 cursor-not-allowed" : ""
                                     }`}
                                   >
-                                    <Plus className="w-3 h-3" />
+                                    <Plus className="w-4 h-4" />
                                   </button>
                                 </div>
-                                <div className="text-sm font-black text-[#D35400]">
+                                <div className="text-base font-bold text-[#D35400]">
                                   <PtsDisplay amount={item.price * item.quantity} />
                                 </div>
                               </div>
                             </div>
                             <button
                               onClick={() => removeFromCart(item.dishId)}
-                              className="self-start p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                              className="self-start p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -508,8 +544,48 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-
-                {hasEnoughPoints ? (
+                {isBlocked ? (
+                  <div className="space-y-4">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-red-800">
+                          {accountStatus === 3 ? "Chưa định danh tài khoản" : "Tài khoản bị khóa"}
+                        </p>
+                        <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                          {accountStatus === 3
+                            ? "Bạn cần hoàn tất định danh tài khoản trước khi có thể đặt hàng."
+                            : "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <Link
+                        href={ROUTES.PROFILE}
+                        className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm rounded-xl text-center transition-all"
+                      >
+                        Đến trang cá nhân
+                      </Link>
+                      {accountStatus === 3 && (
+                        <Link
+                          href={ROUTES.VERIFICATION}
+                          className="flex-1 py-3.5 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl text-center transition-all shadow-md"
+                        >
+                          Định danh ngay
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ) : isLoadingChecks ? (
+                  <button
+                    disabled
+                    className="w-full py-4 bg-gray-300 text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin" /> Checking...
+                  </button>
+                ) : hasEnoughPoints ? (
                   <button
                     onClick={handleCreateOrder}
                     disabled={isSubmitting}

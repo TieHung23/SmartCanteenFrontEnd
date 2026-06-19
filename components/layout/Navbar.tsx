@@ -5,6 +5,9 @@ import Image from "next/image";
 import { Bell, ShoppingCart, LogOut } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 import { useCart } from "@/context/cart-context";
+import { notificationService } from "@/services/notification.service";
+import NotificationDropdown from "@/components/features/notifications/NotificationDropdown";
+
 export default function Navbar() {
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -20,10 +23,12 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Meal Session", href: "/session" },
+    { name: "Session", href: "/session" },
     { name: "Menu", href: "/menu" },
     { name: "About Us", href: "/about" },
   ];
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const fetchNavbarProfile = async () => {
@@ -40,6 +45,19 @@ export default function Navbar() {
     };
 
     fetchNavbarProfile();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchNavbarProfile();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", fetchNavbarProfile);
+    window.addEventListener("profileUpdated", fetchNavbarProfile);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", fetchNavbarProfile);
+      window.removeEventListener("profileUpdated", fetchNavbarProfile);
+    };
   }, []);
 
   useEffect(() => {
@@ -50,6 +68,21 @@ export default function Navbar() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (token) {
+          const count = await notificationService.getUnreadCount();
+          setUnreadCount(count);
+        }
+      } catch {}
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000); // poll mỗi 30s
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
@@ -69,7 +102,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/logo.png"
-            alt="Meal Session Logo"
+            alt="Smart Canteen Logo"
             width={55}
             height={55}
             className="w-auto h-55 object-contain rounded-full pb-2"
@@ -101,10 +134,22 @@ export default function Navbar() {
 
         {/* Icons */}
         <div className="flex items-center gap-1 shrink-0">
-          <button className="relative w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-[#E86A33] hover:bg-orange-50 transition-all">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="flex items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-[#E86A33] hover:bg-orange-50 transition-all"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <NotificationDropdown onClose={() => setShowNotifications(false)} />
+            )}
+          </div>
           <button
             onClick={openCart}
             className="relative p-2.5 rounded-xl hover:bg-orange-50 text-gray-600 hover:text-[#D35400] transition-all group active:scale-95"

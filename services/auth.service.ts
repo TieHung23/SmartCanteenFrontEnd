@@ -6,6 +6,7 @@ import {
   LoginResponse,
   RegisterResponse,
 } from "@/types/auth.types";
+import { ForgotPasswordBody, ResetPasswordBody, ChangePasswordBody } from "@/types/auth.types";
 
 export const authService = {
   login: async (body: LoginBodyType): Promise<LoginResponse> => {
@@ -70,9 +71,25 @@ export const authService = {
     }
   },
 
+  verifyEmail: async (token: string): Promise<unknown> => {
+    return apiClient.get(`${API_ENDPOINTS.AUTH.VERIFY_EMAIL}?token=${encodeURIComponent(token)}`);
+  },
+
   refreshToken: async (token: string): Promise<unknown> => {
     return apiClient.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
       refreshToken: token,
     });
+  },
+
+  forgotPassword: async (body: ForgotPasswordBody): Promise<unknown> => {
+    return apiClient.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, body);
+  },
+
+  resetPassword: async (body: ResetPasswordBody): Promise<unknown> => {
+    return apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, body);
+  },
+
+  changePassword: async (body: ChangePasswordBody): Promise<unknown> => {
+    return apiClient.put(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, body);
   },
 };
