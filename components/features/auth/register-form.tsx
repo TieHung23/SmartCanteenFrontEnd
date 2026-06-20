@@ -31,12 +31,12 @@ export const RegisterForm = () => {
 
   const registerMutation = useMutation({
     mutationFn: (data: RegisterBodyType) => authService.register(data),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       toast.success(
         data.message ||
-          "Registration successful. Please check your email for the verification link.",
+          "Registration successful. Please check your email and enter the verification code.",
       );
-      router.push(ROUTES.LOGIN);
+      router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
     },
     onError: (error: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
       const serverMsg = error.response?.data?.message;

@@ -18,6 +18,8 @@ export interface OrderItem {
   dishId: string;
   quantity: number;
   unitPrice: number;
+  dishName?: string;
+  imgUrl?: string | null;
 }
 
 export interface OrderListItem {
@@ -49,11 +51,15 @@ export interface CreateOrderItem {
   quantity: number;
 }
 
-export const OrderItemSchema = z.object({
-  dishId: z.string(),
-  quantity: z.number().int(),
-  unitPrice: z.number(),
-});
+export const OrderItemSchema = z
+  .object({
+    dishId: z.string(),
+    quantity: z.number().int(),
+    unitPrice: z.number(),
+    dishName: z.string().optional(),
+    imgUrl: z.string().nullable().optional(),
+  })
+  .passthrough();
 
 export const OrderListItemSchema = z.object({
   id: z.string(),

@@ -16,10 +16,14 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/Sessions/${id}`,
     UPDATE: (id: string) => `/api/Sessions/${id}`,
     DELETE: (id: string) => `/api/Sessions/${id}`,
+    FINALIZE: (id: string) => `/api/Sessions/${id}/finalize`,
   },
   CATEGORY: {
     LIST: "/api/Categories",
     GET: (id: string) => `/api/Categories/${id}`,
+    CREATE: "/api/Categories",
+    UPDATE: (id: string) => `/api/Categories/${id}`,
+    DELETE: (id: string) => `/api/Categories/${id}`,
   },
   DISH: {
     LIST: "/api/Dishes",
@@ -53,10 +57,18 @@ export const API_ENDPOINTS = {
     LIST: "/api/refunds",
     CREATE: "/api/refunds",
     GET: (id: string) => `/api/refunds/${id}`,
+    MANAGER_LIST: "/api/manager/refunds",
+    MANAGER_GET: (id: string) => `/api/manager/refunds/${id}`,
+    MANAGER_APPROVE: (id: string) => `/api/manager/refunds/${id}/approve`,
+    MANAGER_REJECT: (id: string) => `/api/manager/refunds/${id}/reject`,
   },
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",
     ME: "/api/Verification/me",
+    ADMIN_LIST: "/api/admin/verifications",
+    ADMIN_GET: (id: string) => `/api/admin/verifications/${id}`,
+    ADMIN_APPROVE: (id: string) => `/api/admin/verifications/${id}/approve`,
+    ADMIN_REJECT: (id: string) => `/api/admin/verifications/${id}/reject`,
   },
   NOTIFICATION: {
     LIST: "/api/notifications",
@@ -64,5 +76,11 @@ export const API_ENDPOINTS = {
     READ: (id: string) => `/api/notifications/${id}/read`,
     READ_ALL: "/api/notifications/read-all",
     DELETE: (id: string) => `/api/notifications/${id}`,
+  },
+  ADMIN: {
+    LOGS: {
+      LIST: "/api/admin/logs",
+      GET: (id: string) => `/api/admin/logs/${id}`,
+    },
   },
 } as const;
