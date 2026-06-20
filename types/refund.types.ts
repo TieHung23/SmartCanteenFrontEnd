@@ -30,3 +30,43 @@ export const REFUND_STATUS_META: Record<
   1: { label: "Đã duyệt", color: "#2db87a", bg: "#e8f8f0" },
   2: { label: "Từ chối", color: "#ef4444", bg: "#fef2f2" },
 };
+
+/* ── Manager ── */
+export interface ManagerRefundListItem {
+  id: string;
+  orderId: string;
+  userId: string;
+  policyName: string;
+  refundPercent: number;
+  orderAmount: number;
+  refundAmount: number;
+  status: string;
+  imageCount: number;
+  createdAtUtc: string;
+  reviewedAtUtc: string | null;
+}
+
+export interface RefundImage {
+  id: string;
+  imageUrl: string;
+  fileName: string;
+}
+
+export interface ManagerRefundDetail {
+  id: string;
+  orderId: string;
+  userId: string;
+  policyCode: string;
+  policyName: string;
+  refundPercent: number;
+  orderAmount: number;
+  refundAmount: number;
+  description: string;
+  status: string;
+  images: RefundImage[];
+  reviewedBy: string | null;
+  reviewedAtUtc: string | null;
+  rejectionReason: string | null;
+  walletTransactionId: string | null;
+  createdAtUtc: string;
+}

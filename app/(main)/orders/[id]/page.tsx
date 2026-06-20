@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/layout/Navbar";
 import { useOrderDetail } from "@/lib/hooks/useCanteen";
 import { ORDER_STATUS_META, type OrderStatus } from "@/types/order.types";
@@ -133,9 +134,22 @@ export default function OrderDetailPage() {
                   key={item.dishId}
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
                 >
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">{item.dishId.slice(0, 8)}...</p>
-                    <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                  <div className="flex items-center gap-3">
+                    {item.imgUrl && (
+                      <Image
+                        src={item.imgUrl}
+                        alt={item.dishName || ""}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 rounded-lg object-cover bg-gray-100"
+                      />
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">
+                        {item.dishName || `${item.dishId.slice(0, 8)}...`}
+                      </p>
+                      <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-black text-[#D35400]">

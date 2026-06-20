@@ -1,21 +1,22 @@
-import { z } from "zod";
-
 export interface Dish {
   id: string;
   name: string;
   description: string;
-  price: number; // số điểm
+  price: number;
   isActive: boolean;
   categoryId: string;
   imgUrl: string | null;
+  categoryName?: string;
 }
 
-export const DishSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  price: z.number(),
-  isActive: z.boolean(),
-  categoryId: z.string(),
-  imgUrl: z.string().nullable(),
-}) satisfies z.ZodType<Dish>;
+export interface DishListPayload {
+  name?: string;
+  description?: string;
+  price?: number;
+  categoryId?: string;
+  image?: File | null;
+}
+
+export interface DishUpdatePayload extends DishListPayload {
+  isActive?: boolean;
+}

@@ -1,7 +1,11 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { ApiResponse, PaginatedList } from "./session.service";
-import type { RefundRequest } from "@/types/refund.types";
+import type {
+  RefundRequest,
+  ManagerRefundListItem,
+  ManagerRefundDetail,
+} from "@/types/refund.types";
 
 export const refundService = {
   getMyRefunds: async (params?: { status?: number; pageNumber?: number; pageSize?: number }) => {
@@ -35,5 +39,74 @@ export const refundService = {
       { headers: { "Content-Type": null } },
     );
     return (response as unknown as ApiResponse<RefundRequest>).value;
+  },
+
+  /* ── Manager ── */
+  managerList: async (params?: {
+    status?: number;
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<PaginatedList<ManagerRefundListItem>> => {
+    const response = (await apiClient.get<ApiResponse<PaginatedList<ManagerRefundListItem>>>(
+      API_ENDPOINTS.REFUND.MANAGER_LIST,
+      { params },
+    )) as unknown as ApiResponse<PaginatedList<ManagerRefundListItem>>;
+    return response.value;
+  },
+
+  managerGetDetail: async (id: string): Promise<ManagerRefundDetail> => {
+    const response = (await apiClient.get<ApiResponse<ManagerRefundDetail>>(
+      API_ENDPOINTS.REFUND.MANAGER_GET(id),
+    )) as unknown as ApiResponse<ManagerRefundDetail>;
+    return response.value;
+  },
+
+  managerApprove: async (
+    id: string,
+  ): Promise<{
+    id: string;
+    walletTransactionId: string;
+    refundAmount: number;
+    balanceAfter: number;
+    status: string;
+  }> => {
+    const response = (await apiClient.post<
+      ApiResponse<{
+        id: string;
+        walletTransactionId: string;
+        refundAmount: number;
+        balanceAfter: number;
+        status: string;
+      }>
+    >(API_ENDPOINTS.REFUND.MANAGER_APPROVE(id))) as unknown as ApiResponse<{
+      id: string;
+      walletTransactionId: string;
+      refundAmount: number;
+      balanceAfter: number;
+      status: string;
+    }>;
+    return response.value;
+  },
+
+  managerReject: async (
+    id: string,
+    reason: string,
+  ): Promise<{
+    id: string;
+    status: string;
+    rejectionReason: string;
+  }> => {
+    const response = (await apiClient.post<
+      ApiResponse<{
+        id: string;
+        status: string;
+        rejectionReason: string;
+      }>
+    >(API_ENDPOINTS.REFUND.MANAGER_REJECT(id), { reason })) as unknown as ApiResponse<{
+      id: string;
+      status: string;
+      rejectionReason: string;
+    }>;
+    return response.value;
   },
 };
