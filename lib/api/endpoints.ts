@@ -57,10 +57,18 @@ export const API_ENDPOINTS = {
     LIST: "/api/refunds",
     CREATE: "/api/refunds",
     GET: (id: string) => `/api/refunds/${id}`,
+    MANAGER_LIST: "/api/manager/refunds",
+    MANAGER_GET: (id: string) => `/api/manager/refunds/${id}`,
+    MANAGER_APPROVE: (id: string) => `/api/manager/refunds/${id}/approve`,
+    MANAGER_REJECT: (id: string) => `/api/manager/refunds/${id}/reject`,
   },
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",
     ME: "/api/Verification/me",
+    ADMIN_LIST: "/api/admin/verifications",
+    ADMIN_GET: (id: string) => `/api/admin/verifications/${id}`,
+    ADMIN_APPROVE: (id: string) => `/api/admin/verifications/${id}/approve`,
+    ADMIN_REJECT: (id: string) => `/api/admin/verifications/${id}/reject`,
   },
   NOTIFICATION: {
     LIST: "/api/notifications",

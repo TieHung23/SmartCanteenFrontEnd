@@ -9,6 +9,7 @@ const MANAGER_MENU = [
   { name: "Dashboard", path: "/manager", icon: "📊" },
   { name: "Serving Sessions", path: "/manager/sessions", icon: "📅" },
   { name: "Menu Settings", path: "/manager/menu", icon: "🥘" },
+  { name: "Categories", path: "/manager/categories", icon: "📂" },
   { name: "Manage Users", path: "/manager/users", icon: "👥" },
   { name: "Identity Verify", path: "/manager/verify", icon: "✅" },
   { name: "Refunds", path: "/manager/refunds", icon: "💸" },

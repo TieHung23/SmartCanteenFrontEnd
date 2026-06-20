@@ -1,6 +1,12 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
-import type { VerificationMeResponse, VerificationDocumentType } from "@/types/verification.types";
+import type { ApiResponse, PaginatedList } from "./session.service";
+import type {
+  VerificationMeResponse,
+  VerificationDocumentType,
+  AdminVerificationListItem,
+  AdminVerificationDetail,
+} from "@/types/verification.types";
 
 export const verificationService = {
   getMyVerification: async (): Promise<VerificationMeResponse | null> => {
@@ -51,5 +57,39 @@ export const verificationService = {
       console.error("Submit verification error:", err?.response?.data || err?.message || err);
       throw error;
     }
+  },
+
+  /* ── Admin ── */
+  adminList: async (params?: {
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<PaginatedList<AdminVerificationListItem>> => {
+    const response = (await apiClient.get<ApiResponse<PaginatedList<AdminVerificationListItem>>>(
+      API_ENDPOINTS.VERIFICATION.ADMIN_LIST,
+      { params },
+    )) as unknown as ApiResponse<PaginatedList<AdminVerificationListItem>>;
+    return response.value;
+  },
+
+  adminGetDetail: async (id: string): Promise<AdminVerificationDetail> => {
+    const response = (await apiClient.get<ApiResponse<AdminVerificationDetail>>(
+      API_ENDPOINTS.VERIFICATION.ADMIN_GET(id),
+    )) as unknown as ApiResponse<AdminVerificationDetail>;
+    return response.value;
+  },
+
+  adminApprove: async (id: string): Promise<{ id: string; message: string }> => {
+    const response = (await apiClient.post<ApiResponse<{ id: string; message: string }>>(
+      API_ENDPOINTS.VERIFICATION.ADMIN_APPROVE(id),
+    )) as unknown as ApiResponse<{ id: string; message: string }>;
+    return response.value;
+  },
+
+  adminReject: async (id: string, reason: string): Promise<{ id: string; message: string }> => {
+    const response = (await apiClient.post<ApiResponse<{ id: string; message: string }>>(
+      API_ENDPOINTS.VERIFICATION.ADMIN_REJECT(id),
+      { reason },
+    )) as unknown as ApiResponse<{ id: string; message: string }>;
+    return response.value;
   },
 };
