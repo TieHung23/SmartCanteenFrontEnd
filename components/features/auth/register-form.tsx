@@ -34,7 +34,7 @@ export const RegisterForm = () => {
     onSuccess: (data, variables) => {
       toast.success(
         data.message ||
-          "Registration successful. Please check your email for the verification link.",
+          "Registration successful. Please check your email and enter the verification code.",
       );
       router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
     },
