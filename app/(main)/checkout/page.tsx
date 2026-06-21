@@ -6,13 +6,14 @@ import Image from "next/image";
 import { isAxiosError } from "axios";
 import Navbar from "@/components/layout/Navbar";
 import { useCart, type CartItem } from "@/context/cart-context";
-import { useSessionDetail } from "@/lib/hooks/useCanteen";
 import { orderService } from "@/services/order.service";
 import { paymentService, type TopUpRequest, type TopUpResponse } from "@/services/payment.service";
 import { userService, type UserProfileResponse } from "@/services/user.service";
+import { sessionService } from "@/services/session.service";
 import { ROUTES } from "@/config/routes";
 import { cartService } from "@/services/cart.service";
 import type { CartData } from "@/types/cart.types";
+import type { SessionDetail } from "@/types/session.types";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,8 @@ import {
   Receipt,
   Calendar,
   AlertTriangle,
+  Info,
+  Clock,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -56,7 +59,7 @@ function PtsDisplay({ amount, className }: { amount: number; className?: string 
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, sessionId, getCartTotal, updateQuantity, removeFromCart, clearCart } =
+  const { cartItems, getCartTotal, updateQuantity, removeFromCart, clearCart, selectedSessionIds, uniqueSessionIds } =
     useCart();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
@@ -73,9 +76,16 @@ export default function CheckoutPage() {
     message: string;
     userRemainingBalance: number;
   } | null>(null);
+  const [sessionDetails, setSessionDetails] = useState<Map<string, SessionDetail>>(new Map());
+
+  // Use selectedSessionIds from cart, fall back to all unique session IDs
+  const activeSessionIds = useMemo(
+    () => (selectedSessionIds.length > 0 ? selectedSessionIds : uniqueSessionIds),
+    [selectedSessionIds, uniqueSessionIds],
+  );
 
   useEffect(() => {
-    if (!orderResult && (!sessionId || cartItems.length === 0)) {
+    if (!orderResult && cartItems.length === 0) {
       router.push(ROUTES.SESSION);
       return;
     }
@@ -88,9 +98,29 @@ export default function CheckoutPage() {
       }
     };
     fetchProfile();
-  }, [sessionId, cartItems, router, orderResult]);
+  }, [cartItems, router, orderResult]);
 
-  const totalPoints = getCartTotal();
+  useEffect(() => {
+    if (activeSessionIds.length === 0) return;
+    Promise.allSettled(
+      activeSessionIds.map((sid) =>
+        sessionService.getSessionDetail(sid).then((d) => [sid, d] as const),
+      ),
+    ).then((results) => {
+      const map = new Map<string, SessionDetail>();
+      for (const r of results) {
+        if (r.status === "fulfilled") map.set(r.value[0], r.value[1]);
+      }
+      setSessionDetails(map);
+    });
+  }, [activeSessionIds]);
+
+  const activeCartItems = useMemo(
+    () => cartItems.filter((i) => i.sessionId && activeSessionIds.includes(i.sessionId)),
+    [cartItems, activeSessionIds],
+  );
+
+  const totalPoints = activeCartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const balance = profile?.balanceAmount ?? 0;
   const hasEnoughPoints = balance >= totalPoints;
   const neededPoints = Math.max(0, totalPoints - balance);
@@ -98,35 +128,41 @@ export default function CheckoutPage() {
   const isBlocked = accountStatus === 3 || accountStatus === 4 || accountStatus === 5;
   const isLoadingChecks = profile === null;
 
-  const { data: mealDetail } = useSessionDetail(sessionId);
-
-  const categoryMaxMap = useMemo(() => {
+  function getCategoryMaxForSession(sessionId: string): Map<string, number> {
+    const detail = sessionDetails.get(sessionId);
     const map = new Map<string, number>();
-    if (!mealDetail?.mealTemplates) return map;
-    for (const template of mealDetail.mealTemplates) {
+    if (!detail?.mealTemplates) return map;
+    for (const template of detail.mealTemplates) {
       for (const setting of template.settings) {
         const existing = map.get(setting.categoryId) ?? Infinity;
         map.set(setting.categoryId, Math.min(existing, setting.maxQuantity));
       }
     }
     return map;
-  }, [mealDetail]);
+  }
 
-  const groupedCartItems = useMemo(() => {
-    const groups = new Map<string, CartItem[]>();
-    for (const item of cartItems) {
+  const sessionGroupedItems = useMemo(() => {
+    const groups = new Map<string, Map<string, CartItem[]>>();
+    for (const item of activeCartItems) {
+      const sid = item.sessionId || "__nosession__";
+      if (!groups.has(sid)) groups.set(sid, new Map());
+      const catMap = groups.get(sid)!;
       const catId = item.categoryId || "__unknown__";
-      if (!groups.has(catId)) groups.set(catId, []);
-      groups.get(catId)!.push(item);
+      if (!catMap.has(catId)) catMap.set(catId, []);
+      catMap.get(catId)!.push(item);
     }
     return groups;
-  }, [cartItems]);
+  }, [activeCartItems]);
 
-  const mealInfo = useMemo(() => {
-    const first = cartItems[0];
-    if (!first) return null;
-    return { name: first.sessionName, time: first.sessionTime };
-  }, [cartItems]);
+  const sessionLabels = useMemo(() => {
+    const grouped = new Map<string, string>();
+    for (const item of activeCartItems) {
+      if (item.sessionId && item.sessionName && !grouped.has(item.sessionId)) {
+        grouped.set(item.sessionId, item.sessionName);
+      }
+    }
+    return Array.from(grouped.values());
+  }, [activeCartItems]);
 
   function formatTimeRange(t?: string) {
     if (!t) return "";
@@ -140,7 +176,16 @@ export default function CheckoutPage() {
   }
 
   const handleCreateOrder = useCallback(async () => {
-    if (!sessionId) return;
+    if (activeSessionIds.length === 0) return;
+
+    // Check session details are loaded
+    for (const sid of activeSessionIds) {
+      if (!sessionDetails.has(sid)) {
+        toast.error("Hệ thống đang tải thông tin suất ăn. Vui lòng thử lại sau giây lát.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       let currentVersion = 0;
@@ -149,29 +194,51 @@ export default function CheckoutPage() {
         currentVersion = serverCart.version;
       } catch {}
 
-      const mealTemplateId =
-        cartItems[0]?.sessionTemplateId ||
-        mealDetail?.mealTemplates?.[0]?.id ||
-        "00000000-0000-0000-0000-000000000000";
+      // Build sessions array — prefer cart item's sessionTemplateId, fall back to API
+      const sessions = activeSessionIds.map((sid) => {
+        const sessionItems = activeCartItems.filter((i) => i.sessionId === sid);
+        const mealTemplateId =
+          sessionItems[0]?.sessionTemplateId ||
+          sessionDetails.get(sid)?.mealTemplates?.[0]?.id ||
+          "";
+        return {
+          sessionId: sid,
+          mealTemplateId,
+          items: sessionItems.map((i) => ({ dishId: i.dishId, quantity: i.quantity })),
+        };
+      });
 
-      const cartData: CartData = {
-        sessions: [
-          {
-            sessionId,
-            mealTemplateId,
-            items: cartItems.map((item) => ({
-              dishId: item.dishId,
-              quantity: item.quantity,
-            })),
-          },
-        ],
-      };
+      // Validate template IDs
+      for (const s of sessions) {
+        if (!s.mealTemplateId || s.mealTemplateId === "00000000-0000-0000-0000-000000000000") {
+          toast.error(`Không tìm thấy cấu hình suất ăn cho session ${s.sessionId.slice(0, 8)}...`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Update cart with all sessions
+      const cartData: CartData = { sessions };
       const updatedCart = await cartService.updateCart(cartData, currentVersion);
 
-      const result = await orderService.createOrder(sessionId, updatedCart.version);
+      // Create order for EACH session
+      let lastVersion = updatedCart.version;
+      let firstResult: typeof orderResult = null;
+
+      for (const s of sessions) {
+        const result = await orderService.createOrder(s.sessionId, lastVersion);
+        if (!firstResult) firstResult = result;
+        lastVersion = result.cartVersion ?? lastVersion + 1;
+      }
+
       clearCart();
-      setOrderResult(result);
-      toast.success(result.message || "Order placed successfully!");
+      setOrderResult(firstResult);
+      const sessionCount = sessions.length;
+      toast.success(
+        sessionCount > 1
+          ? `Đã đặt ${sessionCount} suất ăn thành công!`
+          : firstResult?.message || "Đặt hàng thành công!",
+      );
     } catch (error: unknown) {
       const msg = isAxiosError(error)
         ? error.response?.data?.message || error.message
@@ -182,7 +249,7 @@ export default function CheckoutPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [sessionId, cartItems, mealDetail, clearCart]);
+  }, [cartItems, activeSessionIds, sessionDetails, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -408,97 +475,231 @@ export default function CheckoutPage() {
               </div>
               <div>
                 <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
-                {mealInfo?.name && (
+                {sessionLabels.length > 0 && (
                   <p
                     suppressHydrationWarning
                     className="text-xs font-bold text-orange-500 mt-0.5 uppercase tracking-wide flex items-center gap-1.5"
                   >
-                    <Calendar className="w-3.5 h-3.5" /> {mealInfo.name} (
-                    {formatTimeRange(mealInfo.time)})
+                    <Calendar className="w-3.5 h-3.5" /> {sessionLabels.join(", ")}
+                    {sessionLabels.length > 1 && (
+                      <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[9px]">
+                        {sessionLabels.length} suất
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
             </div>
           </div>
 
+          {activeSessionIds.length > 0 && (
+            <div className="mb-8 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border border-orange-100 space-y-4">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-[#D35400]" />
+                <span className="text-sm font-bold text-gray-700">Thông tin suất ăn & hạn mức</span>
+                {activeSessionIds.length > 1 && (
+                  <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full ml-auto">
+                    {activeSessionIds.length} suất
+                  </span>
+                )}
+                {uniqueSessionIds.length > activeSessionIds.length && (
+                  <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {uniqueSessionIds.length - activeSessionIds.length} suất bỏ qua
+                  </span>
+                )}
+              </div>
+              {activeSessionIds.map((sid) => {
+                const detail = sessionDetails.get(sid);
+                const sessionItems = cartItems.filter((i) => i.sessionId === sid);
+                const sessionName = sessionItems[0]?.sessionName || sid.slice(0, 8);
+                if (!detail?.mealTemplates?.length) {
+                  return (
+                    <div key={sid} className="text-xs text-gray-400 italic">
+                      Đang tải cấu hình cho "{sessionName}"...
+                    </div>
+                  );
+                }
+                return detail.mealTemplates.map((template) => {
+                  const templateUsed = sessionItems.some((i) => i.sessionTemplateId === template.id);
+                  if (!templateUsed) return null;
+                  return (
+                    <div key={template.id} className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs font-semibold text-gray-500">
+                          {sessionName} — {template.name}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {template.settings.map((setting) => {
+                          const catName =
+                            sessionItems.find((i) => i.categoryId === setting.categoryId)?.categoryName ||
+                            setting.categoryId;
+                          const current = sessionItems
+                            .filter((i) => i.categoryId === setting.categoryId)
+                            .reduce((s, i) => s + i.quantity, 0);
+                          const isFull = current >= setting.maxQuantity;
+                          const isMissing = setting.isRequired && current < setting.minQuantity;
+                          return (
+                            <div
+                              key={setting.categoryId}
+                              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
+                                isFull
+                                  ? "bg-red-50 border-red-200 text-red-600"
+                                  : isMissing
+                                    ? "bg-orange-50 border-orange-200 text-orange-600"
+                                    : "bg-white border-gray-200 text-gray-600"
+                              }`}
+                            >
+                              <span>{catName}</span>
+                              <span className="font-black">{current}/{setting.maxQuantity}</span>
+                              {isFull && <AlertTriangle className="w-3 h-3" />}
+                              {setting.isRequired && current > 0 && current < setting.minQuantity && (
+                                <span className="text-[9px] font-bold uppercase text-orange-500 ml-0.5">Thiếu</span>
+                              )}
+                              {setting.isRequired && (
+                                <span className="text-[9px] font-bold uppercase text-blue-500 ml-0.5">Bắt buộc</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-8">
-              {Array.from(groupedCartItems.entries()).map(([catId, items]) => {
-                const catMax = catId !== "__unknown__" ? categoryMaxMap.get(catId) : undefined;
+              {Array.from(sessionGroupedItems.entries()).map(([sid, catMap]) => {
+                const detail = sessionDetails.get(sid);
+                const sessionItems = activeCartItems.filter((i) => i.sessionId === sid);
+                const sessionName = sessionItems[0]?.sessionName || sid.slice(0, 8);
+                const sessionTime = sessionItems[0]?.sessionTime;
+                const selectedTmplId = sessionItems[0]?.sessionTemplateId;
+                const template = selectedTmplId
+                  ? detail?.mealTemplates?.find(t => t.id === selectedTmplId)
+                  : detail?.mealTemplates?.[0];
+                const templateName = template?.name || "";
+                const sessionTotal = sessionItems.reduce((s, i) => s + i.price * i.quantity, 0);
+
                 return (
-                  <div key={catId} className="space-y-3">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                        {items[0]?.categoryName || "Other"}
-                      </span>
-                      {catMax !== undefined && (
-                        <span className="text-xs text-gray-400 font-semibold bg-gray-100 px-3 py-1 rounded-lg">
-                          Đã chọn: {items.reduce((s, i) => s + i.quantity, 0)}/{catMax}
-                        </span>
-                      )}
+                  <div key={sid} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    {/* Session Header */}
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-4 border-b border-orange-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-gray-800">{sessionName}</h3>
+                          {templateName && (
+                            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {templateName}
+                            </p>
+                          )}
+                          {sessionTime && (
+                            <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {formatTimeRange(sessionTime)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <PtsDisplay amount={sessionTotal} className="font-bold text-[#D35400]" />
+                          <p className="text-[10px] text-gray-400">{sessionItems.reduce((s, i) => s + i.quantity, 0)} món</p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="space-y-3">
-                      {items.map((item) => {
+                    {/* Category groups within this session */}
+                    <div className="p-5 space-y-5">
+                      {Array.from(catMap.entries()).map(([catId, items]) => {
+                        const catMax = getCategoryMaxForSession(sid).get(catId);
                         const catItemCount = items.reduce((s, i) => s + i.quantity, 0);
-                        const isAtMax = catMax !== undefined && catItemCount >= catMax;
+                        const isAtCatMax = catMax !== undefined && catItemCount >= catMax;
+
                         return (
-                          <div
-                            key={item.dishId}
-                            className="flex gap-5 p-5 rounded-2xl bg-white border border-gray-50 shadow-sm hover:border-orange-100 hover:shadow-md transition-all"
-                          >
-                            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-50">
-                              <Image
-                                src={item.imgUrl || "/placeholder-food.png"}
-                                alt={item.name}
-                                fill
-                                className="object-cover"
-                              />
+                          <div key={catId}>
+                            <div className="flex items-center justify-between px-1 mb-3">
+                              <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                                {items[0]?.categoryName || "Other"}
+                              </span>
+                              {catMax !== undefined && (
+                                <span className={`text-xs font-semibold px-3 py-1 rounded-lg ${
+                                  isAtCatMax ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-400"
+                                }`}>
+                                  Đã chọn: {catItemCount}/{catMax}
+                                </span>
+                              )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-base font-semibold text-gray-800 truncate">
-                                {item.name}
-                              </h4>
-                              <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
-                                <PtsDisplay amount={item.price} /> mỗi món
-                              </p>
-                              <div className="flex items-center justify-between mt-3">
-                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl">
-                                  <button
-                                    onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
-                                    className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors"
-                                  >
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                  <span className="px-4 text-sm font-bold text-gray-700 min-w-[28px] text-center">
-                                    {item.quantity}
-                                  </span>
-                                  <button
-                                    onClick={() => {
-                                      if (isAtMax) {
-                                        toast.error(`Tối đa ${catMax} món cho danh mục này.`);
-                                        return;
-                                      }
-                                      updateQuantity(item.dishId, item.quantity + 1);
-                                    }}
-                                    className={`p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors ${
-                                      isAtMax ? "opacity-30 cursor-not-allowed" : ""
+                            <div className="space-y-3">
+                              {items.map((item) => {
+                                const isAtMax = isAtCatMax;
+                                return (
+                                  <div
+                                    key={item.dishId}
+                                    className={`flex gap-5 p-5 rounded-2xl bg-white border transition-all ${
+                                      isAtMax ? "border-red-200 bg-red-50/10" : "border-gray-50 shadow-sm hover:border-orange-100 hover:shadow-md"
                                     }`}
                                   >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                <div className="text-base font-bold text-[#D35400]">
-                                  <PtsDisplay amount={item.price * item.quantity} />
-                                </div>
-                              </div>
+                                    <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-50">
+                                      <Image
+                                        src={item.imgUrl || "/placeholder-food.png"}
+                                        alt={item.name}
+                                        fill
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-base font-semibold text-gray-800 truncate">
+                                        {item.name}
+                                        {isAtMax && <span className="ml-1.5 text-[10px] text-red-500 font-bold">(đã đạt tối đa)</span>}
+                                      </h4>
+                                      <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                                        <PtsDisplay amount={item.price} /> mỗi món
+                                      </p>
+                                      <div className="flex items-center justify-between mt-3">
+                                        <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl">
+                                          <button
+                                            onClick={() => updateQuantity(item.dishId, item.quantity - 1, item.sessionId)}
+                                            className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                            disabled={item.quantity <= 1}
+                                          >
+                                            <Minus className="w-4 h-4" />
+                                          </button>
+                                          <span className="px-4 text-sm font-bold text-gray-700 min-w-[28px] text-center">
+                                            {item.quantity}
+                                          </span>
+                                          <button
+                                            onClick={() => {
+                                              if (isAtMax) {
+                                                toast.error(`Tối đa ${catMax} món cho danh mục này.`);
+                                                return;
+                                              }
+                                              updateQuantity(item.dishId, item.quantity + 1, item.sessionId);
+                                            }}
+                                            disabled={isAtMax}
+                                            className={`p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors ${
+                                              isAtMax ? "opacity-30 cursor-not-allowed" : ""
+                                            }`}
+                                          >
+                                            <Plus className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                        <div className="text-base font-bold text-[#D35400]">
+                                          <PtsDisplay amount={item.price * item.quantity} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => removeFromCart(item.dishId, item.sessionId)}
+                                      className="self-start p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
-                            <button
-                              onClick={() => removeFromCart(item.dishId)}
-                              className="self-start p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
                           </div>
                         );
                       })}
@@ -521,7 +722,7 @@ export default function CheckoutPage() {
 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400 font-medium">Items ({cartItems.length})</span>
+                    <span className="text-gray-400 font-medium">Items ({activeCartItems.length})</span>
                     <PtsDisplay amount={totalPoints} className="font-bold text-gray-800" />
                   </div>
                   <div className="flex justify-between text-sm">

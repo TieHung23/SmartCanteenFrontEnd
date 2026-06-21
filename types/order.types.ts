@@ -44,6 +44,7 @@ export interface CreateOrderResponse {
   totalPrice: number;
   message: string;
   userRemainingBalance: number;
+  cartVersion?: number;
 }
 
 export interface CreateOrderItem {
