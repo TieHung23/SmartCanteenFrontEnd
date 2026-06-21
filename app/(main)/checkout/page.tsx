@@ -59,7 +59,7 @@ function PtsDisplay({ amount, className }: { amount: number; className?: string 
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, getCartTotal, updateQuantity, removeFromCart, clearCart, selectedSessionIds, uniqueSessionIds } =
+  const { cartItems, updateQuantity, removeFromCart, clearCart, selectedSessionIds, uniqueSessionIds } =
     useCart();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
@@ -249,7 +249,7 @@ export default function CheckoutPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [cartItems, activeSessionIds, sessionDetails, clearCart]);
+  }, [activeSessionIds, sessionDetails, activeCartItems, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -515,7 +515,7 @@ export default function CheckoutPage() {
                 if (!detail?.mealTemplates?.length) {
                   return (
                     <div key={sid} className="text-xs text-gray-400 italic">
-                      Đang tải cấu hình cho "{sessionName}"...
+                      Đang tải cấu hình cho &ldquo;{sessionName}&rdquo;...
                     </div>
                   );
                 }
@@ -647,6 +647,7 @@ export default function CheckoutPage() {
                                         alt={item.name}
                                         fill
                                         className="object-cover"
+                                        sizes="80px"
                                       />
                                     </div>
                                     <div className="flex-1 min-w-0">

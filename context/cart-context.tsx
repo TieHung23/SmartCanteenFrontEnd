@@ -107,15 +107,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
-  // Keep selection in sync with cart: auto-select new sessions, remove stale
   useEffect(() => {
-    setSelectedSessionIds(prev => {
-      const next = prev.filter(sid => uniqueSessionIds.includes(sid));
-      for (const sid of uniqueSessionIds) {
-        if (!next.includes(sid)) next.push(sid);
-      }
-      return next;
-    });
+    const timer = setTimeout(() => {
+      setSelectedSessionIds(prev => {
+        const next = prev.filter(sid => uniqueSessionIds.includes(sid));
+        for (const sid of uniqueSessionIds) {
+          if (!next.includes(sid)) next.push(sid);
+        }
+        return next;
+      });
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [uniqueSessionIds]);
 
   useEffect(() => {
@@ -161,7 +164,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cartItems, getCategoryCurrentCount]);
 
   const getSessionLimitInfo = useCallback((targetSessionId: string, mealTemplates: SessionTemplate[]) => {
-    const sessionItems = cartItems.filter(i => i.sessionId === targetSessionId);
+    const sessionItems = cartItems.filter(i => i.sessionId !== targetSessionId);
     if (sessionItems.length === 0) return null;
 
     const firstItem = sessionItems[0];
@@ -213,7 +216,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
 
     return { success: true };
-  }, [cartItems]);
+  }, []);
 
   const updateQuantity = useCallback((dishId: string, quantity: number, sessionId?: string): ValidationResult => {
     if (quantity <= 0) {

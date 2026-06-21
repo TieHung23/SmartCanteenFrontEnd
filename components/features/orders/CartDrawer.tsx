@@ -5,7 +5,8 @@ import { useCart } from "@/context/cart-context";
 import { useCategories } from "@/lib/hooks/useCanteen";
 import { sessionService } from "@/services/session.service";
 import type { SessionDetail } from "@/types/session.types";
-import { X, Trash2, ShoppingBag, Plus, Minus, AlertTriangle, Calendar, Info, CheckSquare, Square } from "lucide-react";
+{/* 🌟 ĐÃ SỬA: Loại bỏ icon "Info" không sử dụng */}
+import { X, Trash2, ShoppingBag, Plus, Minus, AlertTriangle, Calendar, CheckSquare, Square } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/config/routes";
@@ -25,11 +26,12 @@ function formatPts(amount: number) {
 
 export default function CartDrawer() {
   const router = useRouter();
+  
+  {/* 🌟 ĐÃ SỬA: Loại bỏ các biến thừa không dùng (getCartTotal, sessionId, getCategoryCurrentCount, isSessionSelected) */}
   const {
     isCartOpen, closeCart, cartItems,
-    updateQuantity, removeFromCart, getCartTotal,
-    sessionId, getCategoryCurrentCount, uniqueSessionIds,
-    selectedSessionIds, toggleSessionSelection, isSessionSelected, selectAllSessions, clearSessionSelection,
+    updateQuantity, removeFromCart, uniqueSessionIds,
+    selectedSessionIds, toggleSessionSelection, selectAllSessions, clearSessionSelection,
   } = useCart();
 
   const { data: categoriesData } = useCategories();
@@ -244,7 +246,7 @@ export default function CartDrawer() {
                           )}
                         </div>
                         {group.templateName && (
-                          <p className="text-[11px] text-gray-500 font-medium mt-0.5 ml-6">{group.templateName}</p>
+                          <p className="text-xs text-gray-500 font-medium mt-0.5 ml-6">{group.templateName}</p>
                         )}
                       </div>
                       <div className="text-right shrink-0">
@@ -284,54 +286,54 @@ export default function CartDrawer() {
                         const atMax = catLimit ? catCurrent >= catLimit.max : false;
 
                         return (
-                        <div key={item.dishId + sid} className="flex gap-4 px-5 py-3 hover:bg-orange-50/30 transition-colors">
-                          <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
-                            <Image src={item.imgUrl || "/placeholder-user.png"} alt={item.name} fill className="object-cover" />
-                          </div>
-                          <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-semibold text-gray-800 truncate">
-                                {item.name}
-                                {atMax && <span className="ml-1 text-[10px] text-red-500 font-bold">(đã đạt tối đa)</span>}
-                              </h4>
-                              {item.categoryName && (
-                                <p className="text-[10px] text-gray-400 font-medium">{item.categoryName}</p>
-                              )}
+                          <div key={item.dishId + sid} className="flex gap-4 px-5 py-3 hover:bg-orange-50/30 transition-colors">
+                            <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
+                              <Image src={item.imgUrl || "/placeholder-user.png"} alt={item.name} fill className="object-cover" />
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
+                            <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <h4 className="text-sm font-semibold text-gray-800 truncate">
+                                  {item.name}
+                                  {atMax && <span className="ml-1 text-[10px] text-red-500 font-bold">(đã đạt tối đa)</span>}
+                                </h4>
+                                {item.categoryName && (
+                                  <p className="text-[10px] text-gray-400 font-medium">{item.categoryName}</p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <div className="flex items-center border border-gray-200 bg-gray-50 rounded-lg">
+                                  <button
+                                    onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
+                                    disabled={item.quantity <= 1}
+                                    className="p-1 rounded-md text-gray-400 hover:text-[#D35400] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    <Minus className="w-3.5 h-3.5" />
+                                  </button>
+                                  <span className="px-2 text-xs font-bold text-gray-700 min-w-[20px] text-center">{item.quantity}</span>
+                                  <button
+                                    onClick={() => {
+                                      if (atMax) {
+                                        toast.error(`Danh mục "${item.categoryName || ""}" chỉ được tối đa ${catLimit?.max} món.`);
+                                        return;
+                                      }
+                                      handleUpdateQuantity(item, item.quantity + 1);
+                                    }}
+                                    disabled={atMax}
+                                    className="p-1 rounded-md text-gray-400 hover:text-[#D35400] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <span className="text-xs font-bold text-[#D35400] min-w-[60px] text-right">{formatPts(item.price * item.quantity)}</span>
                                 <button
-                                  onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
-                                  disabled={item.quantity <= 1}
-                                  className="p-1 rounded-md text-gray-400 hover:text-[#D35400] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  onClick={() => removeFromCart(item.dishId, item.sessionId)}
+                                  className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
                                 >
-                                  <Minus className="w-3.5 h-3.5" />
-                                </button>
-                                <span className="px-2 text-xs font-bold text-gray-700 min-w-[20px] text-center">{item.quantity}</span>
-                                <button
-                                  onClick={() => {
-                                    if (atMax) {
-                                      toast.error(`Danh mục "${item.categoryName || ""}" chỉ được tối đa ${catLimit?.max} món.`);
-                                      return;
-                                    }
-                                    handleUpdateQuantity(item, item.quantity + 1);
-                                  }}
-                                  disabled={atMax}
-                                  className="p-1 rounded-md text-gray-400 hover:text-[#D35400] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
-                              <span className="text-xs font-bold text-[#D35400] min-w-[60px] text-right">{formatPts(item.price * item.quantity)}</span>
-                              <button
-                                onClick={() => removeFromCart(item.dishId, item.sessionId)}
-                                className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
                             </div>
                           </div>
-                        </div>
                         );
                       })}
                     </div>
