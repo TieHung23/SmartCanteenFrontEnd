@@ -1,0 +1,106 @@
+# Need More Data — API Response Fields Missing for UI Display
+
+This file tracks which API endpoints return **insufficient data** to render human-readable
+UI, forcing the frontend to fall back to raw IDs or truncated hashes.
+
+## Priority Legend
+- **P0** — Full raw ID shown to user (no fallback, no truncation)
+- **P1** — Fallback truncates ID but no proper name available
+- **P2** — Truncated ID shown, minor UX impact
+
+---
+
+## 1. GET /api/sessions/{id} — Session Detail
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `dishes[].dishId` | `dishName`, `imgUrl`, `priceAmount` (optional, often missing) → fallback: `dishId.slice(0,8)` | `app/manager/sessions/[id]/page.tsx:144` |
+| `mealTemplates[].settings[].categoryId` | `categoryName` → fallback: `categoryId.slice(0,8)` | `app/manager/sessions/[id]/page.tsx:177` |
+
+**Required fix:** Add `dishName`, `imgUrl`, `priceAmount` to every `SessionDishInfo` in the
+response. Add `categoryName` to template settings.
+
+---
+
+## 2. GET /api/orders/{id} — Order Detail
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `items[].dishId` | `dishName`, `imgUrl` (optional, often missing) → fallback: `dishId.slice(0,8)` | `app/(main)/orders/[id]/page.tsx:149` |
+| `order.id` | No truncation → full UUID shown | `app/(main)/orders/[id]/page.tsx:114` |
+
+**Required fix:** Add `dishName`, `imgUrl` to every order item. For the order ID, truncate
+client-side (already partially done).
+
+---
+
+## 3. GET /api/refunds/{id} — Refund Detail
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `userId` | No `userName`, `userEmail`, `studentId` → full UUID shown | `app/manager/refunds/[id]/page.tsx:101` |
+| `orderId` | No order summary/number → full UUID shown | `app/manager/refunds/[id]/page.tsx:105` |
+
+**Required fix:** Return `userName`, `userEmail`, `studentId` alongside `userId`.
+Return a human-readable order reference alongside `orderId`.
+
+---
+
+## 4. GET /api/refunds — Refund List
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `items[].userId` | `userName`, `studentId` → fallback: `userId.slice(0,8)` | `app/manager/refunds/page.tsx:120` |
+
+**Required fix:** Include `userName` and `studentId` in list items.
+
+---
+
+## 5. POST /api/orders — Create Order (Checkout Response)
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `transactionId` | No transaction summary/description → full UUID shown | `app/(main)/checkout/page.tsx:357` |
+
+**Required fix:** Return a human-readable transaction reference alongside
+`transactionId`.
+
+---
+
+## 6. GET /api/cart — Cart
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `data.sessions[].items[].dishId` | `dishName`, `imgUrl` → fallback: `` `Dish ${dishId.slice(0,8)}` `` | `context/cart-context.tsx:174` |
+
+**Required fix:** Include `dishName` and `imgUrl` in each cart item.
+
+---
+
+## 7. GET /api/orders (List) — Order List Item
+
+**Missing fields:**
+| Field in Response | Missing Display Data | Used In |
+|---|---|---|
+| `items[].id` | No order number/label → raw UUID truncated | `app/(main)/orders/page.tsx:175` |
+
+**Required fix:** Return a short order code or allow client truncation
+(acceptable as-is since already truncated).
+
+---
+
+## 8. Session Dish Category IDs (Various)
+
+**Missing fields:**
+| Source | Missing Display Data | Used In |
+|---|---|---|
+| Template settings / Cart items `categoryId` | `categoryName` → fallback: `categoryId.slice(0,8)` | Multiple files (P1, acceptable with name map) |
+
+**Required fix:** Return `categoryName` alongside `categoryId` everywhere.
+Server-side this is a simple `.Include(x => x.Category).Select(...)`.

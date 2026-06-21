@@ -3,10 +3,12 @@
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
 
 export const GoogleCompleteClient = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login } = useAuth();
   const processed = useRef(false);
 
   const token = searchParams.get("token");
@@ -23,15 +25,7 @@ export const GoogleCompleteClient = () => {
       return;
     }
     if (token) {
-      localStorage.setItem("accessToken", token);
-      // Delay nhỏ để đảm bảo localStorage đã lưu xong
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-        console.log("[OAuth Complete] Successfully cached both Auth tokens.");
-      } else {
-        console.warn("[OAuth Complete] Warning: Missing refreshToken from URL.");
-      }
-
+      login(token, refreshToken || undefined);
       setTimeout(() => {
         window.location.href = "/";
       }, 100);
@@ -40,7 +34,7 @@ export const GoogleCompleteClient = () => {
 
     toast.error("Token not found");
     router.push("/login");
-  }, [token, refreshToken, error, router]);
+  }, [token, refreshToken, error, router, login]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

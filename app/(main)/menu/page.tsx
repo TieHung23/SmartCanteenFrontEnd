@@ -3,7 +3,15 @@
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense, useMemo, useEffect, useState, useRef, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  useMemo,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 import Navbar from "@/components/layout/Navbar";
 import { useCategories, useSessionDetail, useAllDishes } from "@/lib/hooks/useCanteen";
 import type { Dish } from "@/types/dish.types";
@@ -67,7 +75,14 @@ function MenuContent() {
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
   const { data: sessionDetail, isLoading: loadingMeal } = useSessionDetail(sessionId);
 
-  const { addToCart, setSessionId, cartItems, getCartCount, openCart } = useCart();
+  const {
+    addToCart: contextAddToCart,
+    setSessionId,
+    cartItems,
+    getCartCount,
+    openCart,
+    removeBySessionId,
+  } = useCart();
 
   const isLoading = loadingCats || loadingDishes || loadingMeal;
 
@@ -76,6 +91,23 @@ function MenuContent() {
 
   const [selectedTemplateIdx, setSelectedTemplateIdx] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  // Wraps addToCart to always inject the selected template's ID
+  const addToCart = useCallback(
+    (item: Omit<CartItem, "quantity">, qty: number) => {
+      contextAddToCart(
+        {
+          ...item,
+          sessionTemplateId:
+            selectedTemplateIdx !== null
+              ? mealDetail?.mealTemplates?.[selectedTemplateIdx]?.id
+              : mealDetail?.mealTemplates?.[0]?.id,
+        },
+        qty,
+      );
+    },
+    [contextAddToCart, selectedTemplateIdx, mealDetail],
+  );
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
@@ -211,7 +243,7 @@ function MenuContent() {
           sessionTemplateId:
             selectedTemplateIdx !== null
               ? mealDetail?.mealTemplates[selectedTemplateIdx].id
-              : undefined,
+              : mealDetail?.mealTemplates[0]?.id,
           sessionName: mealDetail?.name || undefined,
           categoryId,
           categoryName,
@@ -308,7 +340,6 @@ function MenuContent() {
     <>
       <Navbar />
       <main className="min-h-screen bg-white pb-32 font-sans overflow-x-hidden w-full px-8">
-        
         {/* ── HERO: CAROUSEL OF CANTEEN IMAGES ── */}
         <div className="w-full pt-6">
           <div className="relative w-full min-h-[220px] md:min-h-[300px] rounded-[2.5rem] overflow-hidden shadow-lg">
@@ -317,7 +348,14 @@ function MenuContent() {
                 key={src}
                 className={`absolute inset-0 transition-opacity duration-1000 ${idx === heroImageIdx ? "opacity-100" : "opacity-0"}`}
               >
-                <Image src={src} alt="" fill className="object-cover" priority={idx === 0} sizes="100vw" />
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  priority={idx === 0}
+                  sizes="100vw"
+                />
               </div>
             ))}
             <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-transparent" />
@@ -396,7 +434,16 @@ function MenuContent() {
                   return (
                     <button
                       key={idx}
-                      onClick={() => setSelectedTemplateIdx(isActive ? null : idx)}
+                      onClick={() => {
+                        if (isActive) {
+                          setSelectedTemplateIdx(null);
+                        } else if (sessionId) {
+                          removeBySessionId(sessionId);
+                          setSelectedTemplateIdx(idx);
+                        } else {
+                          setSelectedTemplateIdx(idx);
+                        }
+                      }}
                       className={`shrink-0 px-10 py-5 rounded-2xl text-lg font-black transition-all duration-200 whitespace-nowrap shadow-xs ${
                         isActive
                           ? "bg-[#FF4C24] text-white shadow-xl shadow-orange-500/30 scale-105 border-2 border-[#FF4C24]"
@@ -417,7 +464,6 @@ function MenuContent() {
 
         {/* ── MAIN TWO-COLUMN LAYOUT ── */}
         <div className="w-full flex flex-col lg:flex-row mt-8 gap-10">
-          
           {/* ═══════ LEFT COLUMN: ẢNH MÂM TO KHỔNG LỒ ── */}
           <div
             ref={trayRef}
@@ -537,7 +583,9 @@ function MenuContent() {
                       </div>
                       <span
                         className={`text-sm font-black whitespace-nowrap transition-colors duration-200 ${
-                          selectedCategoryId === null ? "text-[#FF4C24]" : "text-gray-500 group-hover:text-gray-800"
+                          selectedCategoryId === null
+                            ? "text-[#FF4C24]"
+                            : "text-gray-500 group-hover:text-gray-800"
                         }`}
                       >
                         Tất cả
@@ -577,7 +625,9 @@ function MenuContent() {
                           </div>
                           <span
                             className={`text-sm font-black whitespace-nowrap transition-colors duration-200 ${
-                              isActive ? "text-[#FF4C24]" : "text-gray-500 group-hover:text-gray-800"
+                              isActive
+                                ? "text-[#FF4C24]"
+                                : "text-gray-500 group-hover:text-gray-800"
                             }`}
                           >
                             {category.name}
@@ -615,7 +665,9 @@ function MenuContent() {
                                   sizes="40px"
                                 />
                               </div>
-                              <span className="text-xl md:text-2xl font-black text-gray-900">{cat.name}</span>
+                              <span className="text-xl md:text-2xl font-black text-gray-900">
+                                {cat.name}
+                              </span>
                             </div>
                             {setting && (
                               <span className="text-xs md:text-sm text-orange-600 font-extrabold bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
@@ -667,9 +719,11 @@ function MenuContent() {
                                 fill
                                 className="object-cover rounded-full"
                                 sizes="40px"
-                                />
+                              />
                             </div>
-                            <span className="text-xl md:text-2xl font-black text-gray-900">{activeCat.name}</span>
+                            <span className="text-xl md:text-2xl font-black text-gray-900">
+                              {activeCat.name}
+                            </span>
                           </div>
                           {setting && (
                             <span className="text-xs md:text-sm text-orange-600 font-extrabold bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
@@ -698,7 +752,7 @@ function MenuContent() {
                           sessionId={sessionId}
                           mealDetail={mealDetail}
                           onAddToCart={addToCart}
-                          onDragStart={onDragStart}
+                          onDragStart={handleDragStart}
                           getSafeImageUrl={getSafeImageUrl}
                         />
                       </div>
@@ -777,7 +831,7 @@ function DishCard({
   getUrl: (url: string | null | undefined, fallback?: string) => string;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt ] = useState({ x: 0, y: 0 });
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!cardRef.current || disabled) return;
@@ -848,7 +902,13 @@ function DishCard({
         className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-md group-hover:scale-105 transition-transform duration-300"
         style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
       >
-        <Image src={finalImageUrl} alt={dish.name} fill sizes="160px" className="object-cover rounded-full" />
+        <Image
+          src={finalImageUrl}
+          alt={dish.name}
+          fill
+          sizes="160px"
+          className="object-cover rounded-full"
+        />
         {!disabled && (
           <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
             <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { categoryService } from "@/services/category.service";
 import type { Category } from "@/types/category.types";
 
@@ -86,85 +86,59 @@ export default function CategoryListPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Image
-                </th>
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="text-right px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-16 text-center text-sm text-gray-400">
-                    Loading...
-                  </td>
-                </tr>
-              ) : categories.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-16 text-center text-sm text-gray-400">
-                    No categories found.
-                  </td>
-                </tr>
-              ) : (
-                categories.map((category) => (
-                  <tr key={category.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3.5">
-                      <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
-                        {category.imgUrl ? (
-                          <Image
-                            src={category.imgUrl}
-                            alt={category.name}
-                            fill
-                            className="object-cover"
-                            sizes="40px"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm font-bold">
-                            —
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-sm font-semibold text-gray-900">{category.name}</p>
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-gray-500 max-w-xs truncate">
-                      {category.description || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <button
-                        onClick={() => router.push(`/manager/categories/${category.id}/edit`)}
-                        className="p-2 text-gray-400 hover:text-[#D35400] hover:bg-orange-50 rounded-lg transition-colors"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(category.id, category.name)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
+          <span className="ml-3 text-sm text-gray-400">Loading...</span>
         </div>
-      </div>
+      ) : categories.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <p className="text-gray-400 font-medium">No categories found.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.map((category) => (
+            <div
+              key={category.id}
+              className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200 transition-all flex flex-col"
+            >
+              <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-3">
+                {category.imgUrl ? (
+                  <Image
+                    src={category.imgUrl}
+                    alt={category.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl font-bold">
+                    —
+                  </div>
+                )}
+              </div>
+              <h3 className="text-sm font-bold text-gray-900 mb-1 truncate">{category.name}</h3>
+              <p className="text-xs text-gray-500 mb-3 line-clamp-2">
+                {category.description || "—"}
+              </p>
+              <div className="mt-auto flex items-center gap-2">
+                <button
+                  onClick={() => router.push(`/manager/categories/${category.id}/edit`)}
+                  className="flex-1 px-4 py-2 bg-[#D35400]/10 text-[#D35400] rounded-xl text-sm font-semibold hover:bg-[#D35400]/20 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(category.id, category.name)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

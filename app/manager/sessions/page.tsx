@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Calendar, Clock, Trash2 } from "lucide-react";
+import { Plus, Search, Calendar, Clock, Trash2, Copy } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
@@ -156,6 +156,16 @@ export default function ManagerSessionsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/manager/sessions/new?copyFrom=${session.id}`);
+                    }}
+                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                    title="Copy session"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

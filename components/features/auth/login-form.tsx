@@ -11,6 +11,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { LoginBodyType, LoginSchema } from "@/types/auth.types";
 import { authService } from "@/services/auth.service";
+import { useAuth } from "@/context/auth-context";
 import { ROUTES } from "@/config/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
 export const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login } = useAuth();
   const {
     register,
     handleSubmit,
@@ -57,7 +59,7 @@ export const LoginForm = () => {
   const loginMutation = useMutation({
     mutationFn: (data: LoginBodyType) => authService.login(data),
     onSuccess: (data) => {
-      localStorage.setItem("accessToken", data.value.accessToken);
+      login(data.value.accessToken, data.value.refreshToken);
       toast.success("Signed in successfully!");
       router.push(ROUTES.HOME);
     },

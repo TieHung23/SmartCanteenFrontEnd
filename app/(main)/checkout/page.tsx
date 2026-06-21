@@ -11,8 +11,6 @@ import { paymentService, type TopUpRequest, type TopUpResponse } from "@/service
 import { userService, type UserProfileResponse } from "@/services/user.service";
 import { sessionService } from "@/services/session.service";
 import { ROUTES } from "@/config/routes";
-import { cartService } from "@/services/cart.service";
-import type { CartData } from "@/types/cart.types";
 import type { SessionDetail } from "@/types/session.types";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -59,8 +57,16 @@ function PtsDisplay({ amount, className }: { amount: number; className?: string 
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, updateQuantity, removeFromCart, clearCart, selectedSessionIds, uniqueSessionIds } =
-    useCart();
+  const {
+    cartItems,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    selectedSessionIds,
+    uniqueSessionIds,
+    ensureSynced,
+    isSyncing,
+  } = useCart();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -177,63 +183,29 @@ export default function CheckoutPage() {
 
   const handleCreateOrder = useCallback(async () => {
     if (activeSessionIds.length === 0) return;
-
-    // Check session details are loaded
-    for (const sid of activeSessionIds) {
-      if (!sessionDetails.has(sid)) {
-        toast.error("Hệ thống đang tải thông tin suất ăn. Vui lòng thử lại sau giây lát.");
-        return;
-      }
-    }
-
     setIsSubmitting(true);
     try {
-      let currentVersion = 0;
-      try {
-        const serverCart = await cartService.getCart();
-        currentVersion = serverCart.version;
-      } catch {}
-
-      // Build sessions array — prefer cart item's sessionTemplateId, fall back to API
-      const sessions = activeSessionIds.map((sid) => {
-        const sessionItems = activeCartItems.filter((i) => i.sessionId === sid);
-        const mealTemplateId =
-          sessionItems[0]?.sessionTemplateId ||
-          sessionDetails.get(sid)?.mealTemplates?.[0]?.id ||
-          "";
-        return {
-          sessionId: sid,
-          mealTemplateId,
-          items: sessionItems.map((i) => ({ dishId: i.dishId, quantity: i.quantity })),
-        };
-      });
-
-      // Validate template IDs
-      for (const s of sessions) {
-        if (!s.mealTemplateId || s.mealTemplateId === "00000000-0000-0000-0000-000000000000") {
-          toast.error(`Không tìm thấy cấu hình suất ăn cho session ${s.sessionId.slice(0, 8)}...`);
-          setIsSubmitting(false);
-          return;
-        }
+      // Ensure cart is synced to server and get current version
+      const version = await ensureSynced();
+      if (version === null) {
+        toast.error("Không thể đồng bộ giỏ hàng. Vui lòng thử lại.");
+        setIsSubmitting(false);
+        return;
       }
 
-      // Update cart with all sessions
-      const cartData: CartData = { sessions };
-      const updatedCart = await cartService.updateCart(cartData, currentVersion);
-
-      // Create order for EACH session
-      let lastVersion = updatedCart.version;
+      // Create order for each session (server reads persisted cart)
+      let lastVersion = version;
       let firstResult: typeof orderResult = null;
 
-      for (const s of sessions) {
-        const result = await orderService.createOrder(s.sessionId, lastVersion);
+      for (const sid of activeSessionIds) {
+        const result = await orderService.createOrder(sid, lastVersion);
         if (!firstResult) firstResult = result;
         lastVersion = result.cartVersion ?? lastVersion + 1;
       }
 
       clearCart();
       setOrderResult(firstResult);
-      const sessionCount = sessions.length;
+      const sessionCount = activeSessionIds.length;
       toast.success(
         sessionCount > 1
           ? `Đã đặt ${sessionCount} suất ăn thành công!`
@@ -249,7 +221,7 @@ export default function CheckoutPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [activeSessionIds, sessionDetails, activeCartItems, clearCart]);
+  }, [activeSessionIds, ensureSynced, clearCart]);
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
@@ -390,7 +362,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Transaction ID</span>
                     <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
-                      {orderResult.transactionId}
+                      {orderResult.transactionId.slice(0, 12)}...
                     </span>
                   </div>
                 )}
@@ -520,7 +492,9 @@ export default function CheckoutPage() {
                   );
                 }
                 return detail.mealTemplates.map((template) => {
-                  const templateUsed = sessionItems.some((i) => i.sessionTemplateId === template.id);
+                  const templateUsed = sessionItems.some(
+                    (i) => i.sessionTemplateId === template.id,
+                  );
                   if (!templateUsed) return null;
                   return (
                     <div key={template.id} className="space-y-2">
@@ -533,8 +507,8 @@ export default function CheckoutPage() {
                       <div className="flex flex-wrap gap-2">
                         {template.settings.map((setting) => {
                           const catName =
-                            sessionItems.find((i) => i.categoryId === setting.categoryId)?.categoryName ||
-                            setting.categoryId;
+                            sessionItems.find((i) => i.categoryId === setting.categoryId)
+                              ?.categoryName || setting.categoryId;
                           const current = sessionItems
                             .filter((i) => i.categoryId === setting.categoryId)
                             .reduce((s, i) => s + i.quantity, 0);
@@ -552,13 +526,21 @@ export default function CheckoutPage() {
                               }`}
                             >
                               <span>{catName}</span>
-                              <span className="font-black">{current}/{setting.maxQuantity}</span>
+                              <span className="font-black">
+                                {current}/{setting.maxQuantity}
+                              </span>
                               {isFull && <AlertTriangle className="w-3 h-3" />}
-                              {setting.isRequired && current > 0 && current < setting.minQuantity && (
-                                <span className="text-[9px] font-bold uppercase text-orange-500 ml-0.5">Thiếu</span>
-                              )}
+                              {setting.isRequired &&
+                                current > 0 &&
+                                current < setting.minQuantity && (
+                                  <span className="text-[9px] font-bold uppercase text-orange-500 ml-0.5">
+                                    Thiếu
+                                  </span>
+                                )}
                               {setting.isRequired && (
-                                <span className="text-[9px] font-bold uppercase text-blue-500 ml-0.5">Bắt buộc</span>
+                                <span className="text-[9px] font-bold uppercase text-blue-500 ml-0.5">
+                                  Bắt buộc
+                                </span>
                               )}
                             </div>
                           );
@@ -580,13 +562,16 @@ export default function CheckoutPage() {
                 const sessionTime = sessionItems[0]?.sessionTime;
                 const selectedTmplId = sessionItems[0]?.sessionTemplateId;
                 const template = selectedTmplId
-                  ? detail?.mealTemplates?.find(t => t.id === selectedTmplId)
+                  ? detail?.mealTemplates?.find((t) => t.id === selectedTmplId)
                   : detail?.mealTemplates?.[0];
                 const templateName = template?.name || "";
                 const sessionTotal = sessionItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
                 return (
-                  <div key={sid} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div
+                    key={sid}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                  >
                     {/* Session Header */}
                     <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-4 border-b border-orange-100">
                       <div className="flex items-center justify-between">
@@ -605,7 +590,9 @@ export default function CheckoutPage() {
                         </div>
                         <div className="text-right">
                           <PtsDisplay amount={sessionTotal} className="font-bold text-[#D35400]" />
-                          <p className="text-[10px] text-gray-400">{sessionItems.reduce((s, i) => s + i.quantity, 0)} món</p>
+                          <p className="text-[10px] text-gray-400">
+                            {sessionItems.reduce((s, i) => s + i.quantity, 0)} món
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -624,9 +611,13 @@ export default function CheckoutPage() {
                                 {items[0]?.categoryName || "Other"}
                               </span>
                               {catMax !== undefined && (
-                                <span className={`text-xs font-semibold px-3 py-1 rounded-lg ${
-                                  isAtCatMax ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-400"
-                                }`}>
+                                <span
+                                  className={`text-xs font-semibold px-3 py-1 rounded-lg ${
+                                    isAtCatMax
+                                      ? "bg-red-50 text-red-500"
+                                      : "bg-gray-100 text-gray-400"
+                                  }`}
+                                >
                                   Đã chọn: {catItemCount}/{catMax}
                                 </span>
                               )}
@@ -638,7 +629,9 @@ export default function CheckoutPage() {
                                   <div
                                     key={item.dishId}
                                     className={`flex gap-5 p-5 rounded-2xl bg-white border transition-all ${
-                                      isAtMax ? "border-red-200 bg-red-50/10" : "border-gray-50 shadow-sm hover:border-orange-100 hover:shadow-md"
+                                      isAtMax
+                                        ? "border-red-200 bg-red-50/10"
+                                        : "border-gray-50 shadow-sm hover:border-orange-100 hover:shadow-md"
                                     }`}
                                   >
                                     <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-50">
@@ -653,7 +646,11 @@ export default function CheckoutPage() {
                                     <div className="flex-1 min-w-0">
                                       <h4 className="text-base font-semibold text-gray-800 truncate">
                                         {item.name}
-                                        {isAtMax && <span className="ml-1.5 text-[10px] text-red-500 font-bold">(đã đạt tối đa)</span>}
+                                        {isAtMax && (
+                                          <span className="ml-1.5 text-[10px] text-red-500 font-bold">
+                                            (đã đạt tối đa)
+                                          </span>
+                                        )}
                                       </h4>
                                       <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
                                         <PtsDisplay amount={item.price} /> mỗi món
@@ -661,7 +658,13 @@ export default function CheckoutPage() {
                                       <div className="flex items-center justify-between mt-3">
                                         <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl">
                                           <button
-                                            onClick={() => updateQuantity(item.dishId, item.quantity - 1, item.sessionId)}
+                                            onClick={() =>
+                                              updateQuantity(
+                                                item.dishId,
+                                                item.quantity - 1,
+                                                item.sessionId,
+                                              )
+                                            }
                                             className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                             disabled={item.quantity <= 1}
                                           >
@@ -673,10 +676,16 @@ export default function CheckoutPage() {
                                           <button
                                             onClick={() => {
                                               if (isAtMax) {
-                                                toast.error(`Tối đa ${catMax} món cho danh mục này.`);
+                                                toast.error(
+                                                  `Tối đa ${catMax} món cho danh mục này.`,
+                                                );
                                                 return;
                                               }
-                                              updateQuantity(item.dishId, item.quantity + 1, item.sessionId);
+                                              updateQuantity(
+                                                item.dishId,
+                                                item.quantity + 1,
+                                                item.sessionId,
+                                              );
                                             }}
                                             disabled={isAtMax}
                                             className={`p-2 rounded-lg text-gray-500 hover:bg-white hover:text-[#D35400] transition-colors ${
@@ -723,7 +732,9 @@ export default function CheckoutPage() {
 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400 font-medium">Items ({activeCartItems.length})</span>
+                    <span className="text-gray-400 font-medium">
+                      Items ({activeCartItems.length})
+                    </span>
                     <PtsDisplay amount={totalPoints} className="font-bold text-gray-800" />
                   </div>
                   <div className="flex justify-between text-sm">
@@ -790,10 +801,10 @@ export default function CheckoutPage() {
                 ) : hasEnoughPoints ? (
                   <button
                     onClick={handleCreateOrder}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isSyncing}
                     className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 flex items-center justify-center gap-2"
                   >
-                    {isSubmitting ? (
+                    {isSubmitting || isSyncing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" /> Processing...
                       </>

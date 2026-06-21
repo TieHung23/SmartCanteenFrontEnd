@@ -122,62 +122,58 @@ export default function ManagerMenuPage() {
           <p className="text-gray-400 font-medium">No dishes found.</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((dish) => (
             <div
               key={dish.id}
-              className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200 transition-all"
+              className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200 transition-all flex flex-col"
             >
-              <div className="flex items-center gap-4">
+              <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-3">
                 {dish.imgUrl ? (
                   <Image
                     src={dish.imgUrl}
                     alt={dish.name}
-                    width={52}
-                    height={52}
-                    className="w-13 h-13 rounded-xl object-cover bg-gray-100 shrink-0"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                 ) : (
-                  <div className="w-13 h-13 rounded-xl bg-gray-100 flex items-center justify-center text-xl shrink-0">
-                    🍽️
-                  </div>
+                  <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <h3 className="text-sm font-bold text-gray-900 truncate">{dish.name}</h3>
-                    <button
-                      onClick={() => handleToggleActive(dish)}
-                      className={cn(
-                        "shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors",
-                        dish.isActive
-                          ? "bg-green-50 text-green-700 hover:bg-green-100"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200",
-                      )}
-                    >
-                      {dish.isActive ? "Active" : "Inactive"}
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <span>{categoryMap[dish.categoryId] || "—"}</span>
-                    <span className="font-semibold text-gray-700">
-                      {dish.price} <span className="font-normal text-gray-400">Point</span>
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => router.push(`/manager/menu/${dish.id}/edit`)}
-                    className="px-4 py-2 bg-[#D35400]/10 text-[#D35400] rounded-xl text-sm font-semibold hover:bg-[#D35400]/20 transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(dish.id, dish.name)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+              </div>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="text-sm font-bold text-gray-900 truncate">{dish.name}</h3>
+                <button
+                  onClick={() => handleToggleActive(dish)}
+                  className={cn(
+                    "shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors",
+                    dish.isActive
+                      ? "bg-green-50 text-green-700 hover:bg-green-100"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200",
+                  )}
+                >
+                  {dish.isActive ? "Active" : "Inactive"}
+                </button>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                <span>{categoryMap[dish.categoryId] || "—"}</span>
+                <span className="font-semibold text-gray-700">
+                  {dish.price} <span className="font-normal text-gray-400">Point</span>
+                </span>
+              </div>
+              <div className="mt-auto flex items-center gap-2">
+                <button
+                  onClick={() => router.push(`/manager/menu/${dish.id}/edit`)}
+                  className="flex-1 px-4 py-2 bg-[#D35400]/10 text-[#D35400] rounded-xl text-sm font-semibold hover:bg-[#D35400]/20 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(dish.id, dish.name)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}

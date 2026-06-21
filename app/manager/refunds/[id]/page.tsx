@@ -98,11 +98,11 @@ export default function RefundDetailPage() {
           <div className="space-y-3">
             <div>
               <p className="text-xs text-gray-400">User ID</p>
-              <p className="text-sm font-mono text-gray-700">{detail.userId}</p>
+              <p className="text-sm font-mono text-gray-700">{detail.userId.slice(0, 8)}...</p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Order ID</p>
-              <p className="text-sm font-mono text-gray-700">{detail.orderId}</p>
+              <p className="text-sm font-mono text-gray-700">{detail.orderId.slice(0, 8)}...</p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Policy</p>
