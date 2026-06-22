@@ -91,7 +91,8 @@ export default function VerifyDetailPage() {
         <div className="border-b border-gray-200 pb-6">
           <h1 className="text-4xl font-extrabold text-gray-900">Verification Review</h1>
           <p className="text-lg text-gray-500 mt-1.5">
-            Duyệt thông tin cá nhân và đối chiếu hồ sơ sinh viên: <span className="font-bold text-gray-900">{detail.userName}</span>
+            Duyệt thông tin cá nhân và đối chiếu hồ sơ sinh viên:{" "}
+            <span className="font-bold text-gray-900">{detail.userName}</span>
           </p>
         </div>
       </div>
@@ -104,36 +105,52 @@ export default function VerifyDetailPage() {
               <User className="w-5 h-5 text-[#D35400]" />
               <h2 className="text-lg font-bold text-gray-900">Thông tin cá nhân</h2>
             </div>
-            
+
             <div className="divide-y divide-gray-100">
               <div className="py-3.5 first:pt-0">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Họ và tên sinh viên</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Họ và tên sinh viên
+                </p>
                 <p className="text-base font-bold text-gray-900 mt-1">{detail.userName}</p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Địa chỉ Email</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Địa chỉ Email
+                </p>
                 <p className="text-sm font-semibold text-gray-600 mt-1">{detail.userEmail}</p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Mã số sinh viên (MSSV)</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Mã số sinh viên (MSSV)
+                </p>
                 <p className="text-sm font-bold text-gray-700 mt-1">{detail.studentId || "—"}</p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Lớp / Chuyên ngành</p>
-                <p className="text-sm font-semibold text-gray-600 mt-1">{detail.majorOrClass || "—"}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Lớp / Chuyên ngành
+                </p>
+                <p className="text-sm font-semibold text-gray-600 mt-1">
+                  {detail.majorOrClass || "—"}
+                </p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ngày sinh</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Ngày sinh
+                </p>
                 <p className="text-sm font-bold text-gray-700 mt-1">{detail.dateOfBirth || "—"}</p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Thời gian nộp</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Thời gian nộp
+                </p>
                 <p className="text-sm font-semibold text-gray-600 mt-1">
                   {new Date(detail.submittedAt).toLocaleString("vi-VN")}
                 </p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Trạng thái hồ sơ</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Trạng thái hồ sơ
+                </p>
                 <span
                   className={cn(
                     "inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
@@ -149,8 +166,12 @@ export default function VerifyDetailPage() {
               </div>
               {detail.rejectionReason && (
                 <div className="pt-3.5">
-                  <p className="text-xs font-bold text-red-500 uppercase tracking-wider">Lý do từ chối</p>
-                  <p className="text-sm text-red-600 mt-1 italic">"{detail.rejectionReason}"</p>
+                  <p className="text-xs font-bold text-red-500 uppercase tracking-wider">
+                    Lý do từ chối
+                  </p>
+                  <p className="text-sm text-red-650 mt-1 italic">
+                    &ldquo;{detail.rejectionReason}&rdquo;
+                  </p>
                 </div>
               )}
             </div>
@@ -166,18 +187,24 @@ export default function VerifyDetailPage() {
                 Tài liệu đính kèm ({detail.documents.length})
               </h2>
             </div>
-            
+
             {detail.documents.length === 0 ? (
-              <p className="text-base text-gray-400 py-6 italic text-center">Không tải lên tài liệu minh chứng nào.</p>
+              <p className="text-base text-gray-400 py-6 italic text-center">
+                Không tải lên tài liệu minh chứng nào.
+              </p>
             ) : (
               <div className="grid grid-cols-1 gap-6">
                 {detail.documents.map((doc) => (
-                  <div key={doc.id} className="border border-gray-200/60 rounded-3xl p-5 bg-gray-50/50 space-y-4 flex flex-col justify-between">
+                  <div
+                    key={doc.id}
+                    className="border border-gray-200/60 rounded-3xl p-5 bg-gray-50/50 space-y-4 flex flex-col justify-between"
+                  >
                     <div>
                       <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 mb-2.5">
                         <span className="text-base font-bold text-gray-800">
-                          {DOCUMENT_TYPE_LABEL[doc.documentType as keyof typeof DOCUMENT_TYPE_LABEL] ||
-                            "Other"}
+                          {DOCUMENT_TYPE_LABEL[
+                            doc.documentType as keyof typeof DOCUMENT_TYPE_LABEL
+                          ] || "Other"}
                         </span>
                         <button
                           onClick={() => setActivePhoto(doc.cloudinaryUrl)}
@@ -186,7 +213,7 @@ export default function VerifyDetailPage() {
                           Mở ảnh lớn
                         </button>
                       </div>
-                      <div 
+                      <div
                         onClick={() => setActivePhoto(doc.cloudinaryUrl)}
                         className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden bg-white border border-gray-200/60 cursor-zoom-in hover:opacity-95 transition-all duration-300 image-3d"
                       >
@@ -214,7 +241,7 @@ export default function VerifyDetailPage() {
           <div className="border-b border-gray-100 pb-2">
             <h2 className="text-lg font-bold text-gray-900">Thao tác duyệt hồ sơ</h2>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <button
               onClick={handleApprove}
@@ -233,11 +260,13 @@ export default function VerifyDetailPage() {
               Từ chối duyệt
             </button>
           </div>
-          
+
           {showReject && (
             <div className="space-y-4 pt-4 border-t border-dashed border-gray-200 animate-slide-down">
               <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">Lý do từ chối duyệt *</label>
+                <label className="block text-sm font-bold text-gray-600 mb-2">
+                  Lý do từ chối duyệt *
+                </label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
@@ -265,6 +294,7 @@ export default function VerifyDetailPage() {
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in backdrop-blur-sm"
         >
           <div className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={activePhoto}
               alt="Preview"

@@ -98,7 +98,10 @@ export default function RefundDetailPage() {
         <div className="border-b border-gray-200 pb-6">
           <h1 className="text-4xl font-extrabold text-gray-900">Refund Detail</h1>
           <p className="text-lg text-gray-500 mt-1.5">
-            Chi tiết yêu cầu hoàn tiền: <span className="font-mono font-bold text-gray-900">#{detail.id.slice(0, 8).toUpperCase()}</span>
+            Chi tiết yêu cầu hoàn tiền:{" "}
+            <span className="font-mono font-bold text-gray-900">
+              #{detail.id.slice(0, 8).toUpperCase()}
+            </span>
           </p>
         </div>
       </div>
@@ -111,30 +114,43 @@ export default function RefundDetailPage() {
               <FileText className="w-5 h-5 text-[#D35400]" />
               <h2 className="text-lg font-bold text-gray-900">Chi tiết yêu cầu</h2>
             </div>
-            
+
             <div className="divide-y divide-gray-100">
               <div className="py-3.5 first:pt-0">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Mã người dùng (User ID)</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Mã người dùng (User ID)
+                </p>
                 <p className="text-sm font-mono font-bold text-gray-800 mt-1">{detail.userId}</p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Mã đơn hàng (Order ID)</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Mã đơn hàng (Order ID)
+                </p>
                 <p className="text-sm font-mono font-bold text-gray-800 mt-1">{detail.orderId}</p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Chính sách áp dụng</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Chính sách áp dụng
+                </p>
                 <p className="text-base font-bold text-gray-900 mt-1">
-                  {detail.policyName} <span className="font-mono font-semibold text-gray-400 text-xs">({detail.policyCode})</span>
+                  {detail.policyName}{" "}
+                  <span className="font-mono font-semibold text-gray-400 text-xs">
+                    ({detail.policyCode})
+                  </span>
                 </p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Lý do từ người dùng</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Lý do từ người dùng
+                </p>
                 <p className="text-sm text-gray-750 bg-gray-50 border border-gray-100 p-4 rounded-2xl mt-2 italic leading-relaxed">
-                  "{detail.description || "Không có mô tả chi tiết."}"
+                  &ldquo;{detail.description || "Không có mô tả chi tiết."}&rdquo;
                 </p>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Trạng thái xử lý</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Trạng thái xử lý
+                </p>
                 <span
                   className={cn(
                     "inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
@@ -149,14 +165,18 @@ export default function RefundDetailPage() {
                 </span>
               </div>
               <div className="py-3.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ngày tạo yêu cầu</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Ngày tạo yêu cầu
+                </p>
                 <p className="text-sm font-semibold text-gray-600 mt-1">
                   {new Date(detail.createdAtUtc).toLocaleString("vi-VN")}
                 </p>
               </div>
               {detail.reviewedAtUtc && (
                 <div className="py-3.5">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ngày phê duyệt</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Ngày phê duyệt
+                  </p>
                   <p className="text-sm font-semibold text-gray-600 mt-1">
                     {new Date(detail.reviewedAtUtc).toLocaleString("vi-VN")}
                   </p>
@@ -164,8 +184,12 @@ export default function RefundDetailPage() {
               )}
               {detail.rejectionReason && (
                 <div className="py-3.5 pt-4">
-                  <p className="text-xs font-bold text-red-500 uppercase tracking-wider">Lý do từ chối hoàn tiền</p>
-                  <p className="text-sm text-red-650 mt-1 italic">"{detail.rejectionReason}"</p>
+                  <p className="text-xs font-bold text-red-500 uppercase tracking-wider">
+                    Lý do từ chối hoàn tiền
+                  </p>
+                  <p className="text-sm text-red-650 mt-1 italic">
+                    &ldquo;{detail.rejectionReason}&rdquo;
+                  </p>
                 </div>
               )}
             </div>
@@ -179,13 +203,13 @@ export default function RefundDetailPage() {
               <Coins className="w-5 h-5 text-[#D35400]" />
               <h2 className="text-lg font-bold text-gray-900">Tài chính</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex justify-between items-center py-2 border-b border-gray-50">
                 <span className="text-sm font-bold text-gray-500">Giá trị đơn gốc:</span>
                 <span className="inline-flex items-center gap-1 font-bold text-gray-900">
-                  {new Intl.NumberFormat("vi-VN").format(detail.orderAmount)} 
-                  <div className="relative w-4 h-4 opacity-95"> 
+                  {new Intl.NumberFormat("vi-VN").format(detail.orderAmount)}
+                  <div className="relative w-4 h-4 opacity-95">
                     <Image
                       src="/logo_point.png"
                       alt="Watermark Logo"
@@ -206,15 +230,15 @@ export default function RefundDetailPage() {
                 <span className="text-sm font-bold text-gray-500">Thực nhận hoàn trả:</span>
                 <span className="inline-flex items-center gap-1 text-xl font-bold text-[#D35400]">
                   {new Intl.NumberFormat("vi-VN").format(detail.refundAmount)}
-                    <div className="relative w-5 h-5 opacity-95">
-                      <Image
-                        src="/logo_point.png"
-                        alt="Watermark Logo"
-                        fill
-                        sizes="20px"
-                        className="object-contain filter brightness-110"
-                      />
-                    </div>
+                  <div className="relative w-5 h-5 opacity-95">
+                    <Image
+                      src="/logo_point.png"
+                      alt="Watermark Logo"
+                      fill
+                      sizes="20px"
+                      className="object-contain filter brightness-110"
+                    />
+                  </div>
                 </span>
               </div>
               {detail.walletTransactionId && (
@@ -254,7 +278,9 @@ export default function RefundDetailPage() {
                         sizes="180px"
                       />
                     </div>
-                    <p className="text-xs font-semibold text-gray-400 mt-2 truncate group-hover:text-gray-700 transition-colors">{img.fileName}</p>
+                    <p className="text-xs font-semibold text-gray-400 mt-2 truncate group-hover:text-gray-700 transition-colors">
+                      {img.fileName}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -269,7 +295,7 @@ export default function RefundDetailPage() {
           <div className="border-b border-gray-100 pb-2">
             <h2 className="text-lg font-bold text-gray-900">Thao tác duyệt hoàn tiền</h2>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <button
               onClick={handleApprove}
@@ -288,11 +314,13 @@ export default function RefundDetailPage() {
               Từ chối hoàn tiền
             </button>
           </div>
-          
+
           {showReject && (
             <div className="space-y-4 pt-4 border-t border-dashed border-gray-200 animate-slide-down">
               <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">Lý do từ chối hoàn tiền *</label>
+                <label className="block text-sm font-bold text-gray-600 mb-2">
+                  Lý do từ chối hoàn tiền *
+                </label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
@@ -322,6 +350,7 @@ export default function RefundDetailPage() {
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in backdrop-blur-sm"
         >
           <div className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={activePhoto}
               alt="Preview"

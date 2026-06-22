@@ -3,11 +3,6 @@
 import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
 import React from "react";
 
-type SafeShaderGradientProps = React.ComponentProps<typeof ShaderGradient> & {
-  fov?: number;
-  pixelDensity?: number;
-};
-
 export function ManagerBackground() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ExtendedShaderGradient = ShaderGradient as React.ComponentType<any>;

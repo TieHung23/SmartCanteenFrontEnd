@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { StaffSidebar } from "./_components/staff-sidebar";
@@ -18,13 +18,20 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   // Auto-close sidebar on route changes on mobile
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }
 
   return (
     <div
-      className={cn("flex flex-col lg:flex-row h-screen overflow-hidden antialiased select-none", plusJakartaSans.variable)}
+      className={cn(
+        "flex flex-col lg:flex-row h-screen overflow-hidden antialiased select-none",
+        plusJakartaSans.variable,
+      )}
       style={{ fontFamily: "var(--font-staff), var(--font-sans), sans-serif" }}
     >
       <StaffBackground />
@@ -38,7 +45,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
       )}
 
       <StaffSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-      
+
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <StaffHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth [&_*]:tracking-[0.02em]">
@@ -48,4 +55,3 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -44,24 +44,16 @@ const MANAGER_MENU = [
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setShowUserMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Auto-close sidebar on route changes on mobile
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }
 
   const isActive = (path: string) =>
     path === "/manager" ? pathname === "/manager" : pathname.startsWith(path);
@@ -72,7 +64,10 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
 
   return (
     <div
-      className={cn("flex flex-col lg:flex-row h-screen overflow-hidden antialiased select-none", plusJakartaSans.variable)}
+      className={cn(
+        "flex flex-col lg:flex-row h-screen overflow-hidden antialiased select-none",
+        plusJakartaSans.variable,
+      )}
       style={{ fontFamily: "var(--font-manager), var(--font-sans), sans-serif" }}
     >
       <ManagerBackground />
@@ -101,12 +96,12 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
           className="fixed inset-0 bg-black/40 z-40 lg:hidden animate-fade-in"
         />
       )}
-      
+
       {/* Sleek full-height responsive sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 w-[300px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 lg:sticky lg:h-screen lg:w-[350px] lg:translate-x-0 p-6 shadow-sm justify-between",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         <div className="space-y-8 flex flex-col flex-1 overflow-hidden relative">
@@ -172,7 +167,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
 
         {/* Footer profile panel */}
         {user && (
-          <div className="border-t border-gray-100 pt-5 bg-white shrink-0" ref={userMenuRef}>
+          <div className="border-t border-gray-100 pt-5 bg-white shrink-0">
             <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-50/80 border border-gray-100/50">
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#E86A33]/10 border border-[#E86A33]/20 flex items-center justify-center shrink-0 shadow-xs">
                 {avatarUrl ? (
@@ -214,4 +209,3 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     </div>
   );
 }
-
