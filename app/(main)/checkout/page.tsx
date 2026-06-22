@@ -10,6 +10,7 @@ import { orderService } from "@/services/order.service";
 import { paymentService, type TopUpRequest, type TopUpResponse } from "@/services/payment.service";
 import { userService, type UserProfileResponse } from "@/services/user.service";
 import { sessionService } from "@/services/session.service";
+import { useCategories } from "@/lib/hooks/useCanteen";
 import { ROUTES } from "@/config/routes";
 import type { SessionDetail } from "@/types/session.types";
 import Link from "next/link";
@@ -57,6 +58,7 @@ function PtsDisplay({ amount, className }: { amount: number; className?: string 
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { data: categoriesData } = useCategories();
   const {
     cartItems,
     updateQuantity,
@@ -508,7 +510,9 @@ export default function CheckoutPage() {
                         {template.settings.map((setting) => {
                           const catName =
                             sessionItems.find((i) => i.categoryId === setting.categoryId)
-                              ?.categoryName || setting.categoryId;
+                              ?.categoryName ||
+                            categoriesData?.items?.find((c) => c.id === setting.categoryId)?.name ||
+                            setting.categoryId;
                           const current = sessionItems
                             .filter((i) => i.categoryId === setting.categoryId)
                             .reduce((s, i) => s + i.quantity, 0);

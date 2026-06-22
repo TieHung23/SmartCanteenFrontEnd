@@ -18,6 +18,7 @@ import type { Dish } from "@/types/dish.types";
 import type { CartItem } from "@/context/cart-context";
 import { useCart } from "@/context/cart-context";
 import { toast } from "sonner";
+import { animate, stagger, spring } from "animejs";
 import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
 import { isSessionExpired, isSessionUpcoming } from "@/lib/utils";
 
@@ -82,6 +83,8 @@ function MenuContent() {
     getCartCount,
     openCart,
     removeBySessionId,
+    removeFromCart,
+    updateQuantity,
   } = useCart();
 
   const isLoading = loadingCats || loadingDishes || loadingMeal;
@@ -115,8 +118,106 @@ function MenuContent() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const prevSessionId = useRef(sessionId);
   const trayRef = useRef<HTMLDivElement>(null);
+  const dishGridRef = useRef<HTMLDivElement>(null);
+  const fabCounterRef = useRef<HTMLSpanElement>(null);
+  const prevCartCount = useRef(0);
+
+  // Bounce animation for tray and new food items
+  const animateTrayDropBounce = useCallback(() => {
+    if (trayRef.current) {
+      animate(trayRef.current, {
+        scale: [1, 0.97, 1.02, 1],
+        rotate: [0, -1, 1, 0],
+        duration: 500,
+        ease: spring({ stiffness: 220, damping: 11, mass: 0.9 }),
+      });
+
+      const foodItems = trayRef.current.querySelectorAll(".tray-food-item");
+      const lastFoodItem = foodItems[foodItems.length - 1];
+      if (lastFoodItem) {
+        animate(lastFoodItem, {
+          scale: [0, 1.1, 1],
+          opacity: [0, 1],
+          duration: 500,
+          ease: spring({ stiffness: 280, damping: 12, mass: 0.8 }),
+        });
+      }
+    }
+  }, []);
+
+  // Bounce animation for the floating cart counter badge
+  const animateFabCounter = useCallback(() => {
+    if (fabCounterRef.current) {
+      animate(fabCounterRef.current, {
+        scale: [1.35, 1],
+        duration: 400,
+        ease: spring({ stiffness: 350, damping: 14, mass: 1 }),
+      });
+    }
+  }, []);
+
+  // Click ripple effect on cards
+  const createRipple = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const ripple = document.createElement("span");
+    const rect = target.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+    ripple.style.cssText = `
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 76, 36, 0.15);
+      pointer-events: none;
+      width: ${size}px;
+      height: ${size}px;
+      left: ${x}px;
+      top: ${y}px;
+      z-index: 20;
+    `;
+    target.style.position = "relative";
+    target.style.overflow = "hidden";
+    target.appendChild(ripple);
+    animate(ripple, {
+      scale: [0, 2.5],
+      opacity: [1, 0],
+      duration: 600,
+      ease: "outQuint",
+      onComplete: () => ripple.remove(),
+    });
+  }, []);
+
+  // Trigger tray & FAB badge animation when cart count increases
+  useEffect(() => {
+    const currentCount = getCartCount();
+    if (currentCount > prevCartCount.current) {
+      setTimeout(() => {
+        animateTrayDropBounce();
+        animateFabCounter();
+      }, 55);
+    }
+    prevCartCount.current = currentCount;
+  }, [cartItems, getCartCount, animateTrayDropBounce, animateFabCounter]);
+
+  // Staggered card entrance animation when category or loading state changes
+  useEffect(() => {
+    if (!isLoading && dishGridRef.current) {
+      const cards = dishGridRef.current.querySelectorAll(".dish-card-customer");
+      if (cards.length > 0) {
+        animate(cards, {
+          opacity: [0, 1],
+          translateY: [20, 0],
+          scale: [0.92, 1],
+          delay: stagger(30, { start: 100 }),
+          duration: 500,
+          ease: "outQuint",
+        });
+      }
+    }
+  }, [isLoading, selectedCategoryId, selectedTemplateIdx]);
 
   const [isDragOverTray, setIsDragOverTray] = useState(false);
+  const [isDragOverRightPanel, setIsDragOverRightPanel] = useState(false);
 
   const heroImages = useMemo(
     () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img6.png"],
@@ -256,6 +357,36 @@ function MenuContent() {
       console.error(err);
     }
   };
+
+  const handleDropFromTray = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    try {
+      const source = e.dataTransfer.getData("source");
+      if (source !== "tray") return;
+      
+      const dishId = e.dataTransfer.getData("text/plain");
+      if (!dishId) return;
+
+      const existingItem = cartItems.find((item) => item.dishId === dishId && item.sessionId === (sessionId || undefined));
+      if (!existingItem) return;
+
+      if (existingItem.quantity > 1) {
+        updateQuantity(dishId, existingItem.quantity - 1, sessionId || undefined);
+        toast.success(`Đã giảm số lượng món ${existingItem.name}`);
+      } else {
+        removeFromCart(dishId, sessionId || undefined);
+        toast.success(`Đã xóa món ${existingItem.name} khỏi khay`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [cartItems, sessionId, updateQuantity, removeFromCart]);
+
+  const handleDragOverRightPanel = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setIsDragOverRightPanel(true);
+  }, []);
 
   const dishes = useMemo(() => {
     if (mealDetail?.dishes && mealDetail.dishes.length > 0) {
@@ -505,7 +636,30 @@ function MenuContent() {
                     return (
                       <div
                         key={`${item.dishId}-${item.sessionId}`}
-                        className="absolute transition-all duration-300 hover:z-10"
+                        draggable={true}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", item.dishId);
+                          e.dataTransfer.setData("source", "tray");
+                          e.dataTransfer.effectAllowed = "move";
+
+                          const dragImg = document.createElement("div");
+                          dragImg.style.cssText = `
+                            position:fixed;top:-1000px;left:-1000px;
+                            width:80px;height:80px;border-radius:50%;
+                            background:white;border:3px solid #FF4C24;
+                            box-shadow:0 8px 25px rgba(0,0,0,0.2);
+                          `;
+                          const img = document.createElement("img");
+                          img.src = item.imgUrl || "/placeholder-food.png";
+                          img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%;";
+                          dragImg.appendChild(img);
+                          document.body.appendChild(dragImg);
+                          e.dataTransfer.setDragImage(dragImg, 40, 40);
+                          setTimeout(() => {
+                            if (document.body.contains(dragImg)) document.body.removeChild(dragImg);
+                          }, 0);
+                        }}
+                        className="absolute transition-all duration-300 hover:z-10 cursor-grab active:cursor-grabbing"
                         style={{
                           top: p.top,
                           left: p.left,
@@ -515,7 +669,7 @@ function MenuContent() {
                         }}
                       >
                         {/* 🌟 ĐÃ SỬA: Đảm bảo class rounded-full và overflow-hidden bọc chặt bo tròn ảnh trên mâm */}
-                        <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-2xl">
+                        <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-2xl tray-food-item">
                           <Image
                             src={item.imgUrl || "/placeholder-food.png"}
                             alt={item.name}
@@ -557,7 +711,18 @@ function MenuContent() {
           </div>
 
           {/* ── RIGHT COLUMN: CATEGORIES + DISHES ── */}
-          <div className="flex-1 min-w-0 space-y-8">
+          <div
+            ref={dishGridRef}
+            onDragOver={handleDragOverRightPanel}
+            onDragLeave={() => setIsDragOverRightPanel(false)}
+            onDrop={(e) => {
+              setIsDragOverRightPanel(false);
+              handleDropFromTray(e);
+            }}
+            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-4 ${
+              isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
+            }`}
+          >
             {/* Round Category Horizontal Menu */}
             {categories.length === 0 && !isLoading ? (
               <div className="text-center py-28 bg-gray-50 rounded-[2.5rem] text-gray-400 border border-dashed border-gray-200">
@@ -691,6 +856,7 @@ function MenuContent() {
                             onAddToCart={addToCart}
                             onDragStart={handleDragStart}
                             getSafeImageUrl={getSafeImageUrl}
+                            onRipple={createRipple}
                           />
                         </div>
                       );
@@ -754,6 +920,7 @@ function MenuContent() {
                           onAddToCart={addToCart}
                           onDragStart={handleDragStart}
                           getSafeImageUrl={getSafeImageUrl}
+                          onRipple={createRipple}
                         />
                       </div>
                     );
@@ -771,7 +938,7 @@ function MenuContent() {
         >
           <ShoppingCart className="w-7 h-7" />
           {mounted && getCartCount() > 0 && (
-            <span className="absolute -top-1.5 -right-1 bg-white text-[#FF4C24] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#FF4C24] shadow-md">
+            <span ref={fabCounterRef} className="absolute -top-1.5 -right-1 bg-white text-[#FF4C24] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#FF4C24] shadow-md">
               {getCartCount()}
             </span>
           )}
@@ -812,6 +979,7 @@ function DishCard({
   onAddToCart,
   onDragStart,
   getUrl,
+  onRipple,
 }: {
   dish: Dish;
   disabled: boolean;
@@ -829,6 +997,7 @@ function DishCard({
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
   getUrl: (url: string | null | undefined, fallback?: string) => string;
+  onRipple: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -858,13 +1027,14 @@ function DishCard({
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      onClick={() => {
+      onClick={(e) => {
         if (disabled) {
           if (notInTemplate) toast.error("Danh mục này không có trong template");
           else if (noTemplateChosen) toast.error("Chọn template để đặt món");
           else if (expired) toast.error("Phiên ăn đã kết thúc");
           return;
         }
+        onRipple(e);
         if (setting && !canAddMore) {
           toast.error(`Đã giới hạn số lượng món cho danh mục ${categoryName}`);
           return;
@@ -890,7 +1060,7 @@ function DishCard({
         transform: `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1,1,1)`,
         transition: tilt.x === 0 && tilt.y === 0 ? "all 0.5s ease" : "none",
       }}
-      className={`group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[260px] justify-between shadow-xs ${
+      className={`dish-card-customer group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[260px] justify-between shadow-xs ${
         disabled
           ? notInTemplate
             ? "border-gray-50 opacity-40 grayscale-[0.4]"
@@ -951,6 +1121,7 @@ function DishGrid({
   onAddToCart,
   onDragStart,
   getSafeImageUrl: getUrl,
+  onRipple,
 }: {
   dishes: Dish[];
   categoryName: string;
@@ -967,6 +1138,7 @@ function DishGrid({
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
   getSafeImageUrl: (url: string | null | undefined, fallback?: string) => string;
+  onRipple: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
   const canAddMore = !setting || cartCount < setting.maxQuantity;
 
@@ -1011,6 +1183,7 @@ function DishGrid({
             onAddToCart={onAddToCart}
             onDragStart={onDragStart}
             getUrl={getUrl}
+            onRipple={onRipple}
           />
         );
       })}
