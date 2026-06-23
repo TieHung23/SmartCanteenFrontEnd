@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Bell, ShoppingCart, LogOut } from "lucide-react";
-import { userService, UserProfileResponse } from "@/services/user.service";
+import { useAuth } from "@/context/auth-context";
 import { useCart } from "@/context/cart-context";
 import { notificationService } from "@/services/notification.service";
 import NotificationDropdown from "@/components/features/notifications/NotificationDropdown";
@@ -14,7 +14,7 @@ export default function Navbar() {
     () => true,
     () => false,
   );
-  const [userData, setUserData] = useState<UserProfileResponse | null>(null);
+  const { user: userData, isAuthenticated, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -29,36 +29,6 @@ export default function Navbar() {
   ];
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
-
-  useEffect(() => {
-    const fetchNavbarProfile = async () => {
-      try {
-        const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
-        if (token) {
-          const profile = await userService.getProfile();
-          setUserData(profile);
-        }
-      } catch (error) {
-        console.error("Không thể lấy thông tin profile cho Navbar:", error);
-        setUserData(null);
-      }
-    };
-
-    fetchNavbarProfile();
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") fetchNavbarProfile();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", fetchNavbarProfile);
-    window.addEventListener("profileUpdated", fetchNavbarProfile);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", fetchNavbarProfile);
-      window.removeEventListener("profileUpdated", fetchNavbarProfile);
-    };
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -81,16 +51,9 @@ export default function Navbar() {
       } catch {}
     };
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30000); // poll mỗi 30s
+    const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("token");
-    setUserData(null);
-    window.location.href = "/login";
-  };
 
   const getSafeAvatar = (url: string | null | undefined, id: string) => {
     if (url && url.trim() !== "") return url;
@@ -169,7 +132,7 @@ export default function Navbar() {
           className="flex items-center gap-3 pl-4 border-l border-gray-200 relative"
           ref={dropdownRef}
         >
-          {userData ? (
+          {isAuthenticated && userData ? (
             <>
               <span className="text-sm font-bold text-gray-700 hidden sm:block">
                 Hi, {userData.name}
@@ -203,7 +166,7 @@ export default function Navbar() {
                   <div className="border-t border-gray-100" />
                   <button
                     className="w-full flex items-center gap-2 text-left px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-all"
-                    onClick={handleLogout}
+                    onClick={logout}
                   >
                     <LogOut className="w-4 h-4" /> Logout
                   </button>

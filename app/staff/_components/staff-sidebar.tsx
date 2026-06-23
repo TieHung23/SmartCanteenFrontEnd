@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ChefHat,
   Package,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/stores/use-user";
@@ -26,7 +27,12 @@ const NAV_ITEMS = [
   { label: "Profile", href: "/staff/profile", icon: User },
 ];
 
-export function StaffSidebar() {
+interface StaffSidebarProps {
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+}
+
+export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { profile, fetchProfile } = useUser();
@@ -46,16 +52,29 @@ export function StaffSidebar() {
   const avatarUrl = profile?.imgUrl || null;
 
   return (
-    <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 sticky top-0 h-screen justify-between p-6 shadow-sm z-40">
-      <div className="space-y-8">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 w-[300px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 lg:sticky lg:h-screen lg:w-[350px] lg:translate-x-0 p-6 shadow-sm justify-between",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}
+    >
+      <div className="space-y-8 flex flex-col flex-1 overflow-hidden relative">
+        {/* Close button on mobile */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* ── LOGO BRAND ── */}
-        <div className="px-2 py-1 flex items-center gap-4">
+        <div className="px-2 py-1 flex items-center gap-4 shrink-0">
           <div className="w-14 h-14 rounded-xl overflow-hidden relative shrink-0 flex items-center justify-center shadow-xs">
             <Image src="/logo.png" alt="Logo" width={56} height={48} className="object-contain" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold text-gray-900 leading-tight">
-              Smart <span className="text-[#00B69B]">Canteen</span>
+            <h2 className="text-2xl font-bold text-gray-900 leading-tight">
+              Smart <span className="text-[#D35400]">Canteen</span>
             </h2>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-[0.15em] mt-0.5">
               Staff Portal
@@ -76,9 +95,9 @@ export function StaffSidebar() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center justify-between px-4 py-3.5 rounded-2xl text-base font-semibold transition-all duration-200 group",
+                      "flex items-center justify-between px-4 py-3.5 rounded-2xl text-base font-semibold transition-all duration-200 group hover:translate-x-1.5",
                       isActive
-                        ? "bg-gray-50 text-[#00B69B] border border-gray-200 shadow-xs"
+                        ? "bg-gray-50 text-[#D35400] border border-gray-200 shadow-xs"
                         : "text-gray-500 hover:text-gray-800 hover:bg-gray-50/80",
                     )}
                   >
@@ -86,12 +105,12 @@ export function StaffSidebar() {
                       <item.icon
                         className={cn(
                           "w-5 h-5 shrink-0 transition-colors",
-                          isActive ? "text-[#00B69B]" : "text-gray-400 group-hover:text-gray-600",
+                          isActive ? "text-[#D35400]" : "text-gray-400 group-hover:text-gray-600",
                         )}
                       />
                       <span className="truncate">{item.label}</span>
                     </div>
-                    {isActive && <ChevronRight className="w-4 h-4 text-[#00B69B] shrink-0" />}
+                    {isActive && <ChevronRight className="w-4 h-4 text-[#D35400] shrink-0" />}
                   </Link>
                 </li>
               );
@@ -103,7 +122,7 @@ export function StaffSidebar() {
       {/* ── FOOTER ── */}
       <div className="border-t border-gray-100 pt-5 bg-white shrink-0">
         <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-50/80 border border-gray-100/50">
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#00B69B]/10 border border-[#00B69B]/20 flex items-center justify-center shrink-0 shadow-xs">
+          <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#D35400]/10 border border-[#D35400]/20 flex items-center justify-center shrink-0 shadow-xs">
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
@@ -113,7 +132,7 @@ export function StaffSidebar() {
                 className="object-cover w-full h-full"
               />
             ) : (
-              <span className="text-[#00B69B] font-extrabold text-lg">
+              <span className="text-[#D35400] font-bold text-lg">
                 {displayName.charAt(0).toUpperCase()}
               </span>
             )}

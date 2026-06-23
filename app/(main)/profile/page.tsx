@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
+import { useAuth } from "@/context/auth-context";
 import { ROUTES } from "@/config/routes";
 import {
   User,
@@ -111,6 +112,7 @@ type WalletTab = "overview" | "topup";
 type ProfileTab = "personal" | "wallet" | "security";
 
 export default function ProfilePage() {
+  const { logout } = useAuth();
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [originalProfile, setOriginalProfile] = useState<UserProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -246,9 +248,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("token");
-    window.location.href = "/login";
+    logout();
   };
 
   const handleTopUp = async () => {

@@ -427,7 +427,7 @@ export default function LiveOrdersPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="text-sm font-bold text-gray-400 font-mono">
-                            #{order.id}
+                            #{order.id.slice(0, 8)}
                           </span>
                           <span
                             className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full border ${s.bg} ${s.text}`}
@@ -511,7 +511,9 @@ export default function LiveOrdersPage() {
             <div className="bg-gray-900 text-white px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="font-black text-base">Chi Tiết Đơn Hàng</h3>
-                <p className="text-xs text-gray-400 font-mono mt-0.5">#{selectedOrder.id}</p>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">
+                  #{selectedOrder.id.slice(0, 8)}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}

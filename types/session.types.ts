@@ -67,7 +67,7 @@ export interface CreateSessionRequest {
 import { z } from "zod";
 
 export const SessionTemplateSettingSchema = z.object({
-  categoryId: z.string().uuid(),
+  categoryId: z.string(),
   minQuantity: z.number().int().nonnegative(),
   maxQuantity: z.number().int().positive(),
   isRequired: z.boolean(),

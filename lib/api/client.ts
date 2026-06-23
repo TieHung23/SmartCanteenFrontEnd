@@ -10,6 +10,13 @@ interface FailedRequest {
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path === "/login" || path.startsWith("/auth/")) return;
+  window.location.href = "/login";
+}
+
 const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
@@ -62,7 +69,7 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
-          window.location.href = "/login";
+          redirectToLogin();
         }
         return Promise.reject(error);
       }
@@ -87,7 +94,7 @@ apiClient.interceptors.response.use(
 
       if (!storedRefreshToken) {
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          redirectToLogin();
         }
         return Promise.reject(error);
       }
@@ -117,7 +124,7 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
-          window.location.href = "/login";
+          redirectToLogin();
         }
         return Promise.reject(refreshError);
       } finally {

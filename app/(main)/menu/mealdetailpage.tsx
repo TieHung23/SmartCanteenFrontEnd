@@ -11,6 +11,10 @@ interface SessionData {
   price?: number;
   imgUrl?: string;
   description?: string;
+  sessionTemplateId?: string;
+  categoryId?: string;
+  categoryName?: string;
+  sessionTime?: string;
 }
 
 interface SessionDetailPageProps {
@@ -37,6 +41,11 @@ export default function SessionDetailPage({ sessionData }: SessionDetailPageProp
         price: sessionData.price || 35000,
         imgUrl: sessionData.imgUrl,
         description: sessionData.description || "Rice, Bruised Shrimp, Soup",
+        sessionId: sessionData.id,
+        sessionTemplateId: sessionData.sessionTemplateId,
+        categoryId: sessionData.categoryId,
+        categoryName: sessionData.categoryName,
+        sessionTime: sessionData.sessionTime,
       },
       quantity,
     );
