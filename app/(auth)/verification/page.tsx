@@ -33,25 +33,31 @@ const STATUS_CONFIG: Record<
 > = {
   0: {
     icon: <Clock className="w-10 h-10 text-amber-500" />,
-    title: "Verification Pending",
+    title: "Chưa nộp hồ sơ",
     color: "text-amber-600",
     bg: "bg-amber-50 border-amber-100",
   },
   1: {
+    icon: <Clock className="w-10 h-10 text-amber-500" />,
+    title: "Đang chờ duyệt",
+    color: "text-amber-600",
+    bg: "bg-amber-50 border-amber-100",
+  },
+  2: {
     icon: <CheckCircle2 className="w-10 h-10 text-emerald-500" />,
-    title: "Verification Approved",
+    title: "Đã được duyệt",
     color: "text-emerald-600",
     bg: "bg-emerald-50 border-emerald-100",
   },
-  2: {
+  3: {
     icon: <XCircle className="w-10 h-10 text-red-500" />,
-    title: "Verification Rejected",
+    title: "Bị từ chối",
     color: "text-red-600",
     bg: "bg-red-50 border-red-100",
   },
-  3: {
+  4: {
     icon: <AlertTriangle className="w-10 h-10 text-gray-500" />,
-    title: "Verification Expired",
+    title: "Hết hạn",
     color: "text-gray-600",
     bg: "bg-gray-50 border-gray-100",
   },
@@ -84,8 +90,8 @@ export default function VerificationPage() {
       if (result) {
         setStatus(result.status);
         setExistingRequestId(result.requestId);
-        if (result.status === 2 || result.status === 3) {
-          setRejectReason(result.rejectReason);
+        if (result.status === 3 || result.status === 4) {
+          setRejectReason(result.rejectReason || result.rejectionReason || undefined);
         }
       }
       setLoading(false);
@@ -132,8 +138,13 @@ export default function VerificationPage() {
         validEntries.map((e) => e.file as File),
         validEntries.map((e) => e.documentType),
       );
-      setExistingRequestId(result.requestId);
-      setStatus(0);
+      const refreshed = await verificationService.getMyVerification();
+      let nextStatus = refreshed?.status ?? 1;
+      if (nextStatus === 2 && !refreshed?.reviewedAt) {
+        nextStatus = 1;
+      }
+      setExistingRequestId(refreshed?.requestId || result.requestId);
+      setStatus(nextStatus);
       setRejectReason(undefined);
       setEntries([
         {
@@ -142,7 +153,11 @@ export default function VerificationPage() {
           documentType: 1 as VerificationDocumentType,
         },
       ]);
-      toast.success("Documents submitted for verification!");
+      if (nextStatus === 2) {
+        toast.success("Tài khoản của bạn đã được xác minh!");
+      } else {
+        toast.success("Đã nộp hồ sơ. Vui lòng chờ admin/staff duyệt.");
+      }
     } catch (error: unknown) {
       console.error("Submit verification error:", error);
       let msg = "Failed to submit verification";
@@ -168,7 +183,7 @@ export default function VerificationPage() {
     );
   }
 
-  const showUploadForm = status === null || status === 2 || status === 3;
+  const showUploadForm = status === null || status === 0 || status === 3 || status === 4;
   const cfg = status !== null ? STATUS_CONFIG[status] : null;
 
   return (
@@ -180,8 +195,16 @@ export default function VerificationPage() {
 
       <div className="max-w-lg w-full bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-orange-100/50 p-8 md:p-10 relative z-10">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center border-2 border-orange-100">
-            <ShieldCheck className="w-8 h-8 text-[#D35400]" />
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center border-2 ${
+              status === 2 ? "bg-emerald-50 border-emerald-100" : "bg-orange-50 border-orange-100"
+            }`}
+          >
+            {status === 2 ? (
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            ) : (
+              <ShieldCheck className="w-8 h-8 text-[#D35400]" />
+            )}
           </div>
           <div className="text-center">
             <h1 className="text-xl font-extrabold text-gray-800">Identity Verification</h1>
@@ -191,26 +214,26 @@ export default function VerificationPage() {
           </div>
         </div>
 
-        {status !== null && cfg && (
+        {status !== null && status !== 0 && cfg && (
           <div className={`mb-6 p-4 rounded-xl border ${cfg.bg}`}>
             <div className="flex items-center gap-3">
               {cfg.icon}
               <div>
                 <p className={`font-bold text-sm ${cfg.color}`}>{cfg.title}</p>
-                {status === 0 && (
+                {status === 1 && (
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Your documents are being reviewed by our team.
+                    Hồ sơ đang được admin/staff xem xét. Bạn sẽ nhận thông báo khi có kết quả.
                   </p>
                 )}
-                {status === 1 && (
+                {status === 2 && (
                   <p className="text-xs text-gray-500 mt-0.5">
                     You can now access all features of Smart Canteen.
                   </p>
                 )}
-                {status === 2 && rejectReason && (
+                {status === 3 && rejectReason && (
                   <p className="text-xs text-red-500 mt-0.5">Reason: {rejectReason}</p>
                 )}
-                {status === 3 && (
+                {status === 4 && (
                   <p className="text-xs text-gray-500 mt-0.5">
                     Your previous request has expired. Please submit again.
                   </p>
@@ -220,7 +243,7 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {status === 1 && (
+        {status === 2 && (
           <div className="flex flex-col items-center gap-4">
             <Link
               href={ROUTES.HOME}
@@ -231,10 +254,10 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {status === 0 && (
+        {status === 1 && existingRequestId && (
           <div className="flex flex-col items-center gap-4">
             <p className="text-xs text-gray-400 text-center">
-              Request ID: {existingRequestId?.slice(0, 12)}...
+              Request ID: {existingRequestId.slice(0, 12)}...
             </p>
           </div>
         )}

@@ -33,8 +33,7 @@ export const RegisterForm = () => {
     mutationFn: (data: RegisterBodyType) => authService.register(data),
     onSuccess: (data, variables) => {
       toast.success(
-        data.message ||
-          "Registration successful. Please check your email and enter the verification code.",
+        data.message || "Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.",
       );
       router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
     },

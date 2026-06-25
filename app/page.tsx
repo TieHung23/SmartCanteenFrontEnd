@@ -6,13 +6,14 @@ import { authService } from "@/services/auth.service";
 import { userService } from "@/services/user.service";
 import { ROUTES } from "@/config/routes";
 import Navbar from "@/components/layout/Navbar";
+import { getAccessToken } from "@/lib/auth-token-storage";
 
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) {
       router.push(ROUTES.LOGIN);
       return;

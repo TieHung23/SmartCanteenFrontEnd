@@ -273,8 +273,12 @@ export default function SessionPage() {
                   const type = getSessionType(session.availableFrom);
                   const tag = SESSION_TAGS[type];
                   const icon = SESSION_ICONS[type];
-                  const expired = isSessionExpired(session.availableTo);
-                  const active = isSessionActive(session.availableFrom, session.availableTo);
+                  const orderExpired =
+                    new Date(session.availableForOrder) < new Date() ||
+                    session.isFinalized === true;
+                  const expired = isSessionExpired(session.availableTo) || orderExpired;
+                  const active =
+                    isSessionActive(session.availableFrom, session.availableTo) && !orderExpired;
 
                   const cardContent = (
                     <div
@@ -299,8 +303,19 @@ export default function SessionPage() {
                       <div className="flex-1 min-w-0 py-2">
                         <div className="flex items-center gap-2 mb-2">
                           {expired ? (
-                            <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-gray-200 text-gray-500">
-                              EXPIRED
+                            <span
+                              className={cn(
+                                "inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg",
+                                orderExpired
+                                  ? "bg-red-50 text-red-500 border border-red-100"
+                                  : "bg-gray-200 text-gray-500",
+                              )}
+                            >
+                              {session.isFinalized
+                                ? "FINALIZED"
+                                : orderExpired
+                                  ? "ORDER CLOSED"
+                                  : "EXPIRED"}
                             </span>
                           ) : active ? (
                             <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-green-100 text-green-700">
@@ -356,6 +371,28 @@ export default function SessionPage() {
                             <polyline points="12 6 12 12 16 14" />
                           </svg>
                           {formatTime(session.availableFrom)} – {formatTime(session.availableTo)}
+                        </div>
+
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "text-xs px-2.5 py-1 font-bold rounded-lg border",
+                              expired
+                                ? "bg-gray-100 border-gray-200 text-gray-400"
+                                : "bg-orange-50 border-orange-100 text-[#D35400]",
+                            )}
+                          >
+                            Hạn đặt:{" "}
+                            {new Date(session.availableForOrder).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            -{" "}
+                            {new Date(session.availableForOrder).toLocaleDateString("vi-VN", {
+                              day: "2-digit",
+                              month: "2-digit",
+                            })}
+                          </span>
                         </div>
                       </div>
 

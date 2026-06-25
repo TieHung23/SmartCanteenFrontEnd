@@ -1,28 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Eye, ShieldAlert } from "lucide-react";
 import { verificationService } from "@/services/verification.service";
 import type { AdminVerificationListItem } from "@/types/verification.types";
+import Modal from "../_components/modal";
+import { VerifyDetailsContent } from "./_components/verify-details-content";
 
 export default function ManagerVerifyPage() {
-  const router = useRouter();
   const [requests, setRequests] = useState<AdminVerificationListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+
+  const handleOpenDetails = (id: string) => {
+    setDetailsId(id);
+    setIsDetailsOpen(true);
+  };
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const result = await verificationService.adminList({ pageSize: 100 });
+      setRequests(result.items);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const result = await verificationService.adminList({ pageSize: 100 });
-        setRequests(result.items);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchRequests();
   }, []);
 
   return (
@@ -30,14 +41,18 @@ export default function ManagerVerifyPage() {
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6">
         <h1 className="text-4xl font-extrabold text-gray-900">Identity Verification</h1>
-        <p className="text-lg text-gray-500 mt-1.5">Phê duyệt hoặc bác bỏ các yêu cầu xác thực danh tính sinh viên.</p>
+        <p className="text-lg text-gray-500 mt-1.5">
+          Phê duyệt hoặc bác bỏ các yêu cầu xác thực danh tính sinh viên.
+        </p>
       </div>
 
       {/* Table/List Container */}
       {loading ? (
         <div className="flex h-[40vh] flex-col items-center justify-center gap-3">
           <div className="w-12 h-12 border-4 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-          <p className="text-base font-bold text-gray-500">Đang tải danh sách yêu cầu xác thực...</p>
+          <p className="text-base font-bold text-gray-500">
+            Đang tải danh sách yêu cầu xác thực...
+          </p>
         </div>
       ) : requests.length === 0 ? (
         <div className="bg-white rounded-3xl border border-gray-200/60 p-16 text-center shadow-xs flex flex-col items-center justify-center gap-3">
@@ -49,7 +64,7 @@ export default function ManagerVerifyPage() {
           {requests.map((req) => (
             <div
               key={req.id}
-              onClick={() => router.push(`/manager/verify/${req.id}`)}
+              onClick={() => handleOpenDetails(req.id)}
               className="bg-white rounded-3xl border border-gray-200/60 p-6 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 cursor-pointer flex flex-col justify-between shadow-2xs gap-5 card-3d"
             >
               <div className="space-y-4">
@@ -87,7 +102,7 @@ export default function ManagerVerifyPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/manager/verify/${req.id}`);
+                  handleOpenDetails(req.id);
                 }}
                 className="w-full py-3 bg-[#D35400]/10 hover:bg-[#D35400] text-[#D35400] hover:text-white rounded-2xl text-sm font-bold transition-all text-center flex items-center justify-center gap-2"
               >
@@ -98,6 +113,24 @@ export default function ManagerVerifyPage() {
           ))}
         </div>
       )}
+
+      {/* ── VERIFY DETAIL MODAL ── */}
+      <Modal
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        title="Chi tiết yêu cầu xác thực"
+        size="lg"
+      >
+        {detailsId && (
+          <VerifyDetailsContent
+            requestId={detailsId}
+            onSuccess={() => {
+              setIsDetailsOpen(false);
+              fetchRequests();
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

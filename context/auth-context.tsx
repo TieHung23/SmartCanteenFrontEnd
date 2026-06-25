@@ -3,6 +3,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { userService, type UserProfileResponse } from "@/services/user.service";
+import {
+  clearAuthTokens,
+  getAccessToken,
+  migrateLegacyAuthTokens,
+  setAuthTokens,
+} from "@/lib/auth-token-storage";
 
 interface AuthContextType {
   user: UserProfileResponse | null;
@@ -14,14 +20,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("accessToken");
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(getAccessToken);
+  const [token, setToken] = useState<string | null>(() => {
+    migrateLegacyAuthTokens();
+    return getAccessToken();
+  });
   const [user, setUser] = useState<UserProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const isInitialMount = useRef(true);
@@ -37,9 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await userService.getProfile();
       setUser(profile);
     } catch {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("token");
+      clearAuthTokens();
       setUser(null);
     } finally {
       setLoading(false);
@@ -72,8 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     (accessToken: string, refreshToken?: string) => {
-      localStorage.setItem("accessToken", accessToken);
-      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+      setAuthTokens(accessToken, refreshToken);
       setToken(accessToken);
       fetchProfile();
     },
@@ -81,9 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("token");
+    clearAuthTokens();
     setToken(null);
     setUser(null);
     router.push("/login");

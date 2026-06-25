@@ -46,12 +46,17 @@ export const API_ENDPOINTS = {
     DELETE: "/api/Cart",
   },
   PAYMENT: {
-    TOP_UP: "/api/payments/top-up",
-    GET: (id: string) => `/api/payments/${id}`,
+    TOP_UP: "/api/Payments/top-up",
+    TOP_UP_POLICY: "/api/Payments/top-up-policy",
+    GET: (id: string) => `/api/Payments/${id}`,
   },
   WALLET: {
     TRANSACTIONS: "/api/Wallet/transactions",
     GET: (id: string) => `/api/Wallet/transactions/${id}`,
+  },
+  SETTINGS: {
+    LIST: "/api/Settings",
+    GET: (id: string) => `/api/Settings/${id}`,
   },
   REFUND: {
     LIST: "/api/refunds",

@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { animate, stagger, spring } from "animejs";
 import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
 import { isSessionExpired, isSessionUpcoming } from "@/lib/utils";
+import { useCurrency } from "@/lib/hooks/use-currency";
 
 const getSafeImageUrl = (
   url: string | null | undefined,
@@ -75,17 +76,24 @@ function MenuContent() {
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
   const { data: sessionDetail, isLoading: loadingMeal } = useSessionDetail(sessionId);
+  const { formatPoints } = useCurrency();
 
   const {
     addToCart: contextAddToCart,
     setSessionId,
     cartItems,
-    getCartCount,
     openCart,
     removeBySessionId,
     removeFromCart,
     updateQuantity,
   } = useCart();
+
+  const sessionCartCount = useMemo(() => {
+    if (!sessionId) return 0;
+    return cartItems
+      .filter((item) => item.sessionId === sessionId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+  }, [cartItems, sessionId]);
 
   const isLoading = loadingCats || loadingDishes || loadingMeal;
 
@@ -189,7 +197,7 @@ function MenuContent() {
 
   // Trigger tray & FAB badge animation when cart count increases
   useEffect(() => {
-    const currentCount = getCartCount();
+    const currentCount = sessionCartCount;
     if (currentCount > prevCartCount.current) {
       setTimeout(() => {
         animateTrayDropBounce();
@@ -197,7 +205,7 @@ function MenuContent() {
       }, 55);
     }
     prevCartCount.current = currentCount;
-  }, [cartItems, getCartCount, animateTrayDropBounce, animateFabCounter]);
+  }, [cartItems, sessionCartCount, animateTrayDropBounce, animateFabCounter]);
 
   // Staggered card entrance animation when category or loading state changes
   useEffect(() => {
@@ -218,6 +226,7 @@ function MenuContent() {
 
   const [isDragOverTray, setIsDragOverTray] = useState(false);
   const [isDragOverRightPanel, setIsDragOverRightPanel] = useState(false);
+  const [isDishDragging, setIsDishDragging] = useState(false);
 
   const heroImages = useMemo(
     () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img6.png"],
@@ -234,7 +243,12 @@ function MenuContent() {
 
   const noTemplateChosen = selectedTemplateIdx === null;
 
-  const expired = mealDetail ? isSessionExpired(mealDetail.availableTo) : false;
+  const expired = mealDetail
+    ? isSessionExpired(mealDetail.availableTo) ||
+      new Date(mealDetail.availableForOrder) < new Date() ||
+      !mealDetail.isActive ||
+      mealDetail.isFinalized === true
+    : false;
   const upcoming = mealDetail ? isSessionUpcoming(mealDetail.availableFrom) : false;
   const canOrder = !expired && !upcoming;
 
@@ -265,6 +279,7 @@ function MenuContent() {
   const handleMouseUp = () => setIsDragging(false);
 
   const handleDragStart = (e: React.DragEvent, dishData: Record<string, unknown>) => {
+    setIsDishDragging(true);
     e.dataTransfer.setData("application/json", JSON.stringify(dishData));
     e.dataTransfer.effectAllowed = "move";
 
@@ -302,6 +317,7 @@ function MenuContent() {
   const handleDropOnTray = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOverTray(false);
+    setIsDishDragging(false);
     try {
       const dataStr = e.dataTransfer.getData("application/json");
       if (!dataStr) return;
@@ -358,29 +374,34 @@ function MenuContent() {
     }
   };
 
-  const handleDropFromTray = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    try {
-      const source = e.dataTransfer.getData("source");
-      if (source !== "tray") return;
-      
-      const dishId = e.dataTransfer.getData("text/plain");
-      if (!dishId) return;
+  const handleDropFromTray = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      try {
+        const source = e.dataTransfer.getData("source");
+        if (source !== "tray") return;
 
-      const existingItem = cartItems.find((item) => item.dishId === dishId && item.sessionId === (sessionId || undefined));
-      if (!existingItem) return;
+        const dishId = e.dataTransfer.getData("text/plain");
+        if (!dishId) return;
 
-      if (existingItem.quantity > 1) {
-        updateQuantity(dishId, existingItem.quantity - 1, sessionId || undefined);
-        toast.success(`Đã giảm số lượng món ${existingItem.name}`);
-      } else {
-        removeFromCart(dishId, sessionId || undefined);
-        toast.success(`Đã xóa món ${existingItem.name} khỏi khay`);
+        const existingItem = cartItems.find(
+          (item) => item.dishId === dishId && item.sessionId === (sessionId || undefined),
+        );
+        if (!existingItem) return;
+
+        if (existingItem.quantity > 1) {
+          updateQuantity(dishId, existingItem.quantity - 1, sessionId || undefined);
+          toast.success(`Đã giảm số lượng món ${existingItem.name}`);
+        } else {
+          removeFromCart(dishId, sessionId || undefined);
+          toast.success(`Đã xóa món ${existingItem.name} khỏi khay`);
+        }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [cartItems, sessionId, updateQuantity, removeFromCart]);
+    },
+    [cartItems, sessionId, updateQuantity, removeFromCart],
+  );
 
   const handleDragOverRightPanel = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -433,9 +454,17 @@ function MenuContent() {
     selectedTemplate?.settings.find((s) => s.categoryId === categoryId) || null;
 
   const getCartCountForCategory = (categoryId: string) => {
+    if (!sessionId) return 0;
     const catDishIds = new Set(dishes.filter((d) => d.categoryId === categoryId).map((d) => d.id));
     return cartItems
-      .filter((item) => catDishIds.has(item.dishId))
+      .filter((item) => item.sessionId === sessionId && catDishIds.has(item.dishId))
+      .reduce((sum, item) => sum + item.quantity, 0);
+  };
+
+  const getDishQuantityInSession = (dishId: string) => {
+    if (!sessionId) return 0;
+    return cartItems
+      .filter((item) => item.sessionId === sessionId && item.dishId === dishId)
       .reduce((sum, item) => sum + item.quantity, 0);
   };
 
@@ -510,7 +539,11 @@ function MenuContent() {
                 </span>
                 {expired && (
                   <span className="bg-red-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-red-100 font-bold">
-                    ĐÃ HẾT PHIÊN
+                    {mealDetail?.isFinalized
+                      ? "ĐÃ CHỐT ĐƠN"
+                      : mealDetail && new Date(mealDetail.availableForOrder) < new Date()
+                        ? "HẾT HẠN ĐẶT HÀNG"
+                        : "ĐÃ HẾT PHIÊN"}
                   </span>
                 )}
                 {upcoming && (
@@ -618,95 +651,100 @@ function MenuContent() {
                 sizes="(max-width: 1024px) 100vw, 680px"
               />
 
-              {mounted && cartItems.length > 0 && (
+              {mounted && cartItems.filter((i) => i.sessionId === sessionId).length > 0 && (
                 <div className="absolute inset-0" suppressHydrationWarning>
-                  {cartItems.map((item, idx) => {
-                    const positions = [
-                      { top: "22%", left: "22%", w: "17%", h: "19%" },
-                      { top: "22%", left: "54%", w: "17%", h: "19%" },
-                      { top: "56%", left: "18%", w: "17%", h: "19%" },
-                      { top: "56%", left: "50%", w: "17%", h: "19%" },
-                      { top: "38%", left: "7%", w: "14%", h: "16%" },
-                      { top: "14%", left: "40%", w: "14%", h: "16%" },
-                      { top: "60%", left: "70%", w: "14%", h: "16%" },
-                      { top: "38%", left: "38%", w: "17%", h: "19%" },
-                    ];
-                    const p = positions[Math.min(idx, positions.length - 1)];
-                    const tilt = idx % 2 === 0 ? "rotate(-3deg)" : "rotate(4deg)";
-                    return (
-                      <div
-                        key={`${item.dishId}-${item.sessionId}`}
-                        draggable={true}
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("text/plain", item.dishId);
-                          e.dataTransfer.setData("source", "tray");
-                          e.dataTransfer.effectAllowed = "move";
+                  {cartItems
+                    .filter((i) => i.sessionId === sessionId)
+                    .map((item, idx) => {
+                      const positions = [
+                        { top: "22%", left: "22%", w: "17%", h: "19%" },
+                        { top: "22%", left: "54%", w: "17%", h: "19%" },
+                        { top: "56%", left: "18%", w: "17%", h: "19%" },
+                        { top: "56%", left: "50%", w: "17%", h: "19%" },
+                        { top: "38%", left: "7%", w: "14%", h: "16%" },
+                        { top: "14%", left: "40%", w: "14%", h: "16%" },
+                        { top: "60%", left: "70%", w: "14%", h: "16%" },
+                        { top: "38%", left: "38%", w: "17%", h: "19%" },
+                      ];
+                      const p = positions[Math.min(idx, positions.length - 1)];
+                      const tilt = idx % 2 === 0 ? "rotate(-3deg)" : "rotate(4deg)";
+                      return (
+                        <div
+                          key={`${item.dishId}-${item.sessionId}`}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/plain", item.dishId);
+                            e.dataTransfer.setData("source", "tray");
+                            e.dataTransfer.effectAllowed = "move";
 
-                          const dragImg = document.createElement("div");
-                          dragImg.style.cssText = `
-                            position:fixed;top:-1000px;left:-1000px;
-                            width:80px;height:80px;border-radius:50%;
-                            background:white;border:3px solid #FF4C24;
-                            box-shadow:0 8px 25px rgba(0,0,0,0.2);
-                          `;
-                          const img = document.createElement("img");
-                          img.src = item.imgUrl || "/placeholder-food.png";
-                          img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%;";
-                          dragImg.appendChild(img);
-                          document.body.appendChild(dragImg);
-                          e.dataTransfer.setDragImage(dragImg, 40, 40);
-                          setTimeout(() => {
-                            if (document.body.contains(dragImg)) document.body.removeChild(dragImg);
-                          }, 0);
-                        }}
-                        className="absolute transition-all duration-300 hover:z-10 cursor-grab active:cursor-grabbing"
-                        style={{
-                          top: p.top,
-                          left: p.left,
-                          width: p.w,
-                          height: p.h,
-                          transform: tilt,
-                        }}
-                      >
-                        {/* 🌟 ĐÃ SỬA: Đảm bảo class rounded-full và overflow-hidden bọc chặt bo tròn ảnh trên mâm */}
-                        <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-2xl tray-food-item">
-                          <Image
-                            src={item.imgUrl || "/placeholder-food.png"}
-                            alt={item.name}
-                            fill
-                            className="object-cover rounded-full"
-                            sizes="180px"
-                          />
+                            const dragImg = document.createElement("div");
+                            dragImg.style.cssText = `
+                              position:fixed;top:-1000px;left:-1000px;
+                              width:80px;height:80px;border-radius:50%;
+                              background:white;border:3px solid #FF4C24;
+                              box-shadow:0 8px 25px rgba(0,0,0,0.2);
+                            `;
+                            const img = document.createElement("img");
+                            img.src = item.imgUrl || "/placeholder-food.png";
+                            img.style.cssText =
+                              "width:100%;height:100%;object-fit:cover;border-radius:50%;";
+                            dragImg.appendChild(img);
+                            document.body.appendChild(dragImg);
+                            e.dataTransfer.setDragImage(dragImg, 40, 40);
+                            setTimeout(() => {
+                              if (document.body.contains(dragImg))
+                                document.body.removeChild(dragImg);
+                            }, 0);
+                          }}
+                          className="absolute transition-all duration-300 hover:z-10 cursor-grab active:cursor-grabbing"
+                          style={{
+                            top: p.top,
+                            left: p.left,
+                            width: p.w,
+                            height: p.h,
+                            transform: tilt,
+                          }}
+                        >
+                          {/* 🌟 ĐÃ SỬA: Đảm bảo class rounded-full và overflow-hidden bọc chặt bo tròn ảnh trên mâm */}
+                          <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-2xl tray-food-item">
+                            <Image
+                              src={item.imgUrl || "/placeholder-food.png"}
+                              alt={item.name}
+                              fill
+                              className="object-cover rounded-full"
+                              sizes="180px"
+                            />
+                          </div>
+                          {item.quantity > 1 && (
+                            <span className="absolute -top-1.5 -right-2 bg-[#FF4C24] text-white text-[10px] font-black min-w-[22px] h-5.5 rounded-full flex items-center justify-center px-1.5 shadow-md border-2 border-white">
+                              x{item.quantity}
+                            </span>
+                          )}
                         </div>
-                        {item.quantity > 1 && (
-                          <span className="absolute -top-1.5 -right-2 bg-[#FF4C24] text-white text-[10px] font-black min-w-[22px] h-5.5 rounded-full flex items-center justify-center px-1.5 shadow-md border-2 border-white">
-                            x{item.quantity}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
 
               {isDragOverTray && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/5 rounded-full backdrop-blur-xs">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/5 rounded-full backdrop-blur-xs pointer-events-none">
                   <span className="bg-[#FF4C24] text-white text-base font-black px-8 py-4 rounded-full shadow-2xl animate-bounce z-20 tracking-wider">
                     Thả vào đây!
                   </span>
                 </div>
               )}
 
-              {(!mounted || cartItems.length === 0) && !isDragOverTray && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  suppressHydrationWarning
-                >
-                  <p className="text-gray-400 text-sm font-black bg-white px-5 py-3 rounded-full shadow-md border border-gray-150">
-                    Kéo thả món ăn vào đây
-                  </p>
-                </div>
-              )}
+              {(!mounted || cartItems.filter((i) => i.sessionId === sessionId).length === 0) &&
+                !isDragOverTray && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                    suppressHydrationWarning
+                  >
+                    <p className="text-gray-400 text-sm font-black bg-white px-5 py-3 rounded-full shadow-md border border-gray-150">
+                      Kéo thả món ăn vào đây
+                    </p>
+                  </div>
+                )}
             </div>
           </div>
 
@@ -835,8 +873,17 @@ function MenuContent() {
                               </span>
                             </div>
                             {setting && (
-                              <span className="text-xs md:text-sm text-orange-600 font-extrabold bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
+                              <span
+                                className={`text-xs md:text-sm font-extrabold px-4 py-2 rounded-xl border ${
+                                  setting.isRequired && cartCount < setting.minQuantity
+                                    ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
+                                    : "bg-orange-50 text-orange-600 border-orange-100"
+                                }`}
+                              >
                                 Đã chọn: {cartCount}/{setting.maxQuantity} món
+                                {setting.isRequired
+                                  ? ` (Bắt buộc từ ${setting.minQuantity} món)`
+                                  : " (Tùy chọn)"}
                               </span>
                             )}
                           </div>
@@ -857,6 +904,9 @@ function MenuContent() {
                             onDragStart={handleDragStart}
                             getSafeImageUrl={getSafeImageUrl}
                             onRipple={createRipple}
+                            onDragEnd={() => setIsDishDragging(false)}
+                            formatPoints={formatPoints}
+                            getDishQuantity={getDishQuantityInSession}
                           />
                         </div>
                       );
@@ -892,8 +942,17 @@ function MenuContent() {
                             </span>
                           </div>
                           {setting && (
-                            <span className="text-xs md:text-sm text-orange-600 font-extrabold bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
+                            <span
+                              className={`text-xs md:text-sm font-extrabold px-4 py-2 rounded-xl border ${
+                                setting.isRequired && cartCount < setting.minQuantity
+                                  ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
+                                  : "bg-orange-50 text-orange-600 border-orange-100"
+                              }`}
+                            >
                               Đã chọn: {cartCount}/{setting.maxQuantity} món
+                              {setting.isRequired
+                                ? ` (Bắt buộc từ ${setting.minQuantity} món)`
+                                : " (Tùy chọn)"}
                             </span>
                           )}
                         </div>
@@ -921,6 +980,9 @@ function MenuContent() {
                           onDragStart={handleDragStart}
                           getSafeImageUrl={getSafeImageUrl}
                           onRipple={createRipple}
+                          onDragEnd={() => setIsDishDragging(false)}
+                          formatPoints={formatPoints}
+                          getDishQuantity={getDishQuantityInSession}
                         />
                       </div>
                     );
@@ -937,12 +999,43 @@ function MenuContent() {
           className="fixed bottom-8 right-8 z-40 w-16 h-16 bg-[#FF4C24] text-white rounded-full shadow-[0_8px_25px_rgba(255,76,36,0.4)] flex items-center justify-center hover:bg-[#E03A12] transition-transform active:scale-95 hover:scale-105"
         >
           <ShoppingCart className="w-7 h-7" />
-          {mounted && getCartCount() > 0 && (
-            <span ref={fabCounterRef} className="absolute -top-1.5 -right-1 bg-white text-[#FF4C24] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#FF4C24] shadow-md">
-              {getCartCount()}
+          {mounted && sessionCartCount > 0 && (
+            <span
+              ref={fabCounterRef}
+              className="absolute -top-1.5 -right-1 bg-white text-[#FF4C24] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#FF4C24] shadow-md"
+            >
+              {sessionCartCount}
             </span>
           )}
         </button>
+
+        {isDishDragging && (
+          <>
+            <div
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropOnTray}
+              className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-dashed border-[#FF4C24] bg-white/95 px-6 py-5 text-center shadow-[0_-12px_40px_rgba(255,76,36,0.15)] backdrop-blur-md lg:hidden"
+            >
+              <ShoppingCart className="w-7 h-7 text-[#FF4C24] mx-auto mb-2" />
+              <p className="text-base font-black text-gray-800">Thả món vào khay đặt hàng</p>
+              <p className="text-xs font-semibold text-gray-400 mt-1">
+                Kéo lên đây — không cần kéo về mâm
+              </p>
+            </div>
+            <div
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDrop={handleDropOnTray}
+              className="fixed bottom-28 right-8 z-50 w-56 rounded-3xl border-2 border-dashed border-[#FF4C24] bg-white/95 px-5 py-4 text-center shadow-2xl backdrop-blur-md hidden lg:block"
+            >
+              <ShoppingCart className="w-7 h-7 text-[#FF4C24] mx-auto mb-2" />
+              <p className="text-sm font-black text-gray-800">Thả món vào đây</p>
+              <p className="text-xs font-semibold text-gray-400 mt-1">Không cần kéo về mâm</p>
+            </div>
+          </>
+        )}
       </main>
 
       <style
@@ -978,8 +1071,11 @@ function DishCard({
   dragPayload,
   onAddToCart,
   onDragStart,
+  onDragEnd,
   getUrl,
   onRipple,
+  formatPoints,
+  dishQuantity,
 }: {
   dish: Dish;
   disabled: boolean;
@@ -992,12 +1088,15 @@ function DishCard({
   categoryName: string;
   categoryId: string;
   sessionId: string | null;
-  mealDetail: { name?: string; availableForOrder?: string } | null;
+  mealDetail: { name?: string; availableForOrder?: string; isFinalized?: boolean } | null;
   dragPayload: Record<string, unknown>;
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
+  onDragEnd: () => void;
   getUrl: (url: string | null | undefined, fallback?: string) => string;
   onRipple: (e: React.MouseEvent<HTMLDivElement>) => void;
+  formatPoints: (points: number) => string;
+  dishQuantity: number;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -1025,13 +1124,27 @@ function DishCard({
       onDragStart={(e) => {
         if (!disabled) onDragStart(e, dragPayload);
       }}
+      onDragEnd={onDragEnd}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={(e) => {
         if (disabled) {
           if (notInTemplate) toast.error("Danh mục này không có trong template");
           else if (noTemplateChosen) toast.error("Chọn template để đặt món");
-          else if (expired) toast.error("Phiên ăn đã kết thúc");
+          else if (expired) {
+            const isFinalized = mealDetail && mealDetail.isFinalized;
+            const isDeadlinePassed =
+              mealDetail &&
+              mealDetail.availableForOrder &&
+              new Date(mealDetail.availableForOrder) < new Date();
+            toast.error(
+              isFinalized
+                ? "Phiên ăn đã được chốt đơn"
+                : isDeadlinePassed
+                  ? "Phiên ăn đã hết hạn đặt hàng"
+                  : "Phiên ăn đã kết thúc",
+            );
+          }
           return;
         }
         onRipple(e);
@@ -1079,6 +1192,11 @@ function DishCard({
           sizes="160px"
           className="object-cover rounded-full"
         />
+        {dishQuantity > 0 && (
+          <span className="absolute top-1 right-1 bg-[#FF4C24] text-white text-xs font-black min-w-[24px] h-6 rounded-full flex items-center justify-center px-1.5 border-2 border-white shadow-md z-10">
+            x{dishQuantity}
+          </span>
+        )}
         {!disabled && (
           <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
             <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">
@@ -1096,10 +1214,16 @@ function DishCard({
             {dish.description}
           </p>
         )}
-        <p className="font-black text-[#FF4C24] text-base sm:text-lg mt-1 inline-flex items-center gap-2 bg-orange-50 px-3.5 py-1 rounded-xl">
-          {dishPrice}
-          <Image src="/logo_point.png" alt="" width={16} height={16} className="object-contain" />
-        </p>
+        <div className="font-black text-[#FF4C24] text-base sm:text-lg mt-1 bg-orange-50 px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5">
+          <span>{formatPoints(dishPrice)}</span>
+          <Image
+            src="/logo_point.png"
+            alt="coin"
+            width={18}
+            height={18}
+            className="object-contain"
+          />
+        </div>
       </div>
     </div>
   );
@@ -1122,6 +1246,9 @@ function DishGrid({
   onDragStart,
   getSafeImageUrl: getUrl,
   onRipple,
+  onDragEnd,
+  formatPoints,
+  getDishQuantity,
 }: {
   dishes: Dish[];
   categoryName: string;
@@ -1134,11 +1261,14 @@ function DishGrid({
   noTemplateChosen: boolean;
   expired: boolean;
   sessionId: string | null;
-  mealDetail: { name?: string; availableForOrder?: string } | null;
+  mealDetail: { name?: string; availableForOrder?: string; isFinalized?: boolean } | null;
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
   getSafeImageUrl: (url: string | null | undefined, fallback?: string) => string;
   onRipple: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+  formatPoints: (points: number) => string;
+  getDishQuantity: (dishId: string) => number;
 }) {
   const canAddMore = !setting || cartCount < setting.maxQuantity;
 
@@ -1182,8 +1312,11 @@ function DishGrid({
             dragPayload={dragPayload}
             onAddToCart={onAddToCart}
             onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
             getUrl={getUrl}
             onRipple={onRipple}
+            formatPoints={formatPoints}
+            dishQuantity={getDishQuantity(finalDishGuid)}
           />
         );
       })}

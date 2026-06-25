@@ -7,6 +7,7 @@ import { useAuth } from "@/context/auth-context";
 import { useCart } from "@/context/cart-context";
 import { notificationService } from "@/services/notification.service";
 import NotificationDropdown from "@/components/features/notifications/NotificationDropdown";
+import { getAccessToken } from "@/lib/auth-token-storage";
 
 export default function Navbar() {
   const mounted = useSyncExternalStore(
@@ -24,7 +25,6 @@ export default function Navbar() {
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Session", href: "/session" },
-    { name: "Menu", href: "/menu" },
     { name: "About Us", href: "/about" },
   ];
   const [unreadCount, setUnreadCount] = useState(0);
@@ -43,7 +43,7 @@ export default function Navbar() {
   useEffect(() => {
     const fetchUnread = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
+        const token = getAccessToken();
         if (token) {
           const count = await notificationService.getUnreadCount();
           setUnreadCount(count);

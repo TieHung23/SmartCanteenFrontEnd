@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 
+const AUTH_INPUT_CLASS =
+  "h-16 w-full border-0 border-b-2 border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-4 shadow-none text-lg md:text-xl placeholder:text-gray-400";
+
 export const ForgotPasswordForm = () => {
   const router = useRouter();
   const [sent, setSent] = useState(false);
@@ -76,7 +79,7 @@ export const ForgotPasswordForm = () => {
           <Input
             {...register("email")}
             placeholder="Enter your email"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
+            className={AUTH_INPUT_CLASS}
           />
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
         </div>
@@ -84,7 +87,7 @@ export const ForgotPasswordForm = () => {
         <Button
           type="submit"
           disabled={mutation.isPending}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl text-base font-semibold shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2"
+          className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-base font-semibold shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2"
         >
           {mutation.isPending ? (
             <>

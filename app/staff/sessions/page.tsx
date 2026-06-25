@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import Image from "next/image";
 import {
   Loader2,
   AlertTriangle,
@@ -551,8 +552,15 @@ export default function StaffSessionsPage() {
                                           <p className="text-base font-black text-gray-800 truncate">
                                             {dishInfo?.name || "Món ăn ẩn"}
                                           </p>
-                                          <p className="text-sm text-gray-500 font-bold">
-                                            {(dishInfo?.price || 0).toLocaleString()} Point
+                                          <p className="text-sm text-gray-500 font-bold flex items-center gap-1">
+                                            <span>{(dishInfo?.price || 0).toLocaleString()}</span>
+                                            <Image
+                                              src="/logo_point.png"
+                                              alt="coin"
+                                              width={14}
+                                              height={14}
+                                              className="object-contain inline-block"
+                                            />
                                           </p>
                                         </div>
                                       </div>

@@ -85,12 +85,35 @@ export default function CheckoutPage() {
     userRemainingBalance: number;
   } | null>(null);
   const [sessionDetails, setSessionDetails] = useState<Map<string, SessionDetail>>(new Map());
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   // Use selectedSessionIds from cart, fall back to all unique session IDs
   const activeSessionIds = useMemo(
     () => (selectedSessionIds.length > 0 ? selectedSessionIds : uniqueSessionIds),
     [selectedSessionIds, uniqueSessionIds],
   );
+
+  const expiredSessions = useMemo(() => {
+    if (isLoadingDetails) return [];
+    const expiredList: { id: string; name: string; isInvalid?: boolean }[] = [];
+    for (const sid of activeSessionIds) {
+      const detail = sessionDetails.get(sid);
+      if (!detail) {
+        const sessionItems = cartItems.filter((i) => i.sessionId === sid);
+        const sessionName = sessionItems[0]?.sessionName || sid.slice(0, 8);
+        expiredList.push({ id: sid, name: sessionName, isInvalid: true });
+      } else {
+        const isExpired =
+          new Date(detail.availableForOrder) < new Date() ||
+          !detail.isActive ||
+          detail.isFinalized === true;
+        if (isExpired) {
+          expiredList.push({ id: sid, name: detail.name });
+        }
+      }
+    }
+    return expiredList;
+  }, [activeSessionIds, sessionDetails, isLoadingDetails, cartItems]);
 
   useEffect(() => {
     if (!orderResult && cartItems.length === 0) {
@@ -109,7 +132,12 @@ export default function CheckoutPage() {
   }, [cartItems, router, orderResult]);
 
   useEffect(() => {
-    if (activeSessionIds.length === 0) return;
+    if (activeSessionIds.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsLoadingDetails(false);
+      return;
+    }
+    setIsLoadingDetails(true);
     Promise.allSettled(
       activeSessionIds.map((sid) =>
         sessionService.getSessionDetail(sid).then((d) => [sid, d] as const),
@@ -120,6 +148,7 @@ export default function CheckoutPage() {
         if (r.status === "fulfilled") map.set(r.value[0], r.value[1]);
       }
       setSessionDetails(map);
+      setIsLoadingDetails(false);
     });
   }, [activeSessionIds]);
 
@@ -188,7 +217,7 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
     try {
       // Ensure cart is synced to server and get current version
-      const version = await ensureSynced();
+      const version = await ensureSynced(true);
       if (version === null) {
         toast.error("Không thể đồng bộ giỏ hàng. Vui lòng thử lại.");
         setIsSubmitting(false);
@@ -434,7 +463,7 @@ export default function CheckoutPage() {
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-10 px-4 sm:px-8">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-orange-100/30 to-transparent pointer-events-none" />
-        <div className="max-w-5xl mx-auto relative z-10">
+        <div className="max-w-7xl mx-auto relative z-10">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
@@ -486,10 +515,30 @@ export default function CheckoutPage() {
                 const detail = sessionDetails.get(sid);
                 const sessionItems = cartItems.filter((i) => i.sessionId === sid);
                 const sessionName = sessionItems[0]?.sessionName || sid.slice(0, 8);
-                if (!detail?.mealTemplates?.length) {
+                if (isLoadingDetails) {
                   return (
                     <div key={sid} className="text-xs text-gray-400 italic">
                       Đang tải cấu hình cho &ldquo;{sessionName}&rdquo;...
+                    </div>
+                  );
+                }
+                if (!detail?.mealTemplates?.length) {
+                  return (
+                    <div
+                      key={sid}
+                      className="text-xs text-red-500 font-semibold p-4 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between"
+                    >
+                      <span>Phiên ăn &ldquo;{sessionName}&rdquo; không hợp lệ hoặc đã bị xóa.</span>
+                      <button
+                        onClick={() => {
+                          const itemsToRemove = cartItems.filter((i) => i.sessionId === sid);
+                          itemsToRemove.forEach((i) => removeFromCart(i.dishId, sid));
+                          toast.success("Đã xóa phiên ăn không hợp lệ.");
+                        }}
+                        className="text-xs font-bold text-red-700 underline hover:text-red-900 ml-2"
+                      >
+                        Xóa
+                      </button>
                     </div>
                   );
                 }
@@ -570,17 +619,37 @@ export default function CheckoutPage() {
                   : detail?.mealTemplates?.[0];
                 const templateName = template?.name || "";
                 const sessionTotal = sessionItems.reduce((s, i) => s + i.price * i.quantity, 0);
+                const isExpired = detail
+                  ? new Date(detail.availableForOrder) < new Date() ||
+                    !detail.isActive ||
+                    detail.isFinalized === true
+                  : !isLoadingDetails;
 
                 return (
                   <div
                     key={sid}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                    className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+                      isExpired ? "border-red-200" : "border-gray-100"
+                    }`}
                   >
                     {/* Session Header */}
-                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-4 border-b border-orange-100">
+                    <div
+                      className={`px-5 py-4 border-b transition-colors ${
+                        isExpired
+                          ? "bg-red-50/80 border-red-100"
+                          : "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-100"
+                      }`}
+                    >
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-bold text-gray-800">{sessionName}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-800">{sessionName}</h3>
+                            {isExpired && (
+                              <span className="text-[10px] font-extrabold text-red-600 bg-red-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                {detail?.isFinalized ? "Đã chốt đơn" : "Hết hạn đặt"}
+                              </span>
+                            )}
+                          </div>
                           {templateName && (
                             <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                               <Calendar className="w-3 h-3" /> {templateName}
@@ -761,6 +830,36 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
+                {expiredSessions.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6 flex flex-col gap-2">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5 animate-bounce" />
+                      <div>
+                        <p className="text-sm font-bold text-red-800">
+                          Giỏ hàng có phiên ăn hết hạn
+                        </p>
+                        <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                          Phiên ăn <strong>{expiredSessions.map((s) => s.name).join(", ")}</strong>{" "}
+                          đã quá hạn đặt hàng hoặc không còn hoạt động. Vui lòng loại bỏ để tiếp tục
+                          thanh toán.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        expiredSessions.forEach((es) => {
+                          const itemsToRemove = cartItems.filter((i) => i.sessionId === es.id);
+                          itemsToRemove.forEach((i) => removeFromCart(i.dishId, es.id));
+                        });
+                        toast.success("Đã xóa các phiên ăn hết hạn khỏi giỏ hàng.");
+                      }}
+                      className="self-start text-xs font-bold text-red-700 underline hover:text-red-900 mt-1"
+                    >
+                      Xóa nhanh các món hết hạn
+                    </button>
+                  </div>
+                )}
+
                 {isBlocked ? (
                   <div className="space-y-4">
                     <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
@@ -805,8 +904,8 @@ export default function CheckoutPage() {
                 ) : hasEnoughPoints ? (
                   <button
                     onClick={handleCreateOrder}
-                    disabled={isSubmitting || isSyncing}
-                    className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 flex items-center justify-center gap-2"
+                    disabled={isSubmitting || isSyncing || expiredSessions.length > 0}
+                    className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSubmitting || isSyncing ? (
                       <>
@@ -825,9 +924,10 @@ export default function CheckoutPage() {
                       <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-bold text-[#B34700]">Insufficient Balance</p>
-                        <p className="text-xs text-orange-500 mt-1">
-                          You need <strong>{formatPts(neededPoints)}</strong> more points. Please
-                          top up.
+                        <p className="text-xs text-orange-500 mt-1 flex items-center gap-1 flex-wrap">
+                          You need{" "}
+                          <PtsDisplay amount={neededPoints} className="font-bold text-[#D35400]" />{" "}
+                          to complete this order. Please top up.
                         </p>
                       </div>
                     </div>
@@ -838,7 +938,8 @@ export default function CheckoutPage() {
                           setTopUpAmount(Math.max(50000, neededPoints * 1000));
                           setIsTopUpOpen(true);
                         }}
-                        className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                        disabled={expiredSessions.length > 0}
+                        className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <ArrowUpRight className="w-4 h-4" /> Top Up &amp; Pay
                       </button>

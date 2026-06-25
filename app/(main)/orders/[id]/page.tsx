@@ -98,7 +98,7 @@ export default function OrderDetailPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6 font-sans">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
@@ -110,55 +110,74 @@ export default function OrderDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
               <div>
-                <h1 className="text-2xl font-extrabold text-gray-800">Order Details</h1>
-                <p className="text-xs text-gray-400 font-mono mt-1">
-                  ID: {order.id.slice(0, 8)}...
-                </p>
+                <h1 className="text-3xl font-black text-gray-800">Order Details</h1>
+                <p className="text-sm text-gray-400 font-mono mt-1">ID: {order.id}</p>
               </div>
               <div className="text-right">
                 <span
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                  className="text-sm font-black px-4 py-2 rounded-xl"
                   style={{ background: meta.bg, color: meta.color }}
                 >
                   {meta.icon} {meta.label}
                 </span>
-                <p className="text-[10px] text-gray-400 mt-1">{formatDate(order.createdAtUtc)}</p>
+                <p className="text-xs text-gray-400 mt-2 font-semibold">
+                  {formatDate(order.createdAtUtc)}
+                </p>
               </div>
             </div>
 
             {/* Items */}
-            <h2 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <Package className="w-4 h-4 text-[#D35400]" /> Items
+            <h2 className="text-lg font-black text-gray-800 mb-5 flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#D35400]" /> Items
             </h2>
-            <div className="space-y-3 mb-8">
+            <div className="space-y-4 mb-8">
               {order.items?.map((item) => (
                 <div
                   key={item.dishId}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
+                  className="flex items-center justify-between p-5 md:p-6 bg-gray-50 rounded-2xl border border-gray-100/50"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     {item.imgUrl && (
                       <Image
                         src={item.imgUrl}
                         alt={item.dishName || ""}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-lg object-cover bg-gray-100"
+                        width={64}
+                        height={64}
+                        className="w-16 h-16 rounded-xl object-cover bg-gray-100 border border-gray-100 shadow-3xs"
                       />
                     )}
                     <div>
-                      <p className="text-sm font-bold text-gray-800">
+                      <p className="text-base font-extrabold text-gray-850">
                         {item.dishName || `${item.dishId.slice(0, 8)}...`}
                       </p>
-                      <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                      <p className="text-sm text-gray-500 font-semibold mt-0.5">
+                        Quantity: {item.quantity}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-[#D35400]">
-                      {new Intl.NumberFormat("vi-VN").format(item.unitPrice * item.quantity)} pts
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <p className="text-base font-black text-[#D35400] flex items-center gap-0.5">
+                      <span>
+                        {new Intl.NumberFormat("vi-VN").format(item.unitPrice * item.quantity)}
+                      </span>
+                      <Image
+                        src="/logo_point.png"
+                        alt="coin"
+                        width={16}
+                        height={16}
+                        className="object-contain"
+                      />
                     </p>
-                    <p className="text-[10px] text-gray-400">
-                      {new Intl.NumberFormat("vi-VN").format(item.unitPrice)} pts each
+                    <p className="text-xs text-gray-400 flex items-center gap-0.5 font-medium">
+                      <span>{new Intl.NumberFormat("vi-VN").format(item.unitPrice)}</span>
+                      <Image
+                        src="/logo_point.png"
+                        alt="coin"
+                        width={12}
+                        height={12}
+                        className="object-contain"
+                      />
+                      <span>each</span>
                     </p>
                   </div>
                 </div>
@@ -166,15 +185,22 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Summary */}
-            <div className="border-t border-gray-100 pt-6 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Items</span>
-                <span className="font-bold text-gray-800">{order.itemCount}</span>
+            <div className="border-t border-gray-100 pt-6 space-y-4">
+              <div className="flex justify-between text-base">
+                <span className="text-gray-500 font-medium">Items</span>
+                <span className="font-extrabold text-gray-855">{order.itemCount}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total Price</span>
-                <span className="font-black text-[#D35400] text-lg">
-                  {new Intl.NumberFormat("vi-VN").format(order.totalPrice)} pts
+              <div className="flex justify-between items-center text-base">
+                <span className="text-gray-500 font-medium">Total Price</span>
+                <span className="font-black text-[#D35400] text-2xl flex items-center gap-1">
+                  <span>{new Intl.NumberFormat("vi-VN").format(order.totalPrice)}</span>
+                  <Image
+                    src="/logo_point.png"
+                    alt="coin"
+                    width={22}
+                    height={22}
+                    className="object-contain"
+                  />
                 </span>
               </div>
               {order.transactionId && (

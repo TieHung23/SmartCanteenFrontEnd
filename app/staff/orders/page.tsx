@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Image from "next/image";
 import {
   Loader2,
   Clock,
@@ -414,8 +415,15 @@ export default function StaffOrdersPage() {
                     <div className="text-sm font-bold text-gray-400 uppercase tracking-wider text-left md:text-right">
                       Tổng điểm
                     </div>
-                    <div className="text-xl font-extrabold text-gray-900 mt-1 text-[#FF4C24]">
-                      {currentTotalPrice.toLocaleString()} P
+                    <div className="text-xl font-extrabold text-[#FF4C24] mt-1 flex items-center justify-start md:justify-end gap-1">
+                      <span>{currentTotalPrice.toLocaleString()}</span>
+                      <Image
+                        src="/logo_point.png"
+                        alt="coin"
+                        width={14}
+                        height={14}
+                        className="object-contain inline-block"
+                      />
                     </div>
                   </div>
                   <button
@@ -476,8 +484,15 @@ export default function StaffOrdersPage() {
                           Số lượng: {item.quantity || 0}
                         </p>
                       </div>
-                      <span className="font-black text-gray-900">
-                        {(item.price || 0) * (item.quantity || 1)} P
+                      <span className="font-black text-gray-900 flex items-center gap-1">
+                        <span>{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                        <Image
+                          src="/logo_point.png"
+                          alt="coin"
+                          width={12}
+                          height={12}
+                          className="object-contain inline-block"
+                        />
                       </span>
                     </div>
                   ))}

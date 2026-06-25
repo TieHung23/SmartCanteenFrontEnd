@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/stores/use-user";
+import { clearAuthTokens } from "@/lib/auth-token-storage";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/staff", icon: LayoutDashboard },
@@ -42,8 +43,7 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
   }, [fetchProfile]);
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    clearAuthTokens();
     router.push("/login");
   };
 
@@ -55,7 +55,7 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
     <aside
       className={cn(
         "fixed inset-y-0 left-0 w-[300px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 lg:sticky lg:h-screen lg:w-[350px] lg:translate-x-0 p-6 shadow-sm justify-between",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
       <div className="space-y-8 flex flex-col flex-1 overflow-hidden relative">

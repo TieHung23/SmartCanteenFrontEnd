@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Plus, Search, Trash2, UtensilsCrossed } from "lucide-react";
 import { dishService } from "@/services/dish.service";
@@ -9,14 +8,39 @@ import { categoryService } from "@/services/category.service";
 import type { Dish } from "@/types/dish.types";
 import type { Category } from "@/types/category.types";
 import { cn } from "@/lib/utils";
+import Modal from "../_components/modal";
 
 export default function ManagerMenuPage() {
-  const router = useRouter();
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+
+  // Modal & Form States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const [formName, setFormName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formPrice, setFormPrice] = useState("");
+  const [formCategoryId, setFormCategoryId] = useState("");
+  const [formIsActive, setFormIsActive] = useState(true);
+  const [formImage, setFormImage] = useState<File | null>(null);
+  const [formPreview, setFormPreview] = useState<string | null>(null);
+  const [formExistingImgUrl, setFormExistingImgUrl] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const fetchDishes = async () => {
+    try {
+      const res = await dishService.getDishes({ pageSize: 100 });
+      setDishes(res.items);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +88,122 @@ export default function ManagerMenuPage() {
     }
   };
 
+  // Form helpers
+  const openCreateModal = () => {
+    setFormName("");
+    setFormDescription("");
+    setFormPrice("");
+    setFormCategoryId(categories.length > 0 ? categories[0].id : "");
+    setFormIsActive(true);
+    setFormImage(null);
+    setFormPreview(null);
+    setFormExistingImgUrl(null);
+    setFormError(null);
+    setFormSubmitting(false);
+    setIsCreateOpen(true);
+  };
+
+  const openEditModal = (dish: Dish) => {
+    setEditId(dish.id);
+    setFormName(dish.name);
+    setFormDescription(dish.description || "");
+    setFormPrice(String(dish.price));
+    setFormCategoryId(dish.categoryId);
+    setFormIsActive(dish.isActive);
+    setFormImage(null);
+    setFormPreview(null);
+    setFormExistingImgUrl(dish.imgUrl || null);
+    setFormError(null);
+    setFormSubmitting(false);
+    setIsEditOpen(true);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFormImage(file);
+      setFormPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleCreateSubmit = async () => {
+    if (!formName.trim()) {
+      setFormError("Tên món ăn là bắt buộc.");
+      return;
+    }
+    if (!formDescription.trim()) {
+      setFormError("Mô tả món ăn là bắt buộc.");
+      return;
+    }
+    if (!formPrice || Number(formPrice) <= 0) {
+      setFormError("Đơn giá phải lớn hơn 0.");
+      return;
+    }
+    if (!formCategoryId) {
+      setFormError("Danh mục là bắt buộc.");
+      return;
+    }
+
+    setFormSubmitting(true);
+    setFormError(null);
+
+    try {
+      await dishService.createDish({
+        name: formName.trim(),
+        description: formDescription.trim(),
+        price: Number(formPrice),
+        categoryId: formCategoryId,
+        image: formImage || undefined,
+      });
+      setIsCreateOpen(false);
+      fetchDishes();
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to create dish");
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editId) return;
+    if (!formName.trim()) {
+      setFormError("Tên món ăn là bắt buộc.");
+      return;
+    }
+    if (!formDescription.trim()) {
+      setFormError("Mô tả món ăn là bắt buộc.");
+      return;
+    }
+    if (!formPrice || Number(formPrice) <= 0) {
+      setFormError("Đơn giá phải lớn hơn 0.");
+      return;
+    }
+    if (!formCategoryId) {
+      setFormError("Danh mục là bắt buộc.");
+      return;
+    }
+
+    setFormSubmitting(true);
+    setFormError(null);
+
+    try {
+      await dishService.updateDish(editId, {
+        name: formName.trim(),
+        description: formDescription.trim(),
+        price: Number(formPrice),
+        categoryId: formCategoryId,
+        isActive: formIsActive,
+        image: formImage || undefined,
+      });
+      setIsEditOpen(false);
+      fetchDishes();
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to update dish");
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
   const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
 
   const filtered = dishes.filter((d) => {
@@ -78,10 +218,12 @@ export default function ManagerMenuPage() {
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-4xl font-extrabold text-gray-900">Menu Settings</h1>
-          <p className="text-lg text-gray-500 mt-1.5">Quản lý thực đơn và điều chỉnh trạng thái các món ăn.</p>
+          <p className="text-lg text-gray-500 mt-1.5">
+            Quản lý thực đơn và điều chỉnh trạng thái các món ăn.
+          </p>
         </div>
         <button
-          onClick={() => router.push("/manager/menu/new")}
+          onClick={openCreateModal}
           className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
           <Plus className="w-5 h-5" />
@@ -100,7 +242,7 @@ export default function ManagerMenuPage() {
             className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
           />
         </div>
-        
+
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
@@ -164,24 +306,26 @@ export default function ManagerMenuPage() {
                 </button>
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-400 mb-5">
-                <span className="font-bold text-gray-500">{categoryMap[dish.categoryId] || "—"}</span>
+                <span className="font-bold text-gray-500">
+                  {categoryMap[dish.categoryId] || "—"}
+                </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                 <span className=" inline-flex items-center gap-1 font-black text-[#D35400]">
                   {dish.price}
-                  <div className="relative w-5 h-5 opacity-95"> 
-                  <Image
-                    src="/logo_point.png"
-                    alt="Watermark Logo"
-                    fill
-                    sizes="24px"
-                    className="object-contain filter brightness-110"
-                  />
-                </div>
+                  <div className="relative w-5 h-5 opacity-95">
+                    <Image
+                      src="/logo_point.png"
+                      alt="Watermark Logo"
+                      fill
+                      sizes="24px"
+                      className="object-contain filter brightness-110"
+                    />
+                  </div>
                 </span>
               </div>
               <div className="mt-auto flex items-center gap-3">
                 <button
-                  onClick={() => router.push(`/manager/menu/${dish.id}/edit`)}
+                  onClick={() => openEditModal(dish)}
                   className="flex-1 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
                 >
                   Edit
@@ -197,7 +341,253 @@ export default function ManagerMenuPage() {
           ))}
         </div>
       )}
+
+      {/* ── CREATE DISH MODAL ── */}
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="New Dish"
+        size="md"
+      >
+        <div className="space-y-6">
+          {formError && (
+            <div className="bg-red-50 border border-red-200/50 text-red-700 px-5 py-4 rounded-3xl text-sm font-bold shadow-xs">
+              ⚠️ {formError}
+            </div>
+          )}
+
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Tên món ăn *</label>
+              <input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g. Cơm tấm sườn bì chả"
+                className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-3xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Mô tả món ăn *</label>
+              <textarea
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="Mô tả chi tiết món ăn..."
+                rows={4}
+                className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-3xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  Giá tiền (Points) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={formPrice}
+                  onChange={(e) => setFormPrice(e.target.value)}
+                  placeholder="e.g. 30"
+                  className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-3xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">Danh mục món *</label>
+                <select
+                  value={formCategoryId}
+                  onChange={(e) => setFormCategoryId(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl text-base outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-3xs cursor-pointer"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">
+                Hình ảnh đại diện
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full text-base text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:bg-orange-50 file:text-[#D35400] hover:file:bg-orange-100/80 transition-colors cursor-pointer"
+              />
+              {formPreview && (
+                <div className="mt-4 p-2 bg-gray-50 border border-gray-100 rounded-3xl w-fit shadow-2xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={formPreview}
+                    alt="Preview"
+                    className="w-40 h-40 rounded-2xl object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-4 border-t border-gray-100 pt-5">
+            <button
+              onClick={() => setIsCreateOpen(false)}
+              className="px-6 py-3 border border-gray-200/50 hover:border-gray-300 text-gray-600 rounded-2xl text-base font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-3xs"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              onClick={handleCreateSubmit}
+              disabled={formSubmitting}
+              className="px-8 py-3 bg-[#D35400] text-white rounded-2xl text-base font-black hover:bg-[#b84900] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {formSubmitting ? "Đang tạo..." : "Tạo món ăn"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── EDIT DISH MODAL ── */}
+      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Dish" size="md">
+        <div className="space-y-6">
+          {formError && (
+            <div className="bg-red-50 border border-red-200/50 text-red-700 px-5 py-4 rounded-3xl text-sm font-bold shadow-xs">
+              ⚠️ {formError}
+            </div>
+          )}
+
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Tên món ăn *</label>
+              <input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="Dish name"
+                className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-3xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Mô tả món ăn *</label>
+              <textarea
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="Description of the dish..."
+                rows={4}
+                className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-3xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  Giá tiền (Points) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={formPrice}
+                  onChange={(e) => setFormPrice(e.target.value)}
+                  placeholder="e.g. 30"
+                  className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-3xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">Danh mục món *</label>
+                <select
+                  value={formCategoryId}
+                  onChange={(e) => setFormCategoryId(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl text-base outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-3xs cursor-pointer"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200/30 rounded-2xl p-4">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formIsActive}
+                onChange={(e) => setFormIsActive(e.target.checked)}
+                className="w-5 h-5 accent-[#D35400] rounded-sm cursor-pointer"
+              />
+              <label
+                htmlFor="isActive"
+                className="text-sm font-bold text-gray-700 select-none cursor-pointer"
+              >
+                Món ăn này đang được mở phục vụ (Active)
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">
+                Hình ảnh đại diện
+              </label>
+              <div className="flex flex-col sm:flex-row gap-6 mb-4">
+                {formExistingImgUrl && !formPreview && (
+                  <div className="p-2 bg-gray-50 border border-gray-100 rounded-3xl w-fit shadow-2xs">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-wide mb-2">
+                      Ảnh hiện tại:
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={formExistingImgUrl}
+                      alt="Current"
+                      className="w-36 h-36 rounded-2xl object-cover"
+                    />
+                  </div>
+                )}
+                {formPreview && (
+                  <div className="p-2 bg-gray-50 border border-gray-100 rounded-3xl w-fit shadow-2xs">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-wide mb-2">
+                      Ảnh mới:
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={formPreview}
+                      alt="Preview"
+                      className="w-36 h-36 rounded-2xl object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full text-base text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:bg-orange-50 file:text-[#D35400] hover:file:bg-orange-100/80 transition-colors cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-4 border-t border-gray-100 pt-5">
+            <button
+              onClick={() => setIsEditOpen(false)}
+              className="px-6 py-3 border border-gray-200/50 hover:border-gray-300 text-gray-600 rounded-2xl text-base font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-3xs"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              onClick={handleEditSubmit}
+              disabled={formSubmitting}
+              className="px-8 py-3 bg-[#D35400] text-white rounded-2xl text-base font-black hover:bg-[#b84900] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {formSubmitting ? "Đang lưu..." : "Cập nhật món ăn"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
-

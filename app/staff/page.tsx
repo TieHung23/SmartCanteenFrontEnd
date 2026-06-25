@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Image from "next/image";
 import { StatsGrid } from "./_components/stats-grid";
 import { AlertTriangle, Cpu, RefreshCw } from "lucide-react";
 import apiClient from "@/lib/api/client";
@@ -166,8 +167,15 @@ export default function StaffDashboardPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <span className="text-lg font-bold text-[#FF4C24]">
-                      {order.totalPrice?.toLocaleString()} P
+                    <span className="text-lg font-bold text-[#FF4C24] flex items-center gap-1">
+                      <span>{(order.totalPrice || 0).toLocaleString()}</span>
+                      <Image
+                        src="/logo_point.png"
+                        alt="coin"
+                        width={14}
+                        height={14}
+                        className="object-contain inline-block"
+                      />
                     </span>
                   </div>
                 </div>
