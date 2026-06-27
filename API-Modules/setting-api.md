@@ -1,59 +1,16 @@
 ﻿# SmartCanteen Setting API
 
-> Generated from `API-Document.md`. Run `.\tools\generate-api-modules.ps1` after updating the main document.
-
-# SmartCanteen API Documentation
-
-Base URL: `/api`  
-API Version: `1.0`  
-All timestamps: `DateTimeOffset` (ISO 8601)  
-Currency: **Point** (no currency field exposed)
-
-Module documentation: [`API-Modules/README.md`](API-Modules/README.md)
-
-Every response is wrapped in a standard envelope:
-
-```json
-{
-  "value": {},
-  "isSuccess": true,
-  "isFailure": false,
-  "message": "string",
-  "error": null
-}
-```
-
-On failure `value` is null, `isSuccess` false, `error` is a string code.
-
-Pagination query param defaults: `pageNumber=1`, `pageSize=10` (max 100).  
-Paginated response shape:
-
-```json
-{
-  "value": {
-    "items": [],
-    "pageNumber": 1,
-    "pageSize": 10,
-    "totalCount": 42,
-    "totalPages": 5,
-    "hasPreviousPage": false,
-    "hasNextPage": true
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
+Base URL: `/api/settings`  
+Auth: `[Authorize(Roles = "Manager")]` (Manager only)  
+API Version: `1.0`
 
 ---
 
-## Settings
+## `GET /api/settings`
 
-### `GET /api/settings`
-
-**Auth:** Authorize  
 **Query:** `?code=string&name=string&group=string&type=string&pageNumber=1&pageSize=10`
 
-**Paginated response items:**
+Paginated items:
 
 ```json
 {
@@ -67,9 +24,7 @@ Paginated response shape:
 }
 ```
 
-### `GET /api/settings/{id}`
-
-**Auth:** Authorize
+## `GET /api/settings/{id}`
 
 **Response:**
 
@@ -84,16 +39,13 @@ Paginated response shape:
     "value": "string",
     "type": "string"
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
 
-### `POST /api/settings`
+`404` if not found.
 
-**Auth:** Authorize
-
-**Request body:**
+## `POST /api/settings`
 
 ```json
 {
@@ -106,29 +58,11 @@ Paginated response shape:
 }
 ```
 
-**201 Response:**
+**201 Response:** Returns `Location` header.
 
-```json
-{
-  "value": {
-    "id": "guid",
-    "code": "string",
-    "name": "string",
-    "description": "string",
-    "group": "string",
-    "value": "string",
-    "type": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
+## `PUT /api/settings/{id}`
 
-### `PUT /api/settings/{id}`
-
-**Auth:** Authorize
-
-**Request body:**
+`code` is not updatable (not in body).
 
 ```json
 {
@@ -140,39 +74,6 @@ Paginated response shape:
 }
 ```
 
-**Response:**
+## `DELETE /api/settings/{id}`
 
-```json
-{
-  "value": {
-    "id": "guid",
-    "code": "string",
-    "name": "string",
-    "description": "string",
-    "group": "string",
-    "value": "string",
-    "type": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
-### `DELETE /api/settings/{id}`
-
-**Auth:** Authorize
-
-**Response:**
-
-```json
-{
-  "value": {
-    "id": "guid",
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
----
+`404` if not found.

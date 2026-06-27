@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Calendar, Clock, Trash2 } from "lucide-react";
+import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
@@ -61,45 +61,48 @@ export default function ManagerSessionsPage() {
     : sessions;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-fade-in pb-12">
+      {/* Header Block */}
+      <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Serving Sessions</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage meal serving sessions</p>
+          <h1 className="text-4xl font-extrabold text-gray-900">Serving Sessions</h1>
+          <p className="text-lg text-gray-500 mt-1.5">Quản lý và điều phối các phiên/ca ăn phục vụ.</p>
         </div>
         <button
           onClick={() => router.push("/manager/sessions/new")}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#D35400] text-white rounded-xl text-sm font-semibold hover:bg-[#b84900] transition-colors shadow-sm"
+          className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5" />
           New Session
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
-            placeholder="Search sessions..."
+            placeholder="Tìm kiếm ca ăn..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all bg-white"
+            className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
           />
         </div>
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+
+        <div className="flex bg-gray-100/80 border border-gray-150 rounded-3xl p-1 shrink-0 w-full sm:w-auto">
           {[
-            { label: "All", value: null },
-            { label: "Active", value: true },
-            { label: "Inactive", value: false },
+            { label: "Tất cả", value: null },
+            { label: "Hoạt động", value: true },
+            { label: "Đã khóa", value: false },
           ].map((opt) => (
             <button
               key={String(opt.value)}
               onClick={() => setShowActive(opt.value)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                "flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl text-sm font-black transition-all uppercase tracking-wider text-center",
                 showActive === opt.value
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700",
+                  ? "bg-white text-gray-900 shadow-sm border border-gray-200/60"
+                  : "text-gray-500 hover:text-gray-800",
               )}
             >
               {opt.label}
@@ -108,73 +111,94 @@ export default function ManagerSessionsPage() {
         </div>
       </div>
 
+      {/* Content Section */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-          <span className="ml-3 text-sm text-gray-400">Loading...</span>
+        <div className="flex h-[40vh] flex-col items-center justify-center gap-3">
+          <div className="w-12 h-12 border-4 border-[#D35400] border-t-transparent rounded-full animate-spin" />
+          <p className="text-base font-bold text-gray-500">Đang tải danh sách ca bán...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
-          <p className="text-gray-400 font-medium">No sessions found.</p>
+        <div className="bg-white rounded-3xl border border-gray-100 p-16 text-center shadow-xs">
+          <p className="text-gray-400 font-bold text-lg">Không tìm thấy ca phục vụ nào.</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {filtered.map((session) => (
             <div
               key={session.id}
               onClick={() => router.push(`/manager/sessions/${session.id}`)}
-              className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-orange-200 transition-all cursor-pointer"
+              className="bg-white rounded-3xl border border-gray-100 p-6 hover:shadow-md hover:border-orange-200 transition-all duration-300 cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-2xs"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-base font-bold text-gray-900 truncate">{session.name}</h3>
-                    <span
-                      className={cn(
-                        "shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold",
-                        session.isActive
-                          ? "bg-green-50 text-green-700"
-                          : "bg-gray-100 text-gray-500",
-                      )}
-                    >
-                      {session.isActive ? "Active" : "Inactive"}
-                    </span>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-[#D35400] border border-orange-100/50 shadow-3xs shrink-0">
+                    <Coffee className="w-5 h-5" />
                   </div>
-                  {session.description && (
-                    <p className="text-sm text-gray-500 line-clamp-1 mb-3">{session.description}</p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-gray-400">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {formatDate(session.availableFrom)}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5" />
-                      {formatDate(session.availableTo)}
-                    </span>
-                    <span className="font-medium">{session.dishes?.length ?? 0} dishes</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/manager/sessions/${session.id}`);
-                    }}
-                    className="px-4 py-2 bg-[#D35400]/10 text-[#D35400] rounded-xl text-sm font-semibold hover:bg-[#D35400]/20 transition-colors"
+                  <h3 className="text-xl font-black text-gray-900 truncate tracking-wide">
+                    {session.name}
+                  </h3>
+                  <span
+                    className={cn(
+                      "shrink-0 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider",
+                      session.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-500",
+                    )}
                   >
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(session.id, session.name);
-                    }}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    {session.isActive ? "Active" : "Inactive"}
+                  </span>
                 </div>
+                
+                {session.description && (
+                  <p className="text-sm text-gray-500 line-clamp-1 italic px-1">
+                    📝 {session.description}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-400 px-1 pt-1">
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    Bắt đầu: {formatDate(session.availableFrom)}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    Kết thúc: {formatDate(session.availableTo)}
+                  </span>
+                  <span className="font-bold text-[#D35400] bg-orange-50 border border-orange-100/40 rounded-xl px-2 py-0.5 text-xs">
+                    {session.dishes?.length ?? 0} dishes
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/manager/sessions/new?copyFrom=${session.id}`);
+                  }}
+                  className="p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all shrink-0"
+                  title="Copy session template"
+                >
+                  <Copy className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/manager/sessions/${session.id}`);
+                  }}
+                  className="px-5 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(session.id, session.name);
+                  }}
+                  className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl border border-transparent hover:border-red-100 transition-all shrink-0"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
             </div>
           ))}

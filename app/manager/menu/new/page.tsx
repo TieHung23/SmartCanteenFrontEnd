@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { dishService } from "@/services/dish.service";
 import { categoryService } from "@/services/category.service";
 import type { Category } from "@/types/category.types";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 
 export default function NewDishPage() {
   const router = useRouter();
@@ -43,19 +43,19 @@ export default function NewDishPage() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Dish name is required.");
+      setError("Tên món ăn là bắt buộc.");
       return;
     }
     if (!description.trim()) {
-      setError("Description is required.");
+      setError("Mô tả món ăn là bắt buộc.");
       return;
     }
     if (!price || Number(price) <= 0) {
-      setError("Price must be > 0.");
+      setError("Đơn giá phải lớn hơn 0.");
       return;
     }
     if (!categoryId) {
-      setError("Category is required.");
+      setError("Danh mục là bắt buộc.");
       return;
     }
 
@@ -80,63 +80,79 @@ export default function NewDishPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-        <span className="ml-3 text-sm text-gray-500">Loading...</span>
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-3">
+        <div className="w-12 h-12 border-4 border-[#D35400] border-t-transparent rounded-full animate-spin" />
+        <p className="text-base font-bold text-gray-500">Đang tải danh mục món ăn...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">New Dish</h1>
-        <p className="text-sm text-gray-500 mt-1">Add a new dish to the menu</p>
+    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-12 px-4 md:px-0">
+      {/* Back Button & Header */}
+      <div className="space-y-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-base font-bold text-gray-500 hover:text-[#D35400] transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Menu Settings
+        </button>
+
+        <div className="border-b border-gray-200 pb-6">
+          <h1 className="text-4xl font-extrabold text-gray-900">New Dish</h1>
+          <p className="text-lg text-gray-500 mt-1.5">Thêm món ăn mới vào thực đơn canteen.</p>
+        </div>
       </div>
 
-      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200/50 text-red-700 px-5 py-4 rounded-3xl text-base font-bold shadow-xs">
+          ⚠️ {error}
+        </div>
+      )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+      {/* Form Container */}
+      <div className="bg-white rounded-3xl border border-gray-200/60 p-10 space-y-8 shadow-sm">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Dish Name *</label>
+          <label className="block text-base font-bold text-gray-800 mb-2">Tên món ăn *</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Cơm gà"
-            className="w-full h-10 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400]"
+            placeholder="e.g. Cơm tấm sườn bì chả"
+            className="w-full px-5 py-4 text-lg bg-white border border-gray-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+          <label className="block text-base font-bold text-gray-800 mb-2">Mô tả món ăn *</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Dish description"
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 resize-none"
+            placeholder="Mô tả nguyên liệu, hương vị món ăn..."
+            rows={5}
+            className="w-full px-5 py-4 text-lg bg-white border border-gray-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-2xs"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Price (Point) *</label>
+            <label className="block text-base font-bold text-gray-800 mb-2">Giá tiền (Points) *</label>
             <input
               type="number"
               min={0}
               step={0.5}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="25"
-              className="w-full h-10 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20"
+              placeholder="e.g. 30"
+              className="w-full px-5 py-4 text-lg bg-white border border-gray-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+            <label className="block text-base font-bold text-gray-800 mb-2">Danh mục món ăn *</label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full h-10 px-4 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D35400]/20"
+              className="w-full px-5 py-4 bg-white border border-gray-200/60 rounded-2xl text-lg font-bold outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all cursor-pointer shadow-2xs"
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -148,41 +164,41 @@ export default function NewDishPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Image (optional)</label>
+          <label className="block text-base font-bold text-gray-800 mb-2">Hình ảnh minh họa</label>
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#D35400]/10 file:text-[#D35400] hover:file:bg-[#D35400]/20"
+            className="w-full text-base text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-2xl file:border-0 file:text-sm file:font-black file:uppercase file:bg-orange-50 file:text-[#D35400] hover:file:bg-orange-100/80 transition-colors cursor-pointer"
           />
           {preview && (
-            <Image
-              src={preview}
-              alt="Preview"
-              width={128}
-              height={128}
-              className="mt-3 w-32 h-32 object-cover rounded-xl border border-gray-200"
-            />
+            <div className="mt-4 p-2 bg-gray-50 border border-gray-100 rounded-3xl w-fit shadow-2xs">
+              <Image
+                src={preview}
+                alt="Preview"
+                width={224}
+                height={224}
+                className="w-56 h-56 object-cover rounded-2xl"
+              />
+            </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 pb-8">
+      {/* Buttons */}
+      <div className="flex items-center justify-end gap-4">
         <button
           onClick={() => router.push("/manager/menu")}
-          className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+          className="px-7 py-4 border border-gray-200/80 text-gray-600 rounded-2xl text-lg font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors"
         >
-          Cancel
+          Hủy bỏ
         </button>
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className={cn(
-            "px-6 py-2.5 bg-[#D35400] text-white rounded-xl text-sm font-semibold transition-colors shadow-sm",
-            submitting ? "opacity-60 cursor-not-allowed" : "hover:bg-[#b84900]",
-          )}
+          className="px-10 py-4 bg-[#D35400] text-white rounded-2xl text-lg font-bold hover:bg-[#b84900] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {submitting ? "Creating..." : "Create Dish"}
+          {submitting ? "Đang tạo..." : "Tạo món ăn"}
         </button>
       </div>
     </div>

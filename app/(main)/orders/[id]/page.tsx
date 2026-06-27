@@ -111,7 +111,9 @@ export default function OrderDetailPage() {
             <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
               <div>
                 <h1 className="text-2xl font-extrabold text-gray-800">Order Details</h1>
-                <p className="text-xs text-gray-400 font-mono mt-1">ID: {order.id}</p>
+                <p className="text-xs text-gray-400 font-mono mt-1">
+                  ID: {order.id.slice(0, 8)}...
+                </p>
               </div>
               <div className="text-right">
                 <span

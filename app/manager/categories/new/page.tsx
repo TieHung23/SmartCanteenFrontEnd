@@ -28,7 +28,7 @@ export default function NewCategoryPage() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Name is required.");
+      setError("Tên danh mục là bắt buộc.");
       return;
     }
     setSubmitting(true);
@@ -44,76 +44,85 @@ export default function NewCategoryPage() {
   };
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
+    <div className="max-w-3xl space-y-8 animate-fade-in pb-12">
+      {/* Back Button & Header */}
+      <div className="space-y-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-base font-bold text-gray-500 hover:text-[#D35400] transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Categories
+        </button>
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">New Category</h1>
-        <p className="text-sm text-gray-500 mt-1">Add a new dish category</p>
+        <div className="border-b border-gray-200 pb-6">
+          <h1 className="text-4xl font-extrabold text-gray-900">New Category</h1>
+          <p className="text-lg text-gray-500 mt-1.5">Tạo mới danh mục để phân loại các món ăn.</p>
+        </div>
       </div>
 
-      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200/50 text-red-700 px-5 py-4 rounded-3xl text-base font-bold shadow-xs">
+          ⚠️ {error}
+        </div>
+      )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6">
+      {/* Form Container */}
+      <div className="bg-white rounded-3xl border border-gray-200/60 p-8 space-y-6 shadow-sm">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <label className="block text-sm font-black text-gray-700 uppercase tracking-wider mb-2">Tên danh mục *</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Category name"
-            className="w-full h-10 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400]"
+            placeholder="e.g. Đồ ăn chính, Thức uống"
+            className="w-full px-4 py-3.5 text-base bg-white border border-gray-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-sm font-black text-gray-700 uppercase tracking-wider mb-2">Mô tả chi tiết</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Category description"
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] resize-none"
+            placeholder="Mô tả ngắn gọn về danh mục..."
+            rows={4}
+            className="w-full px-4 py-3.5 text-base bg-white border border-gray-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Image (optional)</label>
+          <label className="block text-sm font-black text-gray-700 uppercase tracking-wider mb-2">Hình ảnh đại diện</label>
           <input
             type="file"
             accept="image/*"
             onChange={handleImage}
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-[#D35400] hover:file:bg-orange-100 transition-colors"
+            className="w-full text-base text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-2xl file:border-0 file:text-sm file:font-black file:uppercase file:bg-orange-50 file:text-[#D35400] hover:file:bg-orange-100/80 transition-colors cursor-pointer"
           />
           {preview && (
-            <div className="mt-3">
+            <div className="mt-4 p-2 bg-gray-50 border border-gray-100 rounded-3xl w-fit shadow-2xs">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={preview}
                 alt="Preview"
-                className="w-32 h-32 rounded-xl object-cover border border-gray-100"
+                className="w-40 h-40 rounded-2xl object-cover"
               />
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 pb-8">
+      {/* Buttons */}
+      <div className="flex items-center justify-end gap-4">
         <button
           onClick={() => router.push("/manager/categories")}
-          className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+          className="px-6 py-3.5 border border-gray-200/80 text-gray-600 rounded-2xl text-base font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors"
         >
-          Cancel
+          Hủy bỏ
         </button>
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="px-6 py-2.5 bg-[#D35400] text-white rounded-xl text-sm font-semibold transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[#b84900]"
+          className="px-8 py-3.5 bg-[#D35400] text-white rounded-2xl text-base font-black hover:bg-[#b84900] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {submitting ? "Creating..." : "Create Category"}
+          {submitting ? "Đang tạo..." : "Tạo danh mục"}
         </button>
       </div>
     </div>

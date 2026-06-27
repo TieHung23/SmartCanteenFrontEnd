@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "sonner";
+import { AuthProvider } from "@/context/auth-context";
 import { CartProvider } from "@/context/cart-context";
 import CartDrawer from "@/components/features/orders/CartDrawer";
 
@@ -44,11 +45,13 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <QueryProvider>
-          <CartProvider>
-            {children}
-            <CartDrawer />
-            <Toaster richColors position="top-right" />
-          </CartProvider>
+          <AuthProvider>
+            <CartProvider>
+              {children}
+              <CartDrawer />
+              <Toaster richColors position="top-right" />
+            </CartProvider>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>
