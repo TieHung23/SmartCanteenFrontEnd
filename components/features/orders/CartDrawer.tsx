@@ -72,10 +72,7 @@ export default function CartDrawer() {
           const sid = r.value[0];
           const detail = r.value[1];
           const isExpired =
-            new Date(detail.availableTo) < now ||
-            new Date(detail.availableForOrder) < now ||
-            !detail.isActive ||
-            detail.isFinalized === true;
+            new Date(detail.availableTo) < now || !detail.isActive || detail.isFinalized === true;
 
           if (isExpired) {
             expiredSessionIds.push(sid);

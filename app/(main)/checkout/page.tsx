@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { isAxiosError } from "axios";
@@ -15,6 +15,8 @@ import { ROUTES } from "@/config/routes";
 import type { SessionDetail } from "@/types/session.types";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useSignalr } from "@/lib/hooks/use-signalr";
+import type { NotificationItem } from "@/types/notification.types";
 import {
   ArrowLeft,
   ShoppingBag,
@@ -104,7 +106,7 @@ export default function CheckoutPage() {
         expiredList.push({ id: sid, name: sessionName, isInvalid: true });
       } else {
         const isExpired =
-          new Date(detail.availableForOrder) < new Date() ||
+          new Date(detail.availableTo) < new Date() ||
           !detail.isActive ||
           detail.isFinalized === true;
         if (isExpired) {
@@ -290,6 +292,38 @@ export default function CheckoutPage() {
       toast.error("Unable to check balance. Please try again.");
     }
   };
+
+  const retryCheckoutRef = useRef(handleRetryCheckout);
+
+  const totalPointsRef = useRef(totalPoints);
+
+  useEffect(() => {
+    retryCheckoutRef.current = handleRetryCheckout;
+  });
+
+  useEffect(() => {
+    totalPointsRef.current = totalPoints;
+  });
+
+  useSignalr(
+    useCallback((notification: NotificationItem) => {
+      if (notification.type === "Payment.Completed") {
+        toast.success("Nạp tiền thành công! Đang kiểm tra số dư...");
+        setTopUpResult(null);
+        setIsTopUpOpen(false);
+        userService
+          .getProfile()
+          .then((res) => {
+            setProfile(res);
+            if (res && res.balanceAmount >= totalPointsRef.current) {
+              toast.success("Đủ số dư! Tiến hành đặt hàng...");
+              setTimeout(() => retryCheckoutRef.current(), 500);
+            }
+          })
+          .catch(() => toast.error("Không thể kiểm tra số dư"));
+      }
+    }, []),
+  );
 
   const [fireworkParticles] = useState(() => {
     const COLORS = [
@@ -620,7 +654,7 @@ export default function CheckoutPage() {
                 const templateName = template?.name || "";
                 const sessionTotal = sessionItems.reduce((s, i) => s + i.price * i.quantity, 0);
                 const isExpired = detail
-                  ? new Date(detail.availableForOrder) < new Date() ||
+                  ? new Date(detail.availableTo) < new Date() ||
                     !detail.isActive ||
                     detail.isFinalized === true
                   : !isLoadingDetails;

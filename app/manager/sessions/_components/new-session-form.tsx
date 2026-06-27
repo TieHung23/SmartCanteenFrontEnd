@@ -26,6 +26,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { StaticTimePicker } from "@mui/x-date-pickers/StaticTimePicker";
 import dayjs from "dayjs";
+import { toast } from "sonner";
 
 interface NewSessionFormProps {
   copyFromId: string | null;
@@ -445,14 +446,18 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     if (!availableTo) errs.availableTo = "Thời gian kết thúc ca là bắt buộc.";
     if (!availableForOrder) errs.availableForOrder = "Hạn chốt order là bắt buộc.";
 
+    if (availableForOrder && dayjs(availableForOrder).isBefore(dayjs().startOf("day")))
+      errs.availableForOrder = "Thời gian mở đặt không được ở trong quá khứ.";
     if (availableFrom && availableTo && new Date(availableFrom) >= new Date(availableTo))
       errs.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
+    if (availableForOrder && availableTo && new Date(availableForOrder) >= new Date(availableTo))
+      errs.availableForOrder = "Thời gian mở đặt phải trước thời gian kết thúc ca.";
     if (
       availableForOrder &&
       availableFrom &&
       new Date(availableForOrder) >= new Date(availableFrom)
     )
-      errs.availableForOrder = "Hạn chốt order phải trước thời gian bắt đầu ca.";
+      errs.availableForOrder = "Thời gian mở đặt phải trước thời gian bắt đầu ca.";
     if (finalizationDeadline && new Date(finalizationDeadline) <= new Date())
       errs.finalizationDeadline = "Hạn bếp chuẩn bị xong phải ở tương lai.";
 
@@ -502,6 +507,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
     try {
       const result = await sessionService.createSession(payload);
+      toast.success(`Tạo ca phục vụ "${result.value.name}" thành công!`);
       onSuccess({ id: result.value.id, name: result.value.name });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create session";
@@ -684,7 +690,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     )}
                   />
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Hạn Order
+                    Mở đặt
                   </p>
                   <p
                     className={cn(
@@ -817,7 +823,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   <h4 className="text-sm font-black text-gray-700 uppercase tracking-wider border-b border-gray-200/50 pb-2 w-full text-center">
                     Chọn giờ:{" "}
                     {activePicker === "order"
-                      ? "Hạn Order cơm ca"
+                      ? "Thời gian mở đặt"
                       : activePicker === "start"
                         ? "Thời gian Bắt đầu ca"
                         : activePicker === "end"

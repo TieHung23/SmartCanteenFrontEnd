@@ -228,18 +228,18 @@ Auth: Authorize (Manager)
 
 ## 5. Validation notes
 
-| Field                      | Validation                                                         |
-| -------------------------- | ------------------------------------------------------------------ |
-| `name`                     | Required, max 200 ký tự                                            |
-| `description`              | Required, max 500 ký tự                                            |
-| `availableFrom`            | Phải trước `availableTo`                                           |
-| `availableTo`              | Phải sau `availableFrom`                                           |
-| `availableForOrder`        | Phải trước `availableFrom` (cho phép user đặt trước)               |
-| `finalizationDeadline`     | Optional; nếu có phải > thời điểm hiện tại                         |
-| `autoFinalizePolicy`       | `0` = AutoReject (hủy đơn), `1` = AutoConfirmAll (xác nhận tất cả) |
-| `dishes`                   | Phải có ít nhất 1 món                                              |
-| `dishId`                   | Phải tồn tại và đang active                                        |
-| `mealTemplates[].settings` | `maxQuantity` >= `minQuantity`, `minQuantity` >= 0                 |
+| Field                      | Validation                                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `name`                     | Required, max 200 ký tự                                                                                              |
+| `description`              | Required, max 500 ký tự                                                                                              |
+| `availableFrom`            | Phải trước `availableTo`                                                                                             |
+| `availableTo`              | Phải sau `availableFrom`                                                                                             |
+| `availableForOrder`        | Phải trước `availableTo` (thời gian mở đặt phải trước kết thúc ca); phải trước `availableFrom`; không được ở quá khứ |
+| `finalizationDeadline`     | Optional; nếu có phải > thời điểm hiện tại                                                                           |
+| `autoFinalizePolicy`       | `0` = AutoReject (hủy đơn), `1` = AutoConfirmAll (xác nhận tất cả)                                                   |
+| `dishes`                   | Phải có ít nhất 1 món                                                                                                |
+| `dishId`                   | Phải tồn tại và đang active                                                                                          |
+| `mealTemplates[].settings` | `maxQuantity` >= `minQuantity`, `minQuantity` >= 0                                                                   |
 
 ---
 

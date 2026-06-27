@@ -232,7 +232,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               const now = new Date();
               const isExpired =
                 new Date(session.availableTo) < now ||
-                new Date(session.availableForOrder) < now ||
                 !session.isActive ||
                 session.isFinalized === true;
 

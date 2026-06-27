@@ -20,7 +20,7 @@ import { useCart } from "@/context/cart-context";
 import { toast } from "sonner";
 import { animate, stagger, spring } from "animejs";
 import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
-import { isSessionExpired, isSessionUpcoming } from "@/lib/utils";
+import { isSessionExpired } from "@/lib/utils";
 import { useCurrency } from "@/lib/hooks/use-currency";
 
 const getSafeImageUrl = (
@@ -245,11 +245,10 @@ function MenuContent() {
 
   const expired = mealDetail
     ? isSessionExpired(mealDetail.availableTo) ||
-      new Date(mealDetail.availableForOrder) < new Date() ||
       !mealDetail.isActive ||
       mealDetail.isFinalized === true
     : false;
-  const upcoming = mealDetail ? isSessionUpcoming(mealDetail.availableFrom) : false;
+  const upcoming = mealDetail ? new Date(mealDetail.availableForOrder) > new Date() : false;
   const canOrder = !expired && !upcoming;
 
   useEffect(() => {
@@ -364,7 +363,9 @@ function MenuContent() {
           sessionName: mealDetail?.name || undefined,
           categoryId,
           categoryName,
-          sessionTime: mealDetail?.availableForOrder || undefined,
+          sessionTime: mealDetail
+            ? `${mealDetail.availableFrom} - ${mealDetail.availableTo}`
+            : undefined,
         },
         1,
       );
@@ -535,15 +536,13 @@ function MenuContent() {
             <div className="relative z-10 px-10 md:px-16 py-12 md:py-16 text-white">
               <div className="flex flex-wrap items-center gap-2 text-white/80 text-xs font-medium mb-3">
                 <span className="bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm font-bold">
-                  #{mealDetail?.availableForOrder || "dang chon"}
+                  {mealDetail?.availableForOrder
+                    ? `Mở đặt ${new Date(mealDetail.availableForOrder).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+                    : "dang chon"}
                 </span>
                 {expired && (
                   <span className="bg-red-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-red-100 font-bold">
-                    {mealDetail?.isFinalized
-                      ? "ĐÃ CHỐT ĐƠN"
-                      : mealDetail && new Date(mealDetail.availableForOrder) < new Date()
-                        ? "HẾT HẠN ĐẶT HÀNG"
-                        : "ĐÃ HẾT PHIÊN"}
+                    {mealDetail?.isFinalized ? "ĐÃ CHỐT ĐƠN" : "ĐÃ HẾT PHIÊN"}
                   </span>
                 )}
                 {upcoming && (
@@ -1088,7 +1087,12 @@ function DishCard({
   categoryName: string;
   categoryId: string;
   sessionId: string | null;
-  mealDetail: { name?: string; availableForOrder?: string; isFinalized?: boolean } | null;
+  mealDetail: {
+    name?: string;
+    availableFrom?: string;
+    availableTo?: string;
+    isFinalized?: boolean;
+  } | null;
   dragPayload: Record<string, unknown>;
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
@@ -1132,17 +1136,8 @@ function DishCard({
           if (notInTemplate) toast.error("Danh mục này không có trong template");
           else if (noTemplateChosen) toast.error("Chọn template để đặt món");
           else if (expired) {
-            const isFinalized = mealDetail && mealDetail.isFinalized;
-            const isDeadlinePassed =
-              mealDetail &&
-              mealDetail.availableForOrder &&
-              new Date(mealDetail.availableForOrder) < new Date();
             toast.error(
-              isFinalized
-                ? "Phiên ăn đã được chốt đơn"
-                : isDeadlinePassed
-                  ? "Phiên ăn đã hết hạn đặt hàng"
-                  : "Phiên ăn đã kết thúc",
+              mealDetail?.isFinalized ? "Phiên ăn đã được chốt đơn" : "Phiên ăn đã kết thúc",
             );
           }
           return;
@@ -1163,7 +1158,9 @@ function DishCard({
             sessionName: mealDetail?.name || undefined,
             categoryId,
             categoryName,
-            sessionTime: mealDetail?.availableForOrder || undefined,
+            sessionTime: mealDetail
+              ? `${mealDetail.availableFrom} - ${mealDetail.availableTo}`
+              : undefined,
           },
           1,
         );
@@ -1261,7 +1258,12 @@ function DishGrid({
   noTemplateChosen: boolean;
   expired: boolean;
   sessionId: string | null;
-  mealDetail: { name?: string; availableForOrder?: string; isFinalized?: boolean } | null;
+  mealDetail: {
+    name?: string;
+    availableFrom?: string;
+    availableTo?: string;
+    isFinalized?: boolean;
+  } | null;
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
   getSafeImageUrl: (url: string | null | undefined, fallback?: string) => string;

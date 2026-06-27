@@ -273,9 +273,7 @@ export default function SessionPage() {
                   const type = getSessionType(session.availableFrom);
                   const tag = SESSION_TAGS[type];
                   const icon = SESSION_ICONS[type];
-                  const orderExpired =
-                    new Date(session.availableForOrder) < new Date() ||
-                    session.isFinalized === true;
+                  const orderExpired = session.isFinalized === true;
                   const expired = isSessionExpired(session.availableTo) || orderExpired;
                   const active =
                     isSessionActive(session.availableFrom, session.availableTo) && !orderExpired;
@@ -382,7 +380,7 @@ export default function SessionPage() {
                                 : "bg-orange-50 border-orange-100 text-[#D35400]",
                             )}
                           >
-                            Hạn đặt:{" "}
+                            Mở đặt:{" "}
                             {new Date(session.availableForOrder).toLocaleTimeString("vi-VN", {
                               hour: "2-digit",
                               minute: "2-digit",
