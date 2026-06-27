@@ -14,7 +14,6 @@ import { ArrowLeft, Search, GripVertical, X, Package, ChefHat } from "lucide-rea
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
 
-
 export default function NewSessionPageWrapper() {
   return (
     <Suspense
@@ -64,7 +63,7 @@ function NewSessionPage() {
     },
   ]);
 
-  const TIME_SLOTS = Array.from({ length: 25 }, (_, i) => {
+  const TIME_SLOTS = Array.from({ length: 49 }, (_, i) => {
     const h = Math.floor(i * 0.5);
     const m = i % 2 === 0 ? "00" : "30";
     return `${String(h).padStart(2, "0")}:${m}`;
@@ -182,27 +181,33 @@ function NewSessionPage() {
     setIsDragOverPool(false);
   }, []);
 
-  const handleDropToSelected = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const dishId = e.dataTransfer.getData("text/plain");
-    if (dishId && !selectedDishIds.has(dishId)) {
-      toggleDish(dishId);
-      // Trigger spring bounce after React re-renders
-      setTimeout(() => animateDropBounce(), 50);
-    }
-    setIsDragOverDropZone(false);
-    setDraggedDishId(null);
-  }, [selectedDishIds, animateDropBounce]);
+  const handleDropToSelected = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const dishId = e.dataTransfer.getData("text/plain");
+      if (dishId && !selectedDishIds.has(dishId)) {
+        toggleDish(dishId);
+        // Trigger spring bounce after React re-renders
+        setTimeout(() => animateDropBounce(), 50);
+      }
+      setIsDragOverDropZone(false);
+      setDraggedDishId(null);
+    },
+    [selectedDishIds, animateDropBounce],
+  );
 
-  const handleDropToPool = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const dishId = e.dataTransfer.getData("text/plain");
-    if (dishId && selectedDishIds.has(dishId)) {
-      toggleDish(dishId);
-    }
-    setIsDragOverPool(false);
-    setDraggedDishId(null);
-  }, [selectedDishIds]);
+  const handleDropToPool = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const dishId = e.dataTransfer.getData("text/plain");
+      if (dishId && selectedDishIds.has(dishId)) {
+        toggleDish(dishId);
+      }
+      setIsDragOverPool(false);
+      setDraggedDishId(null);
+    },
+    [selectedDishIds],
+  );
 
   const handleDragOverDropZone = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -300,7 +305,6 @@ function NewSessionPage() {
       ease: spring({ stiffness: 400, damping: 10, mass: 0.6 }),
     });
   }, []);
-
 
   const addTemplate = () => {
     setTemplates((prev) => [
@@ -464,7 +468,9 @@ function NewSessionPage() {
         <div className="space-y-2">
           <h2 className="text-3xl font-bold text-gray-900">Tạo phiên thành công!</h2>
           <p className="text-lg text-gray-500">
-            Phiên phục vụ <span className="font-bold text-gray-900">&quot;{success.name}&quot;</span> đã được tạo lập thành công.
+            Phiên phục vụ{" "}
+            <span className="font-bold text-gray-900">&quot;{success.name}&quot;</span> đã được tạo
+            lập thành công.
           </p>
           <p className="text-xs text-gray-400 font-mono">Session ID: {success.id}</p>
         </div>
@@ -518,8 +524,10 @@ function NewSessionPage() {
 
       {/* Basic Info & Timeline Card (Full Width) */}
       <div className="bg-white rounded-3xl border border-gray-200/60 p-6 space-y-6 shadow-2xs">
-        <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">Thông tin cơ bản</h2>
-        
+        <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">
+          Thông tin cơ bản
+        </h2>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-bold text-gray-600 mb-2">Tên ca ăn *</label>
@@ -530,7 +538,7 @@ function NewSessionPage() {
               className="w-full px-4 py-3 text-base bg-white border border-gray-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-bold text-gray-600 mb-2">Ngày phục vụ *</label>
             <input
@@ -542,7 +550,9 @@ function NewSessionPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-600 mb-2">Chính sách quá hạn *</label>
+            <label className="block text-sm font-bold text-gray-600 mb-2">
+              Chính sách quá hạn *
+            </label>
             <select
               value={autoFinalizePolicy}
               onChange={(e) => setAutoFinalizePolicy(Number(e.target.value))}
@@ -553,7 +563,7 @@ function NewSessionPage() {
             </select>
           </div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-600 mb-2">Mô tả chi tiết *</label>
           <textarea
@@ -567,7 +577,9 @@ function NewSessionPage() {
 
         {/* Timeline Grid */}
         <div className="pt-4 border-t border-gray-100">
-          <label className="block text-sm font-bold text-gray-600 mb-3">Biểu đồ thời gian (Timeline)</label>
+          <label className="block text-sm font-bold text-gray-600 mb-3">
+            Biểu đồ thời gian (Timeline)
+          </label>
           <div className="overflow-x-auto pb-3 border border-gray-100 rounded-3xl bg-gray-50/50 p-4 shadow-3xs">
             <div className="min-w-[820px]">
               {/* Header row: time labels */}
@@ -620,8 +632,7 @@ function NewSessionPage() {
                   const full = sessionDate ? `${sessionDate}T${t}` : "";
                   const isSelected = availableFrom === full;
                   const orderTime = availableForOrder.split("T")[1];
-                  const isDisabled =
-                    !sessionDate || (orderTime !== undefined && t <= orderTime);
+                  const isDisabled = !sessionDate || (orderTime !== undefined && t <= orderTime);
                   return (
                     <button
                       key={t}
@@ -733,14 +744,19 @@ function NewSessionPage() {
                 + Thêm mẫu
               </button>
             </div>
-            
+
             {templates.length === 0 && (
-              <p className="text-sm text-gray-400 italic py-2">Chưa thiết lập khuôn mẫu suất ăn nào.</p>
+              <p className="text-sm text-gray-400 italic py-2">
+                Chưa thiết lập khuôn mẫu suất ăn nào.
+              </p>
             )}
 
             <div className="space-y-4">
               {templates.map((template, tIdx) => (
-                <div key={tIdx} className="border border-gray-200/60 rounded-3xl p-4 bg-gray-50/50 space-y-4">
+                <div
+                  key={tIdx}
+                  className="border border-gray-200/60 rounded-3xl p-4 bg-gray-50/50 space-y-4"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-base">📋</span>
                     <input
@@ -757,7 +773,7 @@ function NewSessionPage() {
                       Xóa mẫu
                     </button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {template.settings.map((setting, sIdx) => {
                       const cat = categoryMap[setting.categoryId];
@@ -769,7 +785,7 @@ function NewSessionPage() {
                           <span className="text-sm font-bold text-gray-800 flex-1 min-w-[100px] truncate">
                             {cat?.name || "—"}
                           </span>
-                          
+
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-400">Min:</span>
                             <input
@@ -862,14 +878,15 @@ function NewSessionPage() {
                   <ChefHat className="w-5 h-5 text-[#D35400]" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Chọn món ăn phục vụ
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-900">Chọn món ăn phục vụ</h2>
                   <p className="text-xs text-gray-400 mt-0.5">Kéo thả hoặc nhấn để chọn món</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span ref={counterRef} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#D35400]/5 border border-[#D35400]/15 rounded-2xl text-sm font-bold text-[#D35400]">
+                <span
+                  ref={counterRef}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#D35400]/5 border border-[#D35400]/15 rounded-2xl text-sm font-bold text-[#D35400]"
+                >
                   <Package className="w-4 h-4" />
                   {selectedDishes.length} đã chọn
                 </span>
@@ -878,7 +895,6 @@ function NewSessionPage() {
 
             {/* Two-panel layout */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5" style={{ minHeight: 520 }}>
-
               {/* LEFT PANEL: Available dishes pool */}
               <div
                 className="flex flex-col"
@@ -888,8 +904,12 @@ function NewSessionPage() {
               >
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 rounded-full bg-gray-400" />
-                  <span className="text-sm font-bold text-gray-600 tracking-wide">Danh sách món ăn</span>
-                  <span className="text-xs text-gray-400 ml-auto">{availableDishes.length} món</span>
+                  <span className="text-sm font-bold text-gray-600 tracking-wide">
+                    Danh sách món ăn
+                  </span>
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {availableDishes.length} món
+                  </span>
                 </div>
 
                 {/* Search bar */}
@@ -912,7 +932,7 @@ function NewSessionPage() {
                       "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
                       categoryFilter === "all"
                         ? "bg-[#D35400] text-white border-[#D35400] shadow-sm"
-                        : "bg-white text-gray-500 border-gray-200/60 hover:border-[#D35400]/30 hover:text-[#D35400]"
+                        : "bg-white text-gray-500 border-gray-200/60 hover:border-[#D35400]/30 hover:text-[#D35400]",
                     )}
                   >
                     Tất cả
@@ -926,7 +946,7 @@ function NewSessionPage() {
                         "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
                         categoryFilter === catId
                           ? "bg-[#D35400] text-white border-[#D35400] shadow-sm"
-                          : "bg-white text-gray-500 border-gray-200/60 hover:border-[#D35400]/30 hover:text-[#D35400]"
+                          : "bg-white text-gray-500 border-gray-200/60 hover:border-[#D35400]/30 hover:text-[#D35400]",
                       )}
                     >
                       {catName}
@@ -940,21 +960,27 @@ function NewSessionPage() {
                     "flex-1 rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden",
                     isDragOverPool
                       ? "border-blue-400 bg-blue-50/30 drop-zone-active"
-                      : "border-gray-200/60 bg-gray-50/30"
+                      : "border-gray-200/60 bg-gray-50/30",
                   )}
                 >
-                  <div ref={poolGridRef} className="grid grid-cols-2 gap-3 p-3 max-h-[480px] overflow-y-auto scrollbar-thin">
+                  <div
+                    ref={poolGridRef}
+                    className="grid grid-cols-2 gap-3 p-3 max-h-[480px] overflow-y-auto scrollbar-thin"
+                  >
                     {availableDishes.map((dish) => (
                       <div
                         key={dish.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, dish.id)}
                         onDragEnd={handleDragEnd}
-                        onClick={(e) => { createRipple(e); toggleDish(dish.id); }}
+                        onClick={(e) => {
+                          createRipple(e);
+                          toggleDish(dish.id);
+                        }}
                         onMouseEnter={handleElasticHover}
                         className={cn(
                           "dish-card-pool drag-item card-3d bg-white rounded-2xl border border-gray-200/60 overflow-hidden flex flex-col shadow-3xs hover:shadow-md",
-                          draggedDishId === dish.id && "dragging"
+                          draggedDishId === dish.id && "dragging",
                         )}
                       >
                         <div className="relative w-full aspect-[16/10] bg-gray-50 border-b border-gray-100 shrink-0">
@@ -1010,8 +1036,12 @@ function NewSessionPage() {
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 rounded-full bg-[#D35400]" />
-                  <span className="text-sm font-bold text-[#D35400] tracking-wide">Món đã chọn</span>
-                  <span className="text-xs text-[#D35400]/60 ml-auto">{selectedDishes.length} món</span>
+                  <span className="text-sm font-bold text-[#D35400] tracking-wide">
+                    Món đã chọn
+                  </span>
+                  <span className="text-xs text-[#D35400]/60 ml-auto">
+                    {selectedDishes.length} món
+                  </span>
                 </div>
 
                 <div
@@ -1024,7 +1054,7 @@ function NewSessionPage() {
                       ? "border-[#D35400] bg-[#D35400]/5 drop-zone-active"
                       : selectedDishes.length > 0
                         ? "border-[#D35400]/30 bg-[#D35400]/[0.02]"
-                        : "border-gray-300/60 bg-gray-50/40"
+                        : "border-gray-300/60 bg-gray-50/40",
                   )}
                 >
                   {/* Shimmer overlay when dragging */}
@@ -1034,31 +1064,38 @@ function NewSessionPage() {
 
                   {selectedDishes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full min-h-[420px] gap-4">
-                      <div className={cn(
-                        "w-20 h-20 rounded-3xl border-2 border-dashed flex items-center justify-center transition-all duration-300",
-                        isDragOverDropZone
-                          ? "border-[#D35400] bg-[#D35400]/10 scale-110"
-                          : "border-gray-300 bg-gray-50"
-                      )}>
-                        <Package className={cn(
-                          "w-8 h-8 transition-colors",
-                          isDragOverDropZone ? "text-[#D35400]" : "text-gray-300"
-                        )} />
+                      <div
+                        className={cn(
+                          "w-20 h-20 rounded-3xl border-2 border-dashed flex items-center justify-center transition-all duration-300",
+                          isDragOverDropZone
+                            ? "border-[#D35400] bg-[#D35400]/10 scale-110"
+                            : "border-gray-300 bg-gray-50",
+                        )}
+                      >
+                        <Package
+                          className={cn(
+                            "w-8 h-8 transition-colors",
+                            isDragOverDropZone ? "text-[#D35400]" : "text-gray-300",
+                          )}
+                        />
                       </div>
                       <div className="text-center">
-                        <p className={cn(
-                          "text-sm font-bold transition-colors",
-                          isDragOverDropZone ? "text-[#D35400]" : "text-gray-400"
-                        )}>
+                        <p
+                          className={cn(
+                            "text-sm font-bold transition-colors",
+                            isDragOverDropZone ? "text-[#D35400]" : "text-gray-400",
+                          )}
+                        >
                           {isDragOverDropZone ? "Thả vào đây!" : "Kéo thả món ăn vào đây"}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          hoặc nhấn vào món ăn bên trái
-                        </p>
+                        <p className="text-xs text-gray-400 mt-1">hoặc nhấn vào món ăn bên trái</p>
                       </div>
                     </div>
                   ) : (
-                    <div ref={dropZoneRef} className="flex flex-col gap-2 p-3 max-h-[480px] overflow-y-auto scrollbar-thin">
+                    <div
+                      ref={dropZoneRef}
+                      className="flex flex-col gap-2 p-3 max-h-[480px] overflow-y-auto scrollbar-thin"
+                    >
                       {selectedDishes.map((dish) => (
                         <div
                           key={dish.id}
@@ -1068,7 +1105,7 @@ function NewSessionPage() {
                           onMouseEnter={handleElasticHover}
                           className={cn(
                             "selected-dish-item drag-item dish-pop-in flex items-center gap-3 p-2.5 bg-white rounded-xl border border-[#D35400]/15 shadow-3xs hover:shadow-sm hover:border-[#D35400]/30 group transition-all",
-                            draggedDishId === dish.id && "dragging"
+                            draggedDishId === dish.id && "dragging",
                           )}
                         >
                           <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-[#D35400]/50 shrink-0 transition-colors" />
@@ -1109,7 +1146,10 @@ function NewSessionPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); toggleDish(dish.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleDish(dish.id);
+                            }}
                             className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200/40 flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-all"
                           >
                             <X className="w-3.5 h-3.5 text-red-500" />
@@ -1123,7 +1163,6 @@ function NewSessionPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Action Buttons */}
@@ -1145,4 +1184,3 @@ function NewSessionPage() {
     </div>
   );
 }
-
