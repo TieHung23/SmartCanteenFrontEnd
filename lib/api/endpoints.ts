@@ -82,6 +82,17 @@ export const API_ENDPOINTS = {
     READ_ALL: "/api/notifications/read-all",
     DELETE: (id: string) => `/api/notifications/${id}`,
   },
+  CHANGE_PROPOSAL: {
+    ACCEPT: (id: string) => `/api/change-proposals/${id}/accept`,
+    REQUEST_REFUND: (id: string) => `/api/change-proposals/${id}/refund`,
+  },
+  PICKUP: {
+    ASSIGN: "/api/pickup/assign",
+    COLLECT: "/api/pickup/collect",
+  },
+  ROBOT: {
+    SERVING_JOBS: "/api/robot/serving-jobs",
+  },
   ADMIN: {
     LOGS: {
       LIST: "/api/admin/logs",
