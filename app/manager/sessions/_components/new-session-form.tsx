@@ -53,6 +53,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   const [availableTo, setAvailableTo] = useState("");
   const [availableForOrder, setAvailableForOrder] = useState("");
   const [sessionDate, setSessionDate] = useState("");
+  const [orderOpenDate, setOrderOpenDate] = useState("");
   const [finalizationDeadline, setFinalizationDeadline] = useState("");
   const [autoFinalizePolicy, setAutoFinalizePolicy] = useState(0);
   const [clickedFields, setClickedFields] = useState<Set<string>>(new Set());
@@ -87,21 +88,26 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     if (!time) {
       clear();
     } else {
-      const dateStr = sessionDate || dayjs().format("YYYY-MM-DD");
-      if (!sessionDate) setSessionDate(dateStr);
-      const fullStr = `${dateStr}T${time.format("HH:mm")}`;
       if (field === "order") {
+        const dateStr = orderOpenDate || dayjs().format("YYYY-MM-DD");
+        if (!orderOpenDate) setOrderOpenDate(dateStr);
+        const fullStr = `${dateStr}T${time.format("HH:mm")}`;
         setAvailableForOrder(fullStr);
         newForOrder = fullStr;
-      } else if (field === "deadline") {
-        setFinalizationDeadline(fullStr);
-        newDeadline = fullStr;
-      } else if (field === "start") {
-        setAvailableFrom(fullStr);
-        newFrom = fullStr;
-      } else if (field === "end") {
-        setAvailableTo(fullStr);
-        newTo = fullStr;
+      } else {
+        const dateStr = sessionDate || dayjs().format("YYYY-MM-DD");
+        if (!sessionDate) setSessionDate(dateStr);
+        const fullStr = `${dateStr}T${time.format("HH:mm")}`;
+        if (field === "deadline") {
+          setFinalizationDeadline(fullStr);
+          newDeadline = fullStr;
+        } else if (field === "start") {
+          setAvailableFrom(fullStr);
+          newFrom = fullStr;
+        } else if (field === "end") {
+          setAvailableTo(fullStr);
+          newTo = fullStr;
+        }
       }
     }
 
@@ -169,6 +175,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
           setAvailableForOrder(toDatetimeLocal(detail.availableForOrder));
           if (detail.finalizationDeadline)
             setFinalizationDeadline(toDatetimeLocal(detail.finalizationDeadline));
+          setOrderOpenDate(toDatetimeLocal(detail.availableForOrder).split("T")[0]);
           setSessionDate(toDatetimeLocal(detail.availableFrom).split("T")[0]);
           setSelectedDishIds(new Set(detail.dishes.map((d) => d.dishId)));
           setTemplates(
@@ -425,7 +432,11 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         minQuantity: value ? 1 : 0,
                         maxQuantity: value ? 2 : 1,
                       }
-                    : { ...s, [field]: value }
+                    : field === "minQuantity" && s.isRequired
+                      ? s
+                      : field === "maxQuantity" && s.isRequired
+                        ? { ...s, maxQuantity: Math.max(value as number, 2) }
+                        : { ...s, [field]: value }
                   : s,
               ),
             }
@@ -532,6 +543,9 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = "Tên ca phục vụ là bắt buộc.";
     if (!description.trim()) errs.description = "Mô tả ngắn gọn là bắt buộc.";
+    if (!orderOpenDate) errs.orderOpenDate = "Ngày mở đặt là bắt buộc.";
+    else if (dayjs(orderOpenDate).isBefore(dayjs().startOf("day")))
+      errs.orderOpenDate = "Ngày mở đặt không được ở trong quá khứ.";
     if (!sessionDate) errs.sessionDate = "Ngày phục vụ là bắt buộc.";
     else if (dayjs(sessionDate).isBefore(dayjs().startOf("day")))
       errs.sessionDate = "Ngày phục vụ không được ở trong quá khứ.";
@@ -713,7 +727,43 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
               </div>
 
               {/* Serves Schedule date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
+                    Ngày mở đặt (Mặc định: Hôm nay)
+                  </label>
+                  <input
+                    type="date"
+                    min={dayjs().format("YYYY-MM-DD")}
+                    value={orderOpenDate}
+                    onChange={(e) => {
+                      const newD = e.target.value;
+                      setOrderOpenDate(newD);
+                      if (availableForOrder)
+                        setAvailableForOrder(
+                          `${newD}T${availableForOrder.split("T")[1] || "07:00"}`,
+                        );
+                      if (errors.orderOpenDate) {
+                        setErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.orderOpenDate;
+                          return next;
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
+                      errors.orderOpenDate
+                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                        : "border-gray-200/35 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900",
+                    )}
+                  />
+                  {errors.orderOpenDate && (
+                    <p className="text-red-500 text-xs font-semibold mt-1.5 ml-1">
+                      {errors.orderOpenDate}
+                    </p>
+                  )}
+                </div>
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
                     Ngày phục vụ (Mặc định: Hôm nay)
@@ -736,10 +786,6 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         setAvailableFrom(`${newD}T${availableFrom.split("T")[1] || "11:00"}`);
                       if (availableTo)
                         setAvailableTo(`${newD}T${availableTo.split("T")[1] || "13:30"}`);
-                      if (availableForOrder)
-                        setAvailableForOrder(
-                          `${newD}T${availableForOrder.split("T")[1] || "07:00"}`,
-                        );
                       if (finalizationDeadline)
                         setFinalizationDeadline(
                           `${newD}T${finalizationDeadline.split("T")[1] || "09:30"}`,
@@ -793,17 +839,19 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       shouldDisableTime={(value) => {
                         const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
                         if (
-                          sessionDate === dayjs().format("YYYY-MM-DD") &&
+                          orderOpenDate === dayjs().format("YYYY-MM-DD") &&
                           val <= toMinutes(dayjs().format("YYYY-MM-DDTHH:mm"))
                         )
                           return true;
-                        if (finalizationDeadline && val >= toMinutes(finalizationDeadline))
-                          return true;
-                        if (availableFrom && val >= toMinutes(availableFrom)) return true;
-                        if (availableTo && val >= toMinutes(availableTo)) return true;
+                        if (orderOpenDate === sessionDate) {
+                          if (finalizationDeadline && val >= toMinutes(finalizationDeadline))
+                            return true;
+                          if (availableFrom && val >= toMinutes(availableFrom)) return true;
+                          if (availableTo && val >= toMinutes(availableTo)) return true;
+                        }
                         return false;
                       }}
-                      disabled={!sessionDate}
+                      disabled={!orderOpenDate}
                       slotProps={{
                         textField: {
                           size: "small",
@@ -819,11 +867,11 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         },
                       }}
                     />
-                    {clickedFields.has("order") && (!sessionDate || errors.availableForOrder) && (
+                    {clickedFields.has("order") && (!orderOpenDate || errors.availableForOrder) && (
                       <p className="text-[11px] font-semibold text-red-500">
                         ⚠️{" "}
-                        {!sessionDate
-                          ? "Vui lòng chọn ngày phục vụ trước"
+                        {!orderOpenDate
+                          ? "Vui lòng chọn ngày mở đặt trước"
                           : errors.availableForOrder}
                       </p>
                     )}
@@ -843,7 +891,12 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       onChange={(v) => handleTimeSelect("deadline", v)}
                       shouldDisableTime={(value) => {
                         const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
-                        if (availableForOrder && val <= toMinutes(availableForOrder)) return true;
+                        if (
+                          availableForOrder &&
+                          orderOpenDate === sessionDate &&
+                          val <= toMinutes(availableForOrder)
+                        )
+                          return true;
                         if (availableFrom && val >= toMinutes(availableFrom)) return true;
                         if (availableTo && val >= toMinutes(availableTo)) return true;
                         return false;
@@ -1099,6 +1152,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                                   min={0}
                                   max={s.maxQuantity}
                                   value={s.minQuantity}
+                                  disabled={s.isRequired}
                                   onChange={(e) =>
                                     updateTemplateSetting(
                                       tIdx,
@@ -1107,7 +1161,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                                       Number(e.target.value),
                                     )
                                   }
-                                  className="w-12 text-center border border-gray-200 rounded-lg p-1 text-xs font-bold text-gray-800 focus:ring-1 focus:ring-[#D35400]"
+                                  className="w-12 text-center border border-gray-200 rounded-lg p-1 text-xs font-bold text-gray-800 focus:ring-1 focus:ring-[#D35400] disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </div>
 
@@ -1115,7 +1169,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                                 <span className="text-xs text-gray-400 font-bold">Max:</span>
                                 <input
                                   type="number"
-                                  min={s.minQuantity}
+                                  min={s.isRequired ? 2 : s.minQuantity}
                                   value={s.maxQuantity}
                                   onChange={(e) =>
                                     updateTemplateSetting(
