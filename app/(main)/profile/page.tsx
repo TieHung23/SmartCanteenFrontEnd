@@ -1,5 +1,5 @@
 "use client";
-
+import { isAxiosError } from "axios";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,6 +28,7 @@ import { paymentService, type TopUpResponse } from "@/services/payment.service";
 import { authService } from "@/services/auth.service";
 import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
+import { useCurrency } from "@/lib/hooks/use-currency";
 
 const getRoleName = (roleId: number) => {
   switch (roleId) {
@@ -113,6 +114,8 @@ type ProfileTab = "personal" | "wallet" | "security";
 
 export default function ProfilePage() {
   const { logout } = useAuth();
+  const { convertVndToPoints, vndPerPoint, pointName, currency, minTopUpAmount, maxTopUpAmount } =
+    useCurrency();
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [originalProfile, setOriginalProfile] = useState<UserProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,7 +124,8 @@ export default function ProfilePage() {
   const [selectedTheme, setSelectedTheme] = useState(cardThemes[0]);
 
   const [walletTab, setWalletTab] = useState<WalletTab>("overview");
-  const [topUpAmount, setTopUpAmount] = useState(50000);
+  const [topUpAmountStr, setTopUpAmountStr] = useState("50000");
+  const topUpAmount = Number(topUpAmountStr) || 0;
   const [topUpMethod, setTopUpMethod] = useState(4);
   const [isTopUpping, setIsTopUpping] = useState(false);
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
@@ -166,7 +170,7 @@ export default function ProfilePage() {
     } catch (error) {
       console.error("Failed to fetch profile:", error);
     } finally {
-      setIsSaving(false);
+      setIsLoadingTx(false);
     }
   };
 
@@ -180,11 +184,52 @@ export default function ProfilePage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+    if (!file || !profile) return;
+
+    // Show preview immediately for instant visual feedback
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(localPreviewUrl);
+    setIsSaving(true);
+
+    try {
+      // Send the current name (required by backend validation) along with the image file,
+      // and omit optional fields (like phone/dob) to avoid format validation errors on them.
+      await userService.updateProfile({
+        name: profile.name,
+        imageFile: file,
+      });
+
+      const refreshed = await userService.getProfile();
+      const updated = normalizeProfile(refreshed);
+      window.dispatchEvent(new Event("profileUpdated"));
+      toast.success("Cập nhật ảnh đại diện thành công!");
+
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setProfile(updated);
+      setOriginalProfile(updated);
+    } catch (error) {
+      console.error(error);
+      setPreviewUrl(null); // Reset preview on failure
+      if (isAxiosError(error) && error.response?.data) {
+        const data = error.response.data as {
+          message?: string;
+          errors?: Record<string, string[]>;
+          title?: string;
+        };
+        if (data.errors) {
+          const errorMsg = Object.values(data.errors).flat().join(" ");
+          toast.error(errorMsg || data.title || "Lỗi tải ảnh lên");
+        } else {
+          toast.error(data.message || "Lỗi tải ảnh lên");
+        }
+      } else {
+        toast.error("Không thể tải ảnh đại diện lên.");
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -192,7 +237,7 @@ export default function ProfilePage() {
     if (!profile || !originalProfile) return;
     setIsSaving(true);
     try {
-      const response = await userService.updateProfile({
+      await userService.updateProfile({
         name: profile.name,
         phoneNumber: profile.phoneNumber,
         dateOfBirth: profile.dateOfBirth,
@@ -203,9 +248,8 @@ export default function ProfilePage() {
         imageFile: selectedFile,
       });
 
-      const updatedData = ((response as unknown as { value: UserProfileResponse }).value ||
-        response) as unknown as UserProfileResponse;
-      const updated = normalizeProfile(updatedData);
+      const refreshed = await userService.getProfile();
+      const updated = normalizeProfile(refreshed);
       window.dispatchEvent(new Event("profileUpdated"));
       toast.success("Profile updated successfully!");
 
@@ -215,7 +259,21 @@ export default function ProfilePage() {
       setOriginalProfile(updated);
     } catch (error) {
       console.error(error);
-      toast.error("An unexpected error occurred while saving your profile.");
+      if (isAxiosError(error) && error.response?.data) {
+        const data = error.response.data as {
+          message?: string;
+          errors?: Record<string, string[]>;
+          title?: string;
+        };
+        if (data.errors) {
+          const errorMsg = Object.values(data.errors).flat().join(" ");
+          toast.error(errorMsg || data.title || "Lỗi cập nhật thông tin");
+        } else {
+          toast.error(data.message || "Lỗi cập nhật thông tin");
+        }
+      } else {
+        toast.error("An unexpected error occurred while saving your profile.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -252,8 +310,12 @@ export default function ProfilePage() {
   };
 
   const handleTopUp = async () => {
-    if (topUpAmount < 10000) {
-      toast.error("Minimum top-up is 10,000 VND");
+    if (topUpAmount < minTopUpAmount) {
+      toast.error(`Minimum top-up is ${new Intl.NumberFormat("vi-VN").format(minTopUpAmount)} VND`);
+      return;
+    }
+    if (topUpAmount > maxTopUpAmount) {
+      toast.error(`Maximum top-up is ${new Intl.NumberFormat("vi-VN").format(maxTopUpAmount)} VND`);
       return;
     }
     setIsTopUpping(true);
@@ -293,7 +355,7 @@ export default function ProfilePage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-12 px-4 sm:px-6 font-sans">
-        <div className="max-w-[1100px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col items-center">
               <div
@@ -766,8 +828,17 @@ export default function ProfilePage() {
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-sm font-black text-red-500">
-                                    -{new Intl.NumberFormat("vi-VN").format(order.totalPrice)} pts
+                                  <p className="text-sm font-black text-red-500 flex items-center justify-end gap-1">
+                                    <span>
+                                      -{new Intl.NumberFormat("vi-VN").format(order.totalPrice)}
+                                    </span>
+                                    <Image
+                                      src="/logo_point.png"
+                                      alt="pts"
+                                      width={14}
+                                      height={14}
+                                      className="object-contain inline-block"
+                                    />
                                   </p>
                                   <span
                                     className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 ${
@@ -862,7 +933,7 @@ export default function ProfilePage() {
                         <button
                           onClick={() => {
                             setTopUpResult(null);
-                            setTopUpAmount(50000);
+                            setTopUpAmountStr("50000");
                           }}
                           className="w-full py-4 bg-white text-gray-500 font-extrabold text-base rounded-xl border border-gray-200 hover:bg-gray-50 hover:text-gray-700 transition-colors mt-2"
                         >
@@ -879,7 +950,7 @@ export default function ProfilePage() {
                             {[20000, 50000, 100000, 200000, 500000].map((amt) => (
                               <button
                                 key={amt}
-                                onClick={() => setTopUpAmount(amt)}
+                                onClick={() => setTopUpAmountStr(String(amt))}
                                 className={`py-2.5 rounded-xl text-sm font-bold transition-all border ${
                                   topUpAmount === amt
                                     ? "bg-orange-50 border-orange-300 text-[#D35400]"
@@ -891,17 +962,24 @@ export default function ProfilePage() {
                             ))}
                           </div>
                           <input
-                            type="number"
-                            value={topUpAmount}
-                            onChange={(e) => setTopUpAmount(Number(e.target.value) || 0)}
-                            min={10000}
-                            step={10000}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={topUpAmountStr}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/[^0-9]/g, "");
+                              if (val.length > 1 && val.startsWith("0")) {
+                                val = val.replace(/^0+/, "") || "0";
+                              }
+                              setTopUpAmountStr(val);
+                            }}
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200"
                           />
                           <p className="text-xs text-gray-400 mt-2">
                             You will receive approximately{" "}
-                            {new Intl.NumberFormat("vi-VN").format(Math.floor(topUpAmount / 1000))}{" "}
-                            points
+                            {new Intl.NumberFormat("vi-VN").format(convertVndToPoints(topUpAmount))}{" "}
+                            {pointName} (1 {pointName} ={" "}
+                            {new Intl.NumberFormat("vi-VN").format(vndPerPoint)} {currency})
                           </p>
                         </div>
 
@@ -940,7 +1018,11 @@ export default function ProfilePage() {
 
                         <button
                           onClick={handleTopUp}
-                          disabled={isTopUpping || topUpAmount < 10000}
+                          disabled={
+                            isTopUpping ||
+                            topUpAmount < minTopUpAmount ||
+                            topUpAmount > maxTopUpAmount
+                          }
                           className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           {isTopUpping ? (

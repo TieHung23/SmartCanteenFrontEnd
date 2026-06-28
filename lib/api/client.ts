@@ -1,6 +1,12 @@
 import axios from "axios";
 import { env } from "@/config/env";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import {
+  clearAuthTokens,
+  getAccessToken,
+  getRefreshToken,
+  setAuthTokens,
+} from "@/lib/auth-token-storage";
 
 interface FailedRequest {
   resolve: (token: string | null) => void;
@@ -38,10 +44,13 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+    const token = getAccessToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
     }
     config.headers["X-Api-Version"] = "1.0";
     return config;
@@ -67,8 +76,7 @@ apiClient.interceptors.response.use(
         originalRequest.url?.includes(API_ENDPOINTS.AUTH.LOGIN)
       ) {
         if (typeof window !== "undefined") {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          clearAuthTokens();
           redirectToLogin();
         }
         return Promise.reject(error);
@@ -89,8 +97,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const storedRefreshToken =
-        typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
+      const storedRefreshToken = getRefreshToken();
 
       if (!storedRefreshToken) {
         if (typeof window !== "undefined") {
@@ -109,10 +116,7 @@ apiClient.interceptors.response.use(
 
         const newTokens = refreshResponse.data?.value;
         if (newTokens?.accessToken) {
-          localStorage.setItem("accessToken", newTokens.accessToken);
-          if (newTokens.refreshToken) {
-            localStorage.setItem("refreshToken", newTokens.refreshToken);
-          }
+          setAuthTokens(newTokens.accessToken, newTokens.refreshToken);
 
           processQueue(null, newTokens.accessToken);
 
@@ -122,8 +126,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          clearAuthTokens();
           redirectToLogin();
         }
         return Promise.reject(refreshError);

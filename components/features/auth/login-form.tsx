@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 
+const AUTH_INPUT_CLASS =
+  "h-16 w-full border-0 border-b-2 border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-4 shadow-none text-lg md:text-xl placeholder:text-gray-400";
+
 const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   google_domain_invalid: "Unable to sign in, please try again",
   google_token_error: "Google sign-in failed, please try again",
@@ -82,25 +85,21 @@ export const LoginForm = () => {
     <div className="w-full space-y-10">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-1">
-          <Input
-            {...register("email")}
-            placeholder="Email"
-            className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
-          />
+          <Input {...register("email")} placeholder="Email" className={AUTH_INPUT_CLASS} />
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
         </div>
         <div className="space-y-1">
           <PasswordInput
             {...register("password")}
             placeholder="Password"
-            inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
+            inputClassName={AUTH_INPUT_CLASS}
           />
           {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
         </div>
         <Button
           type="submit"
           disabled={loginMutation.isPending}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl text-lg font-semibold shadow-lg shadow-orange-200 transition-all"
+          className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-lg font-semibold shadow-lg shadow-orange-200 transition-all"
         >
           {loginMutation.isPending ? "Signing In..." : "Sign In"}
         </Button>

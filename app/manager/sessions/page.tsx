@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
+import Modal from "../_components/modal";
+import { NewSessionForm } from "./_components/new-session-form";
+import { SessionDetailsContent } from "./_components/session-details-content";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -19,11 +21,28 @@ function formatDate(iso: string) {
 }
 
 export default function ManagerSessionsPage() {
-  const router = useRouter();
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showActive, setShowActive] = useState<boolean | null>(null);
+
+  // Modal & Form States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [copySessionId, setCopySessionId] = useState<string | null>(null);
+  const [detailsSessionId, setDetailsSessionId] = useState<string | null>(null);
+
+  const fetchSessions = async () => {
+    try {
+      const result = await sessionService.getSessions({
+        pageSize: 100,
+        ...(showActive !== null && { isActive: showActive }),
+      });
+      setSessions(result.items);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +75,21 @@ export default function ManagerSessionsPage() {
     }
   };
 
+  const handleOpenCreateNew = () => {
+    setCopySessionId(null);
+    setIsCreateOpen(true);
+  };
+
+  const handleOpenCopy = (id: string) => {
+    setCopySessionId(id);
+    setIsCreateOpen(true);
+  };
+
+  const handleOpenDetails = (id: string) => {
+    setDetailsSessionId(id);
+    setIsDetailsOpen(true);
+  };
+
   const filtered = search
     ? sessions.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
     : sessions;
@@ -66,10 +100,12 @@ export default function ManagerSessionsPage() {
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-4xl font-extrabold text-gray-900">Serving Sessions</h1>
-          <p className="text-lg text-gray-500 mt-1.5">Quản lý và điều phối các phiên/ca ăn phục vụ.</p>
+          <p className="text-lg text-gray-500 mt-1.5">
+            Quản lý và điều phối các phiên/ca ăn phục vụ.
+          </p>
         </div>
         <button
-          onClick={() => router.push("/manager/sessions/new")}
+          onClick={handleOpenCreateNew}
           className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
           <Plus className="w-5 h-5" />
@@ -126,7 +162,7 @@ export default function ManagerSessionsPage() {
           {filtered.map((session) => (
             <div
               key={session.id}
-              onClick={() => router.push(`/manager/sessions/${session.id}`)}
+              onClick={() => handleOpenDetails(session.id)}
               className="bg-white rounded-3xl border border-gray-100 p-6 hover:shadow-md hover:border-orange-200 transition-all duration-300 cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-2xs"
             >
               <div className="flex-1 min-w-0 space-y-2">
@@ -148,7 +184,7 @@ export default function ManagerSessionsPage() {
                     {session.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
-                
+
                 {session.description && (
                   <p className="text-sm text-gray-500 line-clamp-1 italic px-1">
                     📝 {session.description}
@@ -174,7 +210,7 @@ export default function ManagerSessionsPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/manager/sessions/new?copyFrom=${session.id}`);
+                    handleOpenCopy(session.id);
                   }}
                   className="p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all shrink-0"
                   title="Copy session template"
@@ -184,7 +220,7 @@ export default function ManagerSessionsPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/manager/sessions/${session.id}`);
+                    handleOpenDetails(session.id);
                   }}
                   className="px-5 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
                 >
@@ -204,6 +240,38 @@ export default function ManagerSessionsPage() {
           ))}
         </div>
       )}
+
+      {/* ── CREATE SESSION MODAL ── */}
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title={copySessionId ? "Sao chép Ca phục vụ" : "Tạo Ca phục vụ mới"}
+        size="full"
+      >
+        <NewSessionForm
+          copyFromId={copySessionId}
+          onSuccess={() => {
+            setIsCreateOpen(false);
+            fetchSessions();
+          }}
+          onCancel={() => setIsCreateOpen(false)}
+        />
+      </Modal>
+
+      {/* ── SESSION DETAILS MODAL ── */}
+      <Modal
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        title="Chi tiết Ca phục vụ"
+        size="full"
+      >
+        {detailsSessionId && (
+          <SessionDetailsContent
+            sessionId={detailsSessionId}
+            onClose={() => setIsDetailsOpen(false)}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

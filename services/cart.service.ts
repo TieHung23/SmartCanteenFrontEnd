@@ -15,9 +15,10 @@ export const cartService = {
     });
     return (response as unknown as ApiResponse<CartResponse>).value;
   },
-  deleteCart: async (expectedVersion: number): Promise<void> => {
-    await apiClient.delete(API_ENDPOINTS.CART.DELETE, {
+  deleteCart: async (expectedVersion: number): Promise<CartResponse | void> => {
+    const response = await apiClient.delete(API_ENDPOINTS.CART.DELETE, {
       params: { expectedVersion },
     });
+    return (response as unknown as ApiResponse<CartResponse> | undefined)?.value;
   },
 };

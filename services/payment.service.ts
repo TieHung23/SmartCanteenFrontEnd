@@ -48,7 +48,27 @@ export interface WalletTransaction {
   isDeleted?: boolean;
 }
 
+export interface TopUpPolicy {
+  vndPerPoint: number;
+  minTopUpAmount: number;
+  maxTopUpAmount: number;
+  currency: string;
+  pointName: string;
+}
+
 export const paymentService = {
+  getTopUpPolicy: async (): Promise<TopUpPolicy> => {
+    try {
+      const response = (await apiClient.get<ApiResponse<TopUpPolicy>>(
+        API_ENDPOINTS.PAYMENT.TOP_UP_POLICY,
+      )) as unknown as ApiResponse<TopUpPolicy>;
+      return response.value;
+    } catch (error) {
+      console.error("Error when fetching top-up policy:", error);
+      throw error;
+    }
+  },
+
   topUpWallet: async (data: TopUpRequest): Promise<TopUpResponse> => {
     try {
       const response = (await apiClient.post<ApiResponse<TopUpResponse>>(

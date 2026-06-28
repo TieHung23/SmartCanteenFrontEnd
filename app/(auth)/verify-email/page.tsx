@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { authService } from "@/services/auth.service";
-import { CheckCircle2, XCircle, Loader2, Mail, ShieldCheck, ArrowLeft } from "lucide-react";
+import { XCircle, Loader2, Mail, ShieldCheck, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -90,15 +90,12 @@ function VerifyEmailContent() {
 
         {status === "success" && (
           <div className="flex flex-col items-center gap-5">
-            <div className="w-24 h-24 rounded-full bg-orange-50 flex items-center justify-center border-2 border-orange-100 shadow-inner">
-              <ShieldCheck className="w-14 h-14 text-[#D35400]" />
-            </div>
-            <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center -mt-10 border-4 border-white shadow-md">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            <div className="w-24 h-24 rounded-full bg-emerald-50 flex items-center justify-center border-2 border-emerald-100 shadow-inner">
+              <ShieldCheck className="w-14 h-14 text-emerald-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-800">Email Verified!</h1>
-              <p className="text-gray-400 text-sm mt-1">{message}</p>
+              <h1 className="text-2xl font-extrabold text-gray-850">Email Verified!</h1>
+              <p className="text-gray-400 text-sm mt-1 font-semibold">{message}</p>
             </div>
             <Link
               href="/login"

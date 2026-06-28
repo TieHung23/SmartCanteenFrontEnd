@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Eye, ShieldAlert } from "lucide-react";
 import { refundService } from "@/services/refund.service";
 import type { ManagerRefundListItem } from "@/types/refund.types";
 import { cn } from "@/lib/utils";
+import Modal from "../_components/modal";
+import { RefundDetailsContent } from "./_components/refund-details-content";
 
 const STATUS_STYLES: Record<string, { label: string; color: string; bg: string }> = {
   Pending: { label: "Pending", color: "text-yellow-800", bg: "bg-yellow-100" },
@@ -14,10 +16,17 @@ const STATUS_STYLES: Record<string, { label: string; color: string; bg: string }
 };
 
 export default function ManagerRefundsPage() {
-  const router = useRouter();
   const [requests, setRequests] = useState<ManagerRefundListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
+
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+
+  const handleOpenDetails = (id: string) => {
+    setDetailsId(id);
+    setIsDetailsOpen(true);
+  };
 
   const fetchRequests = async (status?: string) => {
     if (status !== undefined) setLoading(true);
@@ -54,7 +63,9 @@ export default function ManagerRefundsPage() {
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6">
         <h1 className="text-4xl font-extrabold text-gray-900">Refund Requests</h1>
-        <p className="text-lg text-gray-500 mt-1.5">Phê duyệt hoặc từ chối các yêu cầu hoàn tiền của người dùng.</p>
+        <p className="text-lg text-gray-500 mt-1.5">
+          Phê duyệt hoặc từ chối các yêu cầu hoàn tiền của người dùng.
+        </p>
       </div>
 
       {/* Filter bar */}
@@ -78,7 +89,9 @@ export default function ManagerRefundsPage() {
       {loading ? (
         <div className="flex h-[40vh] flex-col items-center justify-center gap-3">
           <div className="w-12 h-12 border-4 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-          <p className="text-base font-bold text-gray-500">Đang tải danh sách yêu cầu hoàn tiền...</p>
+          <p className="text-base font-bold text-gray-500">
+            Đang tải danh sách yêu cầu hoàn tiền...
+          </p>
         </div>
       ) : requests.length === 0 ? (
         <div className="bg-white rounded-3xl border border-gray-200/60 p-16 text-center shadow-xs flex flex-col items-center justify-center gap-3">
@@ -92,13 +105,15 @@ export default function ManagerRefundsPage() {
             return (
               <div
                 key={req.id}
-                onClick={() => router.push(`/manager/refunds/${req.id}`)}
-                className="bg-white rounded-3xl border border-gray-200/60 p-6 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 cursor-pointer flex flex-col justify-between shadow-2xs gap-5 card-3d"
+                onClick={() => handleOpenDetails(req.id)}
+                className="bg-white rounded-3xl border border-gray-200/30 p-6 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 cursor-pointer flex flex-col justify-between shadow-2xs gap-5 card-3d"
               >
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">User ID</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        User ID
+                      </p>
                       <p className="text-sm font-mono font-bold text-gray-800 truncate mt-0.5">
                         {req.userId.slice(0, 12)}...
                       </p>
@@ -115,21 +130,34 @@ export default function ManagerRefundsPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Chính sách áp dụng</p>
-                    <p className="text-sm font-bold text-gray-750 mt-0.5 line-clamp-1">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Chính sách áp dụng
+                    </p>
+                    <p className="text-sm font-bold text-gray-755 mt-0.5 line-clamp-1">
                       {req.policyName}
                     </p>
                   </div>
 
                   <div className="pt-2 border-t border-gray-50 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Số tiền hoàn</p>
-                      <p className="text-lg font-bold text-[#D35400] mt-0.5">
-                        {new Intl.NumberFormat("vi-VN").format(req.refundAmount)} pts
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        Số tiền hoàn
+                      </p>
+                      <p className="text-lg font-bold text-[#D35400] mt-0.5 flex items-center gap-0.5">
+                        <span>{new Intl.NumberFormat("vi-VN").format(req.refundAmount)}</span>
+                        <Image
+                          src="/logo_point.png"
+                          alt="coin"
+                          width={16}
+                          height={16}
+                          className="object-contain"
+                        />
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tỷ lệ</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        Tỷ lệ
+                      </p>
                       <span className="inline-block mt-1 font-bold text-[#D35400] bg-orange-50 border border-orange-100/40 rounded-lg px-2 py-0.5 text-xs">
                         Hoàn {req.refundPercent}%
                       </span>
@@ -151,7 +179,7 @@ export default function ManagerRefundsPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/manager/refunds/${req.id}`);
+                    handleOpenDetails(req.id);
                   }}
                   className="w-full py-3 bg-[#D35400]/10 hover:bg-[#D35400] text-[#D35400] hover:text-white rounded-2xl text-sm font-bold transition-all text-center flex items-center justify-center gap-2"
                 >
@@ -163,6 +191,24 @@ export default function ManagerRefundsPage() {
           })}
         </div>
       )}
+
+      {/* ── REFUND DETAIL MODAL ── */}
+      <Modal
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        title="Chi tiết yêu cầu hoàn tiền"
+        size="lg"
+      >
+        {detailsId && (
+          <RefundDetailsContent
+            requestId={detailsId}
+            onSuccess={() => {
+              setIsDetailsOpen(false);
+              fetchRequests(statusFilter || undefined);
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

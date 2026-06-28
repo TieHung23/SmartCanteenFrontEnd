@@ -13,6 +13,9 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 import { useState, Suspense } from "react";
 
+const AUTH_INPUT_CLASS =
+  "h-16 w-full border-0 border-b-2 border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-4 shadow-none text-lg md:text-xl placeholder:text-gray-400";
+
 const ResetPasswordFormInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,7 +90,7 @@ const ResetPasswordFormInner = () => {
         <PasswordInput
           {...register("newPassword")}
           placeholder="Enter new password"
-          inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
+          inputClassName={AUTH_INPUT_CLASS}
         />
         {errors.newPassword && <p className="text-xs text-red-500">{errors.newPassword.message}</p>}
       </div>
@@ -97,7 +100,7 @@ const ResetPasswordFormInner = () => {
         <PasswordInput
           {...register("confirmPassword")}
           placeholder="Re-enter new password"
-          inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400"
+          inputClassName={AUTH_INPUT_CLASS}
         />
         {errors.confirmPassword && (
           <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>
@@ -107,7 +110,7 @@ const ResetPasswordFormInner = () => {
       <Button
         type="submit"
         disabled={mutation.isPending}
-        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl text-base font-semibold shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2"
+        className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-base font-semibold shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2"
       >
         {mutation.isPending ? (
           <>

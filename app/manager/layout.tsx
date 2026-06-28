@@ -129,7 +129,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
           </div>
 
           {/* Navigation menu */}
-          <nav className="flex-1 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
+          <nav className="flex-1 space-y-1 pr-1 sidebar-nav">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em] px-4 mb-4">
               Control Panel
             </p>

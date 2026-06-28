@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 import {
   Clock,
   CheckCircle2,
@@ -475,8 +476,15 @@ export default function LiveOrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-4 lg:flex-col lg:items-end shrink-0">
-                      <span className="text-xl font-extrabold text-[#FF4C24]">
-                        {order.totalPrice.toLocaleString()} P
+                      <span className="text-xl font-extrabold text-[#FF4C24] flex items-center gap-1">
+                        <span>{order.totalPrice.toLocaleString()}</span>
+                        <Image
+                          src="/logo_point.png"
+                          alt="coin"
+                          width={16}
+                          height={16}
+                          className="object-contain inline-block"
+                        />
                       </span>
                       <div className="flex gap-3">
                         <button
@@ -554,21 +562,42 @@ export default function LiveOrdersPage() {
                         </div>
                         <div>
                           <p className="font-semibold text-gray-800 text-sm">{item.dishName}</p>
-                          <p className="text-xs text-gray-400">
-                            Đơn giá: {item.price.toLocaleString()} P
+                          <p className="text-xs text-gray-400 flex items-center gap-1">
+                            <span>Đơn giá: {item.price.toLocaleString()}</span>
+                            <Image
+                              src="/logo_point.png"
+                              alt="coin"
+                              width={10}
+                              height={10}
+                              className="object-contain inline-block"
+                            />
                           </p>
                         </div>
                       </div>
-                      <span className="font-bold text-gray-900">
-                        {(item.price * item.quantity).toLocaleString()} P
+                      <span className="font-bold text-gray-900 flex items-center gap-1">
+                        <span>{(item.price * item.quantity).toLocaleString()}</span>
+                        <Image
+                          src="/logo_point.png"
+                          alt="coin"
+                          width={12}
+                          height={12}
+                          className="object-contain inline-block"
+                        />
                       </span>
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
                   <span className="text-sm font-bold text-gray-600">Tổng cộng</span>
-                  <span className="text-lg font-black text-[#FF4C24]">
-                    {selectedOrder.totalPrice.toLocaleString()} P
+                  <span className="text-lg font-black text-[#FF4C24] flex items-center gap-1">
+                    <span>{selectedOrder.totalPrice.toLocaleString()}</span>
+                    <Image
+                      src="/logo_point.png"
+                      alt="coin"
+                      width={16}
+                      height={16}
+                      className="object-contain inline-block"
+                    />
                   </span>
                 </div>
               </div>

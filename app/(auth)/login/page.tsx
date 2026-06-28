@@ -15,7 +15,7 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 bg-white">
-        <div className="w-full max-w-sm flex flex-col items-center">
+        <div className="w-full max-w-xl flex flex-col items-center">
           <div className="mb-4 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

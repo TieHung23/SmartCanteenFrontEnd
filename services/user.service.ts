@@ -44,17 +44,19 @@ export const userService = {
     try {
       const formData = new FormData();
 
-      if (data.name) formData.append("Name", data.name.trim());
-      if (data.phoneNumber) formData.append("PhoneNumber", data.phoneNumber.trim());
-      if (data.address) formData.append("Address", data.address.trim());
-      if (data.majorOrClass) formData.append("MajorOrClass", data.majorOrClass.trim());
-      if (data.studentId) formData.append("StudentId", data.studentId.trim());
+      if (data.name !== undefined) formData.append("Name", (data.name ?? "").trim());
+      if (data.phoneNumber !== undefined)
+        formData.append("PhoneNumber", (data.phoneNumber ?? "").trim());
+      if (data.address !== undefined) formData.append("Address", (data.address ?? "").trim());
+      if (data.majorOrClass !== undefined)
+        formData.append("MajorOrClass", (data.majorOrClass ?? "").trim());
+      if (data.studentId !== undefined) formData.append("StudentId", (data.studentId ?? "").trim());
 
       if (data.gender !== undefined && data.gender !== null) {
         formData.append("Gender", String(data.gender));
       }
 
-      if (data.dateOfBirth && data.dateOfBirth.trim() !== "") {
+      if (data.dateOfBirth !== undefined && data.dateOfBirth && data.dateOfBirth.trim() !== "") {
         const formattedDate = data.dateOfBirth.split("T")[0];
         formData.append("DateOfBirth", formattedDate);
       }
@@ -66,9 +68,6 @@ export const userService = {
       const response = (await apiClient.put<ApiResponse<UserProfileResponse>>(
         API_ENDPOINTS.AUTH.ME,
         formData,
-        {
-          headers: { "Content-Type": null },
-        },
       )) as unknown as ApiResponse<UserProfileResponse>;
 
       const dataResponse = ((response as unknown as { value: UserProfileResponse }).value ||

@@ -5,8 +5,17 @@ import { useCart } from "@/context/cart-context";
 import { useCategories } from "@/lib/hooks/useCanteen";
 import { sessionService } from "@/services/session.service";
 import type { SessionDetail } from "@/types/session.types";
-{/* 🌟 ĐÃ SỬA: Loại bỏ icon "Info" không sử dụng */}
-import { X, Trash2, ShoppingBag, Plus, Minus, AlertTriangle, Calendar, CheckSquare, Square } from "lucide-react";
+import {
+  X,
+  Trash2,
+  ShoppingBag,
+  Plus,
+  Minus,
+  AlertTriangle,
+  Calendar,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/config/routes";
@@ -16,7 +25,8 @@ function formatTimeRange(t?: string) {
   if (!t) return "";
   const parts = t.split(" - ");
   if (parts.length < 2) return t;
-  const fmt = (s: string) => new Date(s).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  const fmt = (s: string) =>
+    new Date(s).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
   return `${fmt(parts[0])} - ${fmt(parts[1])}`;
 }
 
@@ -26,12 +36,19 @@ function formatPts(amount: number) {
 
 export default function CartDrawer() {
   const router = useRouter();
-  
-  {/* 🌟 ĐÃ SỬA: Loại bỏ các biến thừa không dùng (getCartTotal, sessionId, getCategoryCurrentCount, isSessionSelected) */}
+
   const {
-    isCartOpen, closeCart, cartItems,
-    updateQuantity, removeFromCart, uniqueSessionIds,
-    selectedSessionIds, toggleSessionSelection, selectAllSessions, clearSessionSelection,
+    isCartOpen,
+    closeCart,
+    cartItems,
+    updateQuantity,
+    removeFromCart,
+    uniqueSessionIds,
+    selectedSessionIds,
+    toggleSessionSelection,
+    selectAllSessions,
+    clearSessionSelection,
+    removeBySessionId,
   } = useCart();
 
   const { data: categoriesData } = useCategories();
@@ -47,12 +64,43 @@ export default function CartDrawer() {
       ),
     ).then((results) => {
       const map = new Map<string, SessionDetail>();
-      for (const r of results) {
-        if (r.status === "fulfilled") map.set(r.value[0], r.value[1]);
-      }
+      const expiredSessionIds: string[] = [];
+      const now = new Date();
+
+      results.forEach((r, idx) => {
+        if (r.status === "fulfilled") {
+          const sid = r.value[0];
+          const detail = r.value[1];
+          const isExpired =
+            new Date(detail.availableTo) < now || !detail.isActive || detail.isFinalized === true;
+
+          if (isExpired) {
+            expiredSessionIds.push(sid);
+          } else {
+            map.set(sid, detail);
+          }
+        } else {
+          // If fetching the session details fails (e.g. 404), mark it as expired/invalid too.
+          const sid = uniqueSessionIds[idx];
+          if (sid) {
+            expiredSessionIds.push(sid);
+          }
+        }
+      });
+
       setAllSessionDetails(map);
+
+      if (expiredSessionIds.length > 0) {
+        expiredSessionIds.forEach((sid) => {
+          removeBySessionId(sid);
+        });
+        toast.warning(
+          "Một số món ăn trong giỏ hàng đã được tự động dọn dẹp do ca ăn tương ứng đã kết thúc, hết hạn đặt hàng hoặc đã chốt đơn.",
+          { duration: 5000 },
+        );
+      }
     });
-  }, [uniqueSessionIds]);
+  }, [uniqueSessionIds, removeBySessionId]);
 
   // Build category name map from API (not just cart items)
   const globalCategoryNames = useMemo(() => {
@@ -70,15 +118,18 @@ export default function CartDrawer() {
 
   // Group sessions with their items, template info, and per-session category max
   const sessionGroups = useMemo(() => {
-    const groups = new Map<string, {
-      items: typeof cartItems;
-      sessionName: string;
-      sessionTime: string;
-      templateName: string;
-      categoryLimits: Map<string, { max: number; current: number }>;
-      itemCount: number;
-      totalPrice: number;
-    }>();
+    const groups = new Map<
+      string,
+      {
+        items: typeof cartItems;
+        sessionName: string;
+        sessionTime: string;
+        templateName: string;
+        categoryLimits: Map<string, { max: number; current: number }>;
+        itemCount: number;
+        totalPrice: number;
+      }
+    >();
 
     for (const item of cartItems) {
       const sid = item.sessionId || "unknown";
@@ -106,13 +157,14 @@ export default function CartDrawer() {
       const detail = allSessionDetails.get(sid);
       if (!detail?.mealTemplates) continue;
       const firstItem = group.items[0];
-      const template = detail.mealTemplates.find(t => t.id === firstItem?.sessionTemplateId)
-        || detail.mealTemplates[0];
+      const template =
+        detail.mealTemplates.find((t) => t.id === firstItem?.sessionTemplateId) ||
+        detail.mealTemplates[0];
       if (!template) continue;
       group.templateName = template.name;
       for (const setting of template.settings) {
         const current = group.items
-          .filter(i => i.categoryId === setting.categoryId)
+          .filter((i) => i.categoryId === setting.categoryId)
           .reduce((s, i) => s + i.quantity, 0);
         group.categoryLimits.set(setting.categoryId, {
           max: setting.maxQuantity,
@@ -126,18 +178,19 @@ export default function CartDrawer() {
 
   const selectedCount = selectedSessionIds.length;
   const hasSelection = selectedCount > 0;
-  const allSelected = hasSelection && uniqueSessionIds.every(sid => selectedSessionIds.includes(sid));
+  const allSelected =
+    hasSelection && uniqueSessionIds.every((sid) => selectedSessionIds.includes(sid));
 
   // Compute totals for selected sessions only
   const selectedTotal = useMemo(() => {
     return cartItems
-      .filter(i => i.sessionId && selectedSessionIds.includes(i.sessionId))
+      .filter((i) => i.sessionId && selectedSessionIds.includes(i.sessionId))
       .reduce((sum, i) => sum + i.price * i.quantity, 0);
   }, [cartItems, selectedSessionIds]);
 
   const selectedItemCount = useMemo(() => {
     return cartItems
-      .filter(i => i.sessionId && selectedSessionIds.includes(i.sessionId))
+      .filter((i) => i.sessionId && selectedSessionIds.includes(i.sessionId))
       .reduce((sum, i) => sum + i.quantity, 0);
   }, [cartItems, selectedSessionIds]);
 
@@ -156,7 +209,7 @@ export default function CartDrawer() {
     router.push(ROUTES.CHECKOUT);
   };
 
-  const handleUpdateQuantity = (item: typeof cartItems[0], qty: number) => {
+  const handleUpdateQuantity = (item: (typeof cartItems)[0], qty: number) => {
     if (qty <= 0) {
       removeFromCart(item.dishId, item.sessionId);
       return;
@@ -168,7 +221,10 @@ export default function CartDrawer() {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300" onClick={closeCart} />
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+        onClick={closeCart}
+      />
 
       <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
         <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col animate-slideInRight">
@@ -181,11 +237,15 @@ export default function CartDrawer() {
               <div>
                 <h3 className="text-xl font-bold text-gray-800">Giỏ hàng</h3>
                 <p className="text-sm text-gray-400 font-medium">
-                  {cartItems.length} món{uniqueSessionIds.length > 1 ? ` · ${uniqueSessionIds.length} suất` : ""}
+                  {cartItems.length} món
+                  {uniqueSessionIds.length > 1 ? ` · ${uniqueSessionIds.length} suất` : ""}
                 </p>
               </div>
             </div>
-            <button onClick={closeCart} className="p-2.5 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+            <button
+              onClick={closeCart}
+              className="p-2.5 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -193,8 +253,15 @@ export default function CartDrawer() {
           {/* Multi-session selection bar */}
           {uniqueSessionIds.length > 1 && (
             <div className="mx-8 mt-4 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-              <button onClick={allSelected ? clearSessionSelection : selectAllSessions} className="flex items-center gap-2 text-sm font-semibold text-amber-700">
-                {allSelected ? <Square className="w-4 h-4" /> : <CheckSquare className="w-4 h-4 text-amber-600" />}
+              <button
+                onClick={allSelected ? clearSessionSelection : selectAllSessions}
+                className="flex items-center gap-2 text-sm font-semibold text-amber-700"
+              >
+                {allSelected ? (
+                  <Square className="w-4 h-4" />
+                ) : (
+                  <CheckSquare className="w-4 h-4 text-amber-600" />
+                )}
                 {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
               </button>
               <span className="text-xs text-amber-600">
@@ -220,7 +287,9 @@ export default function CartDrawer() {
                   <div
                     key={sid}
                     className={`rounded-2xl border-2 transition-all overflow-hidden ${
-                      checked ? "border-[#D35400]/20 bg-orange-50/10" : "border-gray-100 bg-white opacity-60"
+                      checked
+                        ? "border-[#D35400]/20 bg-orange-50/10"
+                        : "border-gray-100 bg-white opacity-60"
                     }`}
                   >
                     {/* Session header with checkbox */}
@@ -240,17 +309,32 @@ export default function CartDrawer() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-[#D35400] shrink-0" />
-                          <span className="text-sm font-bold text-gray-700 truncate">{group.sessionName}</span>
+                          <span className="text-sm font-bold text-gray-700 truncate">
+                            {group.sessionName}
+                          </span>
                           {group.sessionTime && (
-                            <span className="text-xs text-gray-400 shrink-0">{group.sessionTime}</span>
+                            <span className="text-xs text-gray-400 shrink-0">
+                              {group.sessionTime}
+                            </span>
                           )}
                         </div>
                         {group.templateName && (
-                          <p className="text-xs text-gray-500 font-medium mt-0.5 ml-6">{group.templateName}</p>
+                          <p className="text-xs text-gray-500 font-medium mt-0.5 ml-6">
+                            {group.templateName}
+                          </p>
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xs font-bold text-[#D35400]">{formatPts(group.totalPrice)} pts</p>
+                        <p className="text-sm font-bold text-[#D35400] flex items-center justify-end gap-1">
+                          <span>{formatPts(group.totalPrice)}</span>
+                          <Image
+                            src="/logo_point.png"
+                            alt="coin"
+                            width={14}
+                            height={14}
+                            className="object-contain"
+                          />
+                        </p>
                         <p className="text-[10px] text-gray-400">{group.itemCount} món</p>
                       </div>
                     </div>
@@ -264,11 +348,15 @@ export default function CartDrawer() {
                             <span
                               key={catId}
                               className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg border ${
-                                isFull ? "bg-red-50 border-red-200 text-red-600" : "bg-white border-gray-200 text-gray-500"
+                                isFull
+                                  ? "bg-red-50 border-red-200 text-red-600"
+                                  : "bg-white border-gray-200 text-gray-500"
                               }`}
                             >
                               {catName(catId)}
-                              <span className="font-black">{limit.current}/{limit.max}</span>
+                              <span className="font-black">
+                                {limit.current}/{limit.max}
+                              </span>
                               {isFull && <AlertTriangle className="w-2.5 h-2.5" />}
                             </span>
                           );
@@ -279,25 +367,43 @@ export default function CartDrawer() {
                     {/* Items in this session */}
                     <div className="divide-y divide-gray-50">
                       {group.items.map((item) => {
-                        const catLimit = item.categoryId ? group.categoryLimits.get(item.categoryId) : undefined;
-                        const catCurrent = catLimit ? group.items
-                          .filter(i => i.categoryId === item.categoryId)
-                          .reduce((s, i) => s + i.quantity, 0) : 0;
+                        const catLimit = item.categoryId
+                          ? group.categoryLimits.get(item.categoryId)
+                          : undefined;
+                        const catCurrent = catLimit
+                          ? group.items
+                              .filter((i) => i.categoryId === item.categoryId)
+                              .reduce((s, i) => s + i.quantity, 0)
+                          : 0;
                         const atMax = catLimit ? catCurrent >= catLimit.max : false;
 
                         return (
-                          <div key={item.dishId + sid} className="flex gap-4 px-5 py-3 hover:bg-orange-50/30 transition-colors">
+                          <div
+                            key={item.dishId + sid}
+                            className="flex gap-4 px-5 py-3 hover:bg-orange-50/30 transition-colors"
+                          >
                             <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
-                              <Image src={item.imgUrl || "/placeholder-user.png"} alt={item.name} fill className="object-cover" />
+                              <Image
+                                src={item.imgUrl || "/placeholder-user.png"}
+                                alt={item.name}
+                                fill
+                                className="object-cover"
+                              />
                             </div>
                             <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <h4 className="text-sm font-semibold text-gray-800 truncate">
                                   {item.name}
-                                  {atMax && <span className="ml-1 text-[10px] text-red-500 font-bold">(đã đạt tối đa)</span>}
+                                  {atMax && (
+                                    <span className="ml-1 text-[10px] text-red-500 font-bold">
+                                      (đã đạt tối đa)
+                                    </span>
+                                  )}
                                 </h4>
                                 {item.categoryName && (
-                                  <p className="text-[10px] text-gray-400 font-medium">{item.categoryName}</p>
+                                  <p className="text-[10px] text-gray-400 font-medium">
+                                    {item.categoryName}
+                                  </p>
                                 )}
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
@@ -309,11 +415,15 @@ export default function CartDrawer() {
                                   >
                                     <Minus className="w-3.5 h-3.5" />
                                   </button>
-                                  <span className="px-2 text-xs font-bold text-gray-700 min-w-[20px] text-center">{item.quantity}</span>
+                                  <span className="px-2 text-xs font-bold text-gray-700 min-w-[20px] text-center">
+                                    {item.quantity}
+                                  </span>
                                   <button
                                     onClick={() => {
                                       if (atMax) {
-                                        toast.error(`Danh mục "${item.categoryName || ""}" chỉ được tối đa ${catLimit?.max} món.`);
+                                        toast.error(
+                                          `Danh mục "${item.categoryName || ""}" chỉ được tối đa ${catLimit?.max} món.`,
+                                        );
                                         return;
                                       }
                                       handleUpdateQuantity(item, item.quantity + 1);
@@ -324,7 +434,16 @@ export default function CartDrawer() {
                                     <Plus className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
-                                <span className="text-xs font-bold text-[#D35400] min-w-[60px] text-right">{formatPts(item.price * item.quantity)}</span>
+                                <span className="text-sm font-bold text-[#D35400] min-w-[70px] text-right flex items-center justify-end gap-1">
+                                  <span>{formatPts(item.price * item.quantity)}</span>
+                                  <Image
+                                    src="/logo_point.png"
+                                    alt="coin"
+                                    width={12}
+                                    height={12}
+                                    className="object-contain"
+                                  />
+                                </span>
                                 <button
                                   onClick={() => removeFromCart(item.dishId, item.sessionId)}
                                   className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
@@ -348,16 +467,27 @@ export default function CartDrawer() {
             <div className="px-8 py-5 border-t border-gray-100 bg-white space-y-3 shadow-[0_-8px_30px_rgb(0,0,0,0.03)]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Tổng cộng</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                    Tổng cộng
+                  </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {selectedItemCount}/{cartItems.length} món
                     {uniqueSessionIds.length > 1 && (
-                      <span className="text-amber-500 ml-1">· {selectedCount}/{uniqueSessionIds.length} suất</span>
+                      <span className="text-amber-500 ml-1">
+                        · {selectedCount}/{uniqueSessionIds.length} suất
+                      </span>
                     )}
                   </p>
                 </div>
-                <div className="text-2xl font-bold text-[#D35400]">
-                  {formatPts(selectedTotal)} <span className="text-sm text-orange-400 font-medium">pts</span>
+                <div className="text-2xl font-black text-[#D35400] flex items-center gap-1.5">
+                  <span>{formatPts(selectedTotal)}</span>
+                  <Image
+                    src="/logo_point.png"
+                    alt="coin"
+                    width={18}
+                    height={18}
+                    className="object-contain"
+                  />
                 </div>
               </div>
               <button
@@ -372,12 +502,14 @@ export default function CartDrawer() {
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         .animate-slideInRight { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `,
-      }} />
+        }}
+      />
     </div>
   );
 }

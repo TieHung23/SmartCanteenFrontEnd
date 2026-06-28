@@ -7,6 +7,7 @@ import {
   RegisterResponse,
 } from "@/types/auth.types";
 import { ForgotPasswordBody, ResetPasswordBody, ChangePasswordBody } from "@/types/auth.types";
+import { clearAuthTokens, getAccessToken } from "@/lib/auth-token-storage";
 
 export const authService = {
   login: async (body: LoginBodyType): Promise<LoginResponse> => {
@@ -40,7 +41,7 @@ export const authService = {
 
   getProfile: async (): Promise<{ role: string } | null> => {
     if (typeof window === "undefined") return null;
-    const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return null;
     try {
       const res = (await apiClient.get(API_ENDPOINTS.AUTH.ME)) as Record<string, unknown>;
@@ -65,8 +66,7 @@ export const authService = {
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: unknown } };
       console.log("getProfile error:", error?.response?.status, error?.response?.data);
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("token");
+      clearAuthTokens();
       return null;
     }
   },

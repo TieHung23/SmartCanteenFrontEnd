@@ -46,12 +46,17 @@ export const API_ENDPOINTS = {
     DELETE: "/api/Cart",
   },
   PAYMENT: {
-    TOP_UP: "/api/payments/top-up",
-    GET: (id: string) => `/api/payments/${id}`,
+    TOP_UP: "/api/Payments/top-up",
+    TOP_UP_POLICY: "/api/Payments/top-up-policy",
+    GET: (id: string) => `/api/Payments/${id}`,
   },
   WALLET: {
     TRANSACTIONS: "/api/Wallet/transactions",
     GET: (id: string) => `/api/Wallet/transactions/${id}`,
+  },
+  SETTINGS: {
+    LIST: "/api/Settings",
+    GET: (id: string) => `/api/Settings/${id}`,
   },
   REFUND: {
     LIST: "/api/refunds",
@@ -76,6 +81,17 @@ export const API_ENDPOINTS = {
     READ: (id: string) => `/api/notifications/${id}/read`,
     READ_ALL: "/api/notifications/read-all",
     DELETE: (id: string) => `/api/notifications/${id}`,
+  },
+  CHANGE_PROPOSAL: {
+    ACCEPT: (id: string) => `/api/change-proposals/${id}/accept`,
+    REQUEST_REFUND: (id: string) => `/api/change-proposals/${id}/refund`,
+  },
+  PICKUP: {
+    ASSIGN: "/api/pickup/assign",
+    COLLECT: "/api/pickup/collect",
+  },
+  ROBOT: {
+    SERVING_JOBS: "/api/robot/serving-jobs",
   },
   ADMIN: {
     LOGS: {
