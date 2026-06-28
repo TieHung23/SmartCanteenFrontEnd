@@ -98,7 +98,7 @@ function MenuContent() {
   const isLoading = loadingCats || loadingDishes || loadingMeal;
 
   // mealDetail alias for backward compatibility in JSX
-  const mealDetail = sessionDetail;
+  const mealDetail = sessionDetail ?? null;
 
   const [selectedTemplateIdx, setSelectedTemplateIdx] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -756,7 +756,7 @@ function MenuContent() {
               setIsDragOverRightPanel(false);
               handleDropFromTray(e);
             }}
-            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-4 ${
+            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-4 lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] ${
               isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
             }`}
           >
@@ -1023,16 +1023,6 @@ function MenuContent() {
                 Kéo lên đây — không cần kéo về mâm
               </p>
             </div>
-            <div
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragEnter}
-              onDrop={handleDropOnTray}
-              className="fixed bottom-28 right-8 z-50 w-56 rounded-3xl border-2 border-dashed border-[#FF4C24] bg-white/95 px-5 py-4 text-center shadow-2xl backdrop-blur-md hidden lg:block"
-            >
-              <ShoppingCart className="w-7 h-7 text-[#FF4C24] mx-auto mb-2" />
-              <p className="text-sm font-black text-gray-800">Thả món vào đây</p>
-              <p className="text-xs font-semibold text-gray-400 mt-1">Không cần kéo về mâm</p>
-            </div>
           </>
         )}
       </main>
@@ -1169,6 +1159,8 @@ function DishCard({
       style={{
         transform: `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1,1,1)`,
         transition: tilt.x === 0 && tilt.y === 0 ? "all 0.5s ease" : "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
       }}
       className={`dish-card-customer group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[260px] justify-between shadow-xs ${
         disabled

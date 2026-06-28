@@ -31,6 +31,8 @@ export interface SessionListItem {
   availableForOrder: string;
   dishes: SessionDishInfo[];
   isFinalized?: boolean;
+  finalizedAtUtc?: string | null;
+  finalizationDeadline?: string | null;
 }
 
 export interface SessionDetail extends SessionListItem {
@@ -103,6 +105,8 @@ export const SessionListItemSchema = z
     availableForOrder: z.string(),
     dishes: z.array(SessionDishInfoSchema),
     isFinalized: z.boolean().optional(),
+    finalizedAtUtc: z.string().nullable().optional(),
+    finalizationDeadline: z.string().nullable().optional(),
   })
   .passthrough() satisfies z.ZodType<SessionListItem>;
 

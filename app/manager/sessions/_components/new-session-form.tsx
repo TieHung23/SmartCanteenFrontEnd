@@ -17,16 +17,21 @@ import {
   ChefHat,
   CalendarPlus,
   Play,
-  Hourglass,
   Lock,
+  Trash2,
+  Hourglass,
 } from "lucide-react";
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { StaticTimePicker } from "@mui/x-date-pickers/StaticTimePicker";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import dayjs from "dayjs";
 import { toast } from "sonner";
+
+interface LocalTemplate extends CreateSessionTemplate {
+  dishIds: string[];
+}
 
 interface NewSessionFormProps {
   copyFromId: string | null;
@@ -50,93 +55,79 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   const [sessionDate, setSessionDate] = useState("");
   const [finalizationDeadline, setFinalizationDeadline] = useState("");
   const [autoFinalizePolicy, setAutoFinalizePolicy] = useState(0);
-  const [activePicker, setActivePicker] = useState<"order" | "start" | "end" | "deadline" | null>(
-    null,
-  );
-  const [tempTime, setTempTime] = useState<dayjs.Dayjs | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [clickedFields, setClickedFields] = useState<Set<string>>(new Set());
+  const [selectedAddCat, setSelectedAddCat] = useState<Record<number, string>>({});
+  const [editingTplIdx, setEditingTplIdx] = useState(-1);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  const getDisplayTime = (dateTimeStr: string) => {
-    if (!dateTimeStr) return "__:__";
-    const parts = dateTimeStr.split("T");
-    return parts[1] || "__:__";
-  };
-
-  const handleTimeChange = (
-    type: "order" | "start" | "end" | "deadline",
+  const handleTimeSelect = (
+    field: "order" | "deadline" | "start" | "end",
     time: dayjs.Dayjs | null,
   ) => {
-    if (!time) {
-      if (type === "order") setAvailableForOrder("");
-      else if (type === "start") setAvailableFrom("");
-      else if (type === "end") setAvailableTo("");
-      else if (type === "deadline") setFinalizationDeadline("");
-      return;
-    }
-    const dateStr = sessionDate || dayjs().format("YYYY-MM-DD");
-    if (!sessionDate) {
-      setSessionDate(dateStr);
-    }
-    const timeStr = time.format("HH:mm");
-    const fullStr = `${dateStr}T${timeStr}`;
+    let newForOrder = availableForOrder;
+    let newDeadline = finalizationDeadline;
+    let newFrom = availableFrom;
+    let newTo = availableTo;
 
-    if (type === "order") setAvailableForOrder(fullStr);
-    else if (type === "start") setAvailableFrom(fullStr);
-    else if (type === "end") setAvailableTo(fullStr);
-    else if (type === "deadline") setFinalizationDeadline(fullStr);
+    const clear = () => {
+      if (field === "order") {
+        setAvailableForOrder("");
+        newForOrder = "";
+      } else if (field === "deadline") {
+        setFinalizationDeadline("");
+        newDeadline = "";
+      } else if (field === "start") {
+        setAvailableFrom("");
+        newFrom = "";
+      } else if (field === "end") {
+        setAvailableTo("");
+        newTo = "";
+      }
+    };
+
+    if (!time) {
+      clear();
+    } else {
+      const dateStr = sessionDate || dayjs().format("YYYY-MM-DD");
+      if (!sessionDate) setSessionDate(dateStr);
+      const fullStr = `${dateStr}T${time.format("HH:mm")}`;
+      if (field === "order") {
+        setAvailableForOrder(fullStr);
+        newForOrder = fullStr;
+      } else if (field === "deadline") {
+        setFinalizationDeadline(fullStr);
+        newDeadline = fullStr;
+      } else if (field === "start") {
+        setAvailableFrom(fullStr);
+        newFrom = fullStr;
+      } else if (field === "end") {
+        setAvailableTo(fullStr);
+        newTo = fullStr;
+      }
+    }
+
+    const t: Record<string, string> = {};
+    if (newForOrder && dayjs(newForOrder).isBefore(dayjs()))
+      t.availableForOrder = "Giờ mở đặt không được ở trong quá khứ.";
+    if (newForOrder && newDeadline && new Date(newForOrder) >= new Date(newDeadline))
+      t.availableForOrder = "Giờ mở đặt phải trước hạn chốt món.";
+    if (newDeadline && newFrom && new Date(newDeadline) >= new Date(newFrom))
+      t.finalizationDeadline = "Hạn chốt món phải trước giờ bắt đầu ca.";
+    if (newFrom && newTo && new Date(newFrom) >= new Date(newTo))
+      t.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
 
     setErrors((prev) => {
       const next = { ...prev };
-      if (type === "order") {
-        delete next.availableForOrder;
-      } else if (type === "start") {
-        delete next.availableFrom;
-        delete next.availableTo;
-      } else if (type === "end") {
-        delete next.availableTo;
-      } else if (type === "deadline") {
-        delete next.finalizationDeadline;
-      }
-      return next;
+      delete next.availableFrom;
+      delete next.availableTo;
+      delete next.availableForOrder;
+      delete next.finalizationDeadline;
+      return { ...next, ...t };
     });
   };
 
-  const openPicker = (type: "order" | "start" | "end" | "deadline") => {
-    if (!sessionDate) {
-      alert("Vui lòng chọn Ngày phục vụ trước!");
-      return;
-    }
-    const currentVal =
-      type === "order"
-        ? availableForOrder
-        : type === "start"
-          ? availableFrom
-          : type === "end"
-            ? availableTo
-            : finalizationDeadline;
-    if (currentVal) {
-      setTempTime(dayjs(currentVal));
-    } else {
-      let defaultHour = "12:00";
-      if (type === "order") defaultHour = "07:00";
-      else if (type === "start") defaultHour = "11:00";
-      else if (type === "deadline") defaultHour = "11:30";
-      else if (type === "end") defaultHour = "13:30";
-      setTempTime(dayjs(`${sessionDate}T${defaultHour}`));
-    }
-    setActivePicker(type);
-  };
-
-  const handleConfirm = () => {
-    if (activePicker && tempTime) {
-      handleTimeChange(activePicker, tempTime);
-    }
-    setActivePicker(null);
+  const toMinutes = (dt: string) => {
+    const d = dayjs(dt);
+    return d.hour() * 60 + d.minute();
   };
 
   const [dishSearch, setDishSearch] = useState("");
@@ -145,10 +136,11 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   const [isDragOverDropZone, setIsDragOverDropZone] = useState(false);
   const [isDragOverPool, setIsDragOverPool] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [templates, setTemplates] = useState<CreateSessionTemplate[]>([
+  const [templates, setTemplates] = useState<LocalTemplate[]>([
     {
       name: "Suất chuẩn",
       settings: [],
+      dishIds: [],
     },
   ]);
 
@@ -175,12 +167,15 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
           setAvailableFrom(toDatetimeLocal(detail.availableFrom));
           setAvailableTo(toDatetimeLocal(detail.availableTo));
           setAvailableForOrder(toDatetimeLocal(detail.availableForOrder));
+          if (detail.finalizationDeadline)
+            setFinalizationDeadline(toDatetimeLocal(detail.finalizationDeadline));
           setSessionDate(toDatetimeLocal(detail.availableFrom).split("T")[0]);
           setSelectedDishIds(new Set(detail.dishes.map((d) => d.dishId)));
           setTemplates(
-            detail.mealTemplates.map((t) => ({
+            detail.mealTemplates.map((t, idx) => ({
               name: t.name,
               settings: t.settings,
+              dishIds: idx === 0 ? detail.dishes.map((d) => d.dishId) : [],
             })),
           );
         }
@@ -216,6 +211,26 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   const selectedCategoryIds = useMemo(
     () => new Set(selectedDishes.map((d) => d.categoryId).filter(Boolean) as string[]),
     [selectedDishes],
+  );
+
+  const allSelectedDishIds = useMemo(
+    () =>
+      new Set([
+        ...selectedDishIds,
+        ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
+      ]),
+    [selectedDishIds, templates, editingTplIdx],
+  );
+
+  const allSessionCategoryIds = useMemo(
+    () =>
+      new Set(
+        dishes
+          .filter((d) => allSelectedDishIds.has(d.id))
+          .map((d) => d.categoryId)
+          .filter(Boolean) as string[],
+      ),
+    [dishes, allSelectedDishIds],
   );
 
   const toggleDish = useCallback(
@@ -370,6 +385,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
       {
         name: "",
         settings: [],
+        dishIds: [],
       },
     ]);
   };
@@ -400,7 +416,18 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         i === tIdx
           ? {
               ...t,
-              settings: t.settings.map((s, j) => (j === sIdx ? { ...s, [field]: value } : s)),
+              settings: t.settings.map((s, j) =>
+                j === sIdx
+                  ? field === "isRequired"
+                    ? {
+                        ...s,
+                        isRequired: value as boolean,
+                        minQuantity: value ? 1 : 0,
+                        maxQuantity: value ? 2 : 1,
+                      }
+                    : { ...s, [field]: value }
+                  : s,
+              ),
             }
           : t,
       ),
@@ -414,25 +441,92 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     }
   };
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const removeTemplateSetting = (tIdx: number, sIdx: number) => {
     setTemplates((prev) =>
-      prev.map((t) => {
-        const updatedSettings = t.settings.filter((s) => selectedCategoryIds.has(s.categoryId));
-        for (const catId of selectedCategoryIds) {
-          if (!updatedSettings.some((s) => s.categoryId === catId)) {
-            updatedSettings.push({
+      prev.map((t, i) =>
+        i === tIdx ? { ...t, settings: t.settings.filter((_, j) => j !== sIdx) } : t,
+      ),
+    );
+  };
+
+  const addMissingCategories = (tIdx: number) => {
+    setTemplates((prev) =>
+      prev.map((t, i) => {
+        if (i !== tIdx) return t;
+        const existingIds = new Set(t.settings.map((s) => s.categoryId));
+        const missing = [...allSessionCategoryIds].filter((catId) => !existingIds.has(catId));
+        if (missing.length === 0) return t;
+        return {
+          ...t,
+          settings: [
+            ...t.settings,
+            ...missing.map((catId) => ({
               categoryId: catId,
               minQuantity: 0,
               maxQuantity: 1,
               isRequired: false,
-            });
-          }
-        }
-        return { ...t, settings: updatedSettings };
+            })),
+          ],
+        };
       }),
     );
-  }, [selectedCategoryIds]);
+  };
+
+  const finalizeTemplate = (tIdx: number) => {
+    setTemplates((prev) =>
+      prev.map((t, i) => (i === tIdx ? { ...t, dishIds: [...selectedDishIds] } : t)),
+    );
+    setSelectedDishIds(new Set());
+    setEditingTplIdx(-1);
+  };
+
+  const editTemplateDishes = (tIdx: number) => {
+    const t = templates[tIdx];
+    if (!t) return;
+    setSelectedDishIds(new Set(t.dishIds));
+    setEditingTplIdx(tIdx);
+  };
+
+  const addCategoryToTemplate = (tIdx: number, catId: string) => {
+    if (!catId) return;
+    setTemplates((prev) =>
+      prev.map((t, i) => {
+        if (i !== tIdx) return t;
+        if (t.settings.some((s) => s.categoryId === catId)) return t;
+        return {
+          ...t,
+          settings: [
+            ...t.settings,
+            { categoryId: catId, minQuantity: 0, maxQuantity: 1, isRequired: false },
+          ],
+        };
+      }),
+    );
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTemplates((prev) =>
+      prev.map((t, i) => {
+        if (t.dishIds.length > 0 && editingTplIdx !== i) return t;
+        const existingIds = new Set(t.settings.map((s) => s.categoryId));
+        const newCats = [...selectedCategoryIds].filter((catId) => !existingIds.has(catId));
+        if (newCats.length === 0) return t;
+        return {
+          ...t,
+          settings: [
+            ...t.settings,
+            ...newCats.map((catId) => ({
+              categoryId: catId,
+              minQuantity: 0,
+              maxQuantity: 1,
+              isRequired: false,
+            })),
+          ],
+        };
+      }),
+    );
+  }, [selectedCategoryIds, editingTplIdx]);
 
   const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -445,23 +539,29 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     if (!availableFrom) errs.availableFrom = "Thời gian bắt đầu ca là bắt buộc.";
     if (!availableTo) errs.availableTo = "Thời gian kết thúc ca là bắt buộc.";
     if (!availableForOrder) errs.availableForOrder = "Hạn chốt order là bắt buộc.";
+    if (!finalizationDeadline) errs.finalizationDeadline = "Hạn chốt món là bắt buộc.";
 
-    if (availableForOrder && dayjs(availableForOrder).isBefore(dayjs().startOf("day")))
+    if (availableForOrder && dayjs(availableForOrder).isBefore(dayjs()))
       errs.availableForOrder = "Thời gian mở đặt không được ở trong quá khứ.";
-    if (availableFrom && availableTo && new Date(availableFrom) >= new Date(availableTo))
-      errs.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
-    if (availableForOrder && availableTo && new Date(availableForOrder) >= new Date(availableTo))
-      errs.availableForOrder = "Thời gian mở đặt phải trước thời gian kết thúc ca.";
     if (
       availableForOrder &&
-      availableFrom &&
-      new Date(availableForOrder) >= new Date(availableFrom)
+      finalizationDeadline &&
+      new Date(availableForOrder) >= new Date(finalizationDeadline)
     )
-      errs.availableForOrder = "Thời gian mở đặt phải trước thời gian bắt đầu ca.";
-    if (finalizationDeadline && new Date(finalizationDeadline) <= new Date())
-      errs.finalizationDeadline = "Hạn bếp chuẩn bị xong phải ở tương lai.";
-
-    if (selectedDishIds.size === 0) errs.dishes = "Vui lòng chọn ít nhất một món ăn.";
+      errs.availableForOrder = "Giờ mở đặt phải trước hạn chốt món.";
+    if (
+      finalizationDeadline &&
+      availableFrom &&
+      new Date(finalizationDeadline) >= new Date(availableFrom)
+    )
+      errs.finalizationDeadline = "Hạn chốt món phải trước giờ bắt đầu ca.";
+    if (availableFrom && availableTo && new Date(availableFrom) >= new Date(availableTo))
+      errs.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
+    const totalDishes = new Set([
+      ...selectedDishIds,
+      ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
+    ]);
+    if (totalDishes.size === 0) errs.dishes = "Vui lòng chọn ít nhất một món ăn.";
     if (templates.some((t) => !t.name.trim()))
       errs.templatesName = "Tên khuôn mẫu không được để trống.";
     for (const t of templates) {
@@ -496,7 +596,12 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         ? { finalizationDeadline: new Date(finalizationDeadline).toISOString() }
         : {}),
       autoFinalizePolicy,
-      dishes: Array.from(selectedDishIds).map((dishId) => ({ dishId })),
+      dishes: Array.from(
+        new Set([
+          ...selectedDishIds,
+          ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
+        ]),
+      ).map((dishId) => ({ dishId })),
       mealTemplates: templates
         .filter((t) => t.name.trim())
         .map((t) => ({
@@ -637,7 +742,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         );
                       if (finalizationDeadline)
                         setFinalizationDeadline(
-                          `${newD}T${finalizationDeadline.split("T")[1] || "11:30"}`,
+                          `${newD}T${finalizationDeadline.split("T")[1] || "09:30"}`,
                         );
                     }}
                     className={cn(
@@ -670,213 +775,196 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                 </div>
               </div>
 
-              {/* MUI Pickers Trigger Fields */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div
-                  onClick={() => openPicker("order")}
-                  className={cn(
-                    "bg-gray-50 border rounded-2xl p-3 px-4 text-center cursor-pointer transition-all hover:bg-orange-50/20 shadow-3xs flex flex-col justify-between items-center min-h-[90px]",
-                    activePicker === "order"
-                      ? "border-[#D35400] bg-orange-50/10 ring-2 ring-[#D35400]/10"
-                      : errors.availableForOrder
-                        ? "border-red-500 bg-red-50/5 hover:bg-red-50/10"
-                        : "border-gray-200/30 hover:border-[#D35400]/30",
-                  )}
-                >
-                  <Play
-                    className={cn(
-                      "w-4 h-4 mx-auto mb-1.5 shrink-0",
-                      errors.availableForOrder ? "text-red-500" : "text-[#D35400]",
-                    )}
-                  />
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Mở đặt
-                  </p>
-                  <p
-                    className={cn(
-                      "text-sm font-bold mt-1",
-                      errors.availableForOrder ? "text-red-600" : "text-gray-800",
-                    )}
+              {/* MUI TimePickers */}
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                  <div
+                    className="flex flex-col gap-1.5"
+                    onClick={() => setClickedFields((prev) => new Set(prev).add("order"))}
                   >
-                    {getDisplayTime(availableForOrder)}
-                  </p>
-                </div>
-
-                <div
-                  onClick={() => openPicker("start")}
-                  className={cn(
-                    "bg-gray-50 border rounded-2xl p-3 px-4 text-center cursor-pointer transition-all hover:bg-orange-50/20 shadow-3xs flex flex-col justify-between items-center min-h-[90px]",
-                    activePicker === "start"
-                      ? "border-green-600 bg-green-50/10 ring-2 ring-green-600/10"
-                      : errors.availableFrom
-                        ? "border-red-500 bg-red-50/5 hover:bg-red-50/10"
-                        : "border-gray-200/30 hover:border-green-600/30",
-                  )}
-                >
-                  <CalendarPlus
-                    className={cn(
-                      "w-4 h-4 mx-auto mb-1.5 shrink-0",
-                      errors.availableFrom ? "text-red-500" : "text-green-600",
-                    )}
-                  />
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Bắt đầu ca
-                  </p>
-                  <p
-                    className={cn(
-                      "text-sm font-bold mt-1",
-                      errors.availableFrom ? "text-red-600" : "text-gray-800",
-                    )}
-                  >
-                    {getDisplayTime(availableFrom)}
-                  </p>
-                </div>
-
-                <div
-                  onClick={() => openPicker("end")}
-                  className={cn(
-                    "bg-gray-50 border rounded-2xl p-3 px-4 text-center cursor-pointer transition-all hover:bg-orange-50/20 shadow-3xs flex flex-col justify-between items-center min-h-[90px]",
-                    activePicker === "end"
-                      ? "border-red-500 bg-red-50/10 ring-2 ring-red-500/10"
-                      : errors.availableTo
-                        ? "border-red-500 bg-red-50/5 hover:bg-red-50/10"
-                        : "border-gray-200/30 hover:border-red-500/30",
-                  )}
-                >
-                  <Lock className="w-4 h-4 text-red-500 mx-auto mb-1.5 shrink-0" />
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Kết thúc ca
-                  </p>
-                  <p
-                    className={cn(
-                      "text-sm font-bold mt-1",
-                      errors.availableTo ? "text-red-600" : "text-gray-800",
-                    )}
-                  >
-                    {getDisplayTime(availableTo)}
-                  </p>
-                </div>
-
-                <div
-                  onClick={() => openPicker("deadline")}
-                  className={cn(
-                    "bg-gray-50 border rounded-2xl p-3 px-4 text-center cursor-pointer transition-all hover:bg-orange-50/20 shadow-3xs flex flex-col justify-between items-center min-h-[90px]",
-                    activePicker === "deadline"
-                      ? "border-blue-500 bg-blue-50/10 ring-2 ring-blue-500/10"
-                      : errors.finalizationDeadline
-                        ? "border-red-500 bg-red-50/5 hover:bg-red-50/10"
-                        : "border-gray-200/30 hover:border-blue-500/30",
-                  )}
-                >
-                  <Hourglass
-                    className={cn(
-                      "w-4 h-4 mx-auto mb-1.5 shrink-0",
-                      errors.finalizationDeadline ? "text-red-500" : "text-blue-500",
-                    )}
-                  />
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Hạn Chuẩn Bị
-                  </p>
-                  <p
-                    className={cn(
-                      "text-sm font-bold mt-1",
-                      errors.finalizationDeadline ? "text-red-600" : "text-gray-800",
-                    )}
-                  >
-                    {getDisplayTime(finalizationDeadline)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Inline errors for timeline */}
-              {(errors.availableFrom ||
-                errors.availableTo ||
-                errors.availableForOrder ||
-                errors.finalizationDeadline) && (
-                <div className="space-y-1 mt-2 bg-red-50/50 border border-red-100 rounded-2xl p-3.5 animate-fade-in">
-                  {errors.availableForOrder && (
-                    <p className="text-red-500 text-xs font-semibold flex items-center gap-1.5">
-                      ⚠️ {errors.availableForOrder}
-                    </p>
-                  )}
-                  {errors.availableFrom && (
-                    <p className="text-red-500 text-xs font-semibold flex items-center gap-1.5">
-                      ⚠️ {errors.availableFrom}
-                    </p>
-                  )}
-                  {errors.availableTo && (
-                    <p className="text-red-500 text-xs font-semibold flex items-center gap-1.5">
-                      ⚠️ {errors.availableTo}
-                    </p>
-                  )}
-                  {errors.finalizationDeadline && (
-                    <p className="text-red-500 text-xs font-semibold flex items-center gap-1.5">
-                      ⚠️ {errors.finalizationDeadline}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Inline StaticTimePicker (No popup) */}
-              {activePicker && mounted && (
-                <div className="mt-4 p-5 bg-gray-50/50 rounded-3xl border border-gray-200/35 flex flex-col items-center gap-4 shadow-3xs animate-fade-in select-none">
-                  <h4 className="text-sm font-black text-gray-700 uppercase tracking-wider border-b border-gray-200/50 pb-2 w-full text-center">
-                    Chọn giờ:{" "}
-                    {activePicker === "order"
-                      ? "Thời gian mở đặt"
-                      : activePicker === "start"
-                        ? "Thời gian Bắt đầu ca"
-                        : activePicker === "end"
-                          ? "Thời gian Kết thúc ca"
-                          : "Hạn Bếp chuẩn bị xong"}
-                  </h4>
-
-                  <div className="flex justify-center w-full py-2 bg-white rounded-2xl border border-gray-200/20 shadow-3xs overflow-hidden">
-                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                      <StaticTimePicker
-                        displayStaticWrapperAs="desktop"
-                        orientation="landscape"
-                        value={tempTime}
-                        onChange={(newTime) => setTempTime(newTime)}
-                        slotProps={{
-                          actionBar: { actions: [] },
-                          toolbar: {
-                            hidden: false,
-                            sx: {
-                              "& .MuiTypography-root": {
-                                color: "#111827",
-                                fontWeight: "bold",
-                              },
-                              "& .MuiPickersToolbarText-root": {
-                                color: "#4b5563",
-                              },
-                              "& .MuiPickersToolbarText-root.Mui-selected": {
-                                color: "#D35400",
-                              },
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Play className="w-3 h-3 text-[#D35400]" />
+                      Mở đặt
+                    </label>
+                    <TimePicker
+                      ampm={false}
+                      value={availableForOrder ? dayjs(availableForOrder) : null}
+                      onChange={(v) => handleTimeSelect("order", v)}
+                      shouldDisableTime={(value) => {
+                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
+                        if (
+                          sessionDate === dayjs().format("YYYY-MM-DD") &&
+                          val <= toMinutes(dayjs().format("YYYY-MM-DDTHH:mm"))
+                        )
+                          return true;
+                        if (finalizationDeadline && val >= toMinutes(finalizationDeadline))
+                          return true;
+                        if (availableFrom && val >= toMinutes(availableFrom)) return true;
+                        if (availableTo && val >= toMinutes(availableTo)) return true;
+                        return false;
+                      }}
+                      disabled={!sessionDate}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          error: !!errors.availableForOrder,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "16px",
+                              fontSize: "0.875rem",
+                              fontWeight: 700,
+                              backgroundColor: "#fff",
                             },
                           },
-                        }}
-                      />
-                    </LocalizationProvider>
+                        },
+                      }}
+                    />
+                    {clickedFields.has("order") && (!sessionDate || errors.availableForOrder) && (
+                      <p className="text-[11px] font-semibold text-red-500">
+                        ⚠️{" "}
+                        {!sessionDate
+                          ? "Vui lòng chọn ngày phục vụ trước"
+                          : errors.availableForOrder}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 w-full max-w-md">
-                    <button
-                      type="button"
-                      onClick={() => setActivePicker(null)}
-                      className="flex-1 py-2.5 border border-gray-200/50 hover:border-gray-300 text-gray-600 rounded-xl text-sm font-bold hover:bg-white transition-all shadow-3xs cursor-pointer active:scale-95"
-                    >
-                      Hủy bỏ
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirm}
-                      className="flex-1 py-2.5 bg-[#D35400] text-white rounded-xl text-sm font-black hover:bg-[#b84900] transition-all shadow-3xs cursor-pointer active:scale-95"
-                    >
-                      Xác nhận
-                    </button>
+
+                  <div
+                    className="flex flex-col gap-1.5"
+                    onClick={() => setClickedFields((prev) => new Set(prev).add("deadline"))}
+                  >
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Hourglass className="w-3 h-3 text-blue-500" />
+                      Hạn chốt món
+                    </label>
+                    <TimePicker
+                      ampm={false}
+                      value={finalizationDeadline ? dayjs(finalizationDeadline) : null}
+                      onChange={(v) => handleTimeSelect("deadline", v)}
+                      shouldDisableTime={(value) => {
+                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
+                        if (availableForOrder && val <= toMinutes(availableForOrder)) return true;
+                        if (availableFrom && val >= toMinutes(availableFrom)) return true;
+                        if (availableTo && val >= toMinutes(availableTo)) return true;
+                        return false;
+                      }}
+                      disabled={!availableForOrder}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          error: !!errors.finalizationDeadline,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "16px",
+                              fontSize: "0.875rem",
+                              fontWeight: 700,
+                              backgroundColor: "#fff",
+                            },
+                          },
+                        },
+                      }}
+                    />
+                    {clickedFields.has("deadline") &&
+                      (!availableForOrder || errors.finalizationDeadline) && (
+                        <p className="text-[11px] font-semibold text-red-500">
+                          ⚠️{" "}
+                          {!availableForOrder
+                            ? "Vui lòng chọn giờ mở đặt trước"
+                            : errors.finalizationDeadline}
+                        </p>
+                      )}
+                  </div>
+
+                  <div
+                    className="flex flex-col gap-1.5"
+                    onClick={() => setClickedFields((prev) => new Set(prev).add("start"))}
+                  >
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <CalendarPlus className="w-3 h-3 text-green-600" />
+                      Bắt đầu ca
+                    </label>
+                    <TimePicker
+                      ampm={false}
+                      value={availableFrom ? dayjs(availableFrom) : null}
+                      onChange={(v) => handleTimeSelect("start", v)}
+                      shouldDisableTime={(value) => {
+                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
+                        if (finalizationDeadline && val <= toMinutes(finalizationDeadline))
+                          return true;
+                        if (availableTo && val >= toMinutes(availableTo)) return true;
+                        return false;
+                      }}
+                      disabled={!finalizationDeadline}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          error: !!errors.availableFrom,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "16px",
+                              fontSize: "0.875rem",
+                              fontWeight: 700,
+                              backgroundColor: "#fff",
+                            },
+                          },
+                        },
+                      }}
+                    />
+                    {clickedFields.has("start") &&
+                      (!finalizationDeadline || errors.availableFrom) && (
+                        <p className="text-[11px] font-semibold text-red-500">
+                          ⚠️{" "}
+                          {!finalizationDeadline
+                            ? "Vui lòng chọn hạn chốt món trước"
+                            : errors.availableFrom}
+                        </p>
+                      )}
+                  </div>
+
+                  <div
+                    className="flex flex-col gap-1.5"
+                    onClick={() => setClickedFields((prev) => new Set(prev).add("end"))}
+                  >
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Lock className="w-3 h-3 text-red-500" />
+                      Kết thúc ca
+                    </label>
+                    <TimePicker
+                      ampm={false}
+                      value={availableTo ? dayjs(availableTo) : null}
+                      onChange={(v) => handleTimeSelect("end", v)}
+                      shouldDisableTime={(value) => {
+                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
+                        if (finalizationDeadline && val <= toMinutes(finalizationDeadline))
+                          return true;
+                        if (availableFrom && val <= toMinutes(availableFrom)) return true;
+                        return false;
+                      }}
+                      disabled={!availableFrom}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          error: !!errors.availableTo,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "16px",
+                              fontSize: "0.875rem",
+                              fontWeight: 700,
+                              backgroundColor: "#fff",
+                            },
+                          },
+                        },
+                      }}
+                    />
+                    {clickedFields.has("end") && (!availableFrom || errors.availableTo) && (
+                      <p className="text-[11px] font-semibold text-red-500">
+                        ⚠️{" "}
+                        {!availableFrom ? "Vui lòng chọn giờ bắt đầu ca trước" : errors.availableTo}
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
+              </LocalizationProvider>
             </div>
           </div>
 
@@ -917,7 +1005,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
               </div>
             )}
 
-            {selectedCategoryIds.size === 0 ? (
+            {templates.every((t) => t.settings.length === 0 && t.dishIds.length === 0) &&
+            selectedCategoryIds.size === 0 ? (
               <p className="text-gray-400 text-sm font-bold text-center py-6">
                 Chưa có món ăn được chọn. Kéo thả món ăn bên phải để thiết lập định mức.
               </p>
@@ -929,21 +1018,48 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     className="bg-gray-50/70 border border-gray-200/25 rounded-3xl p-5 space-y-4"
                   >
                     <div className="flex items-center justify-between gap-4">
-                      <input
-                        value={template.name}
-                        onChange={(e) => updateTemplateName(tIdx, e.target.value)}
-                        placeholder="e.g. Suất ăn chay, Suất giàu đạm"
-                        className="font-bold text-gray-800 bg-white border border-gray-200/35 rounded-xl px-3 py-2 text-sm max-w-xs focus:ring-1 focus:ring-[#D35400] shadow-3xs"
-                      />
-                      {templates.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeTemplate(tIdx)}
-                          className="text-red-500 hover:text-red-700 text-xs font-black uppercase tracking-wider"
-                        >
-                          Xóa
-                        </button>
-                      )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <input
+                          value={template.name}
+                          onChange={(e) => updateTemplateName(tIdx, e.target.value)}
+                          placeholder="e.g. Suất ăn chay, Suất giàu đạm"
+                          className="font-bold text-gray-800 bg-white border border-gray-200/35 rounded-xl px-3 py-2 text-sm max-w-[10rem] focus:ring-1 focus:ring-[#D35400] shadow-3xs"
+                        />
+                        {template.dishIds.length > 0 && (
+                          <span className="text-[10px] font-black text-[#D35400] bg-orange-50 border border-orange-200/50 px-2.5 py-1 rounded-full shrink-0">
+                            {template.dishIds.length} món
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {template.dishIds.length > 0 && editingTplIdx !== tIdx ? (
+                          <button
+                            type="button"
+                            onClick={() => editTemplateDishes(tIdx)}
+                            className="text-xs font-black text-blue-600 hover:text-blue-800 uppercase tracking-wider"
+                          >
+                            Sửa
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => finalizeTemplate(tIdx)}
+                            disabled={selectedDishIds.size === 0}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-40 hover:bg-green-700 transition-all active:scale-90"
+                          >
+                            Xong
+                          </button>
+                        )}
+                        {templates.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeTemplate(tIdx)}
+                            className="text-red-500 hover:text-red-700 text-xs font-black uppercase tracking-wider"
+                          >
+                            Xóa
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-3">
@@ -1035,11 +1151,63 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                                   Bắt buộc
                                 </label>
                               </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeTemplateSetting(tIdx, sIdx)}
+                                className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200/40 flex items-center justify-center shrink-0 transition-all active:scale-90"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                              </button>
                             </div>
                           </div>
                         );
                       })}
                     </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <select
+                        value={selectedAddCat[tIdx] || ""}
+                        onChange={(e) =>
+                          setSelectedAddCat((prev) => ({ ...prev, [tIdx]: e.target.value }))
+                        }
+                        className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-600 bg-white focus:ring-1 focus:ring-[#D35400] outline-none"
+                      >
+                        <option value="">+ Chọn danh mục để thêm</option>
+                        {categories
+                          .filter((c) => !template.settings.some((s) => s.categoryId === c.id))
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addCategoryToTemplate(tIdx, selectedAddCat[tIdx]);
+                          setSelectedAddCat((prev) => ({ ...prev, [tIdx]: "" }));
+                        }}
+                        disabled={!selectedAddCat[tIdx]}
+                        className="px-3 py-2 bg-[#D35400] text-white rounded-xl text-xs font-bold disabled:opacity-40 hover:bg-[#a84300] transition-all active:scale-90"
+                      >
+                        Thêm
+                      </button>
+                    </div>
+                    {(() => {
+                      const existingIds = new Set(template.settings.map((s) => s.categoryId));
+                      const missingCount = [...allSessionCategoryIds].filter(
+                        (id) => !existingIds.has(id),
+                      ).length;
+                      return missingCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => addMissingCategories(tIdx)}
+                          className="w-full py-2 border border-dashed border-gray-300 rounded-xl text-xs font-bold text-gray-500 hover:text-[#D35400] hover:border-[#D35400]/30 transition-colors"
+                        >
+                          + Thêm danh mục còn thiếu (từ món đã chọn)
+                        </button>
+                      ) : null;
+                    })()}
                   </div>
                 ))}
               </div>

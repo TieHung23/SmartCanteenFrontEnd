@@ -318,38 +318,60 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     async (throwOnError = false): Promise<number | null> => {
       if (!isAuthenticated || !isCustomerRoute) return null;
 
-      const items = cartItemsRef.current;
-      const version = cartVersionRef.current;
-
       setIsSyncing(true);
       try {
-        if (items.length === 0) {
-          await cartService.deleteCart(version).catch(() => {});
-          return version;
-        }
-        const sessions = buildSessions(items);
-        const result = await cartService.updateCart({ sessions }, version);
-        cartVersionRef.current = result.version;
-        setCartVersion(result.version);
-        return result.version;
-      } catch (error: unknown) {
-        if (isAxiosError(error) && error.response?.status === 409) {
+        let items = cartItemsRef.current;
+        let version = cartVersionRef.current;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 3;
+
+        while (attempts < MAX_ATTEMPTS) {
+          attempts++;
+          if (items.length === 0) {
+            try {
+              const deleteResult = await cartService.deleteCart(version);
+              if (deleteResult && typeof deleteResult.version === "number") {
+                cartVersionRef.current = deleteResult.version;
+                setCartVersion(deleteResult.version);
+                return deleteResult.version;
+              }
+              return version;
+            } catch (error: unknown) {
+              if (isAxiosError(error) && error.response?.status === 409) {
+                const serverCart = await cartService.getCart();
+                version = serverCart.version;
+                cartVersionRef.current = version;
+                setCartVersion(version);
+                items = cartItemsRef.current;
+                continue;
+              }
+              if (throwOnError) throw error;
+              return null;
+            }
+          }
+
+          const sessions = buildSessions(items);
           try {
-            const serverCart = await cartService.getCart();
-            cartVersionRef.current = serverCart.version;
-            setCartVersion(serverCart.version);
-            const items2 = cartItemsRef.current;
-            const sessions = buildSessions(items2);
-            const result = await cartService.updateCart({ sessions }, serverCart.version);
+            const result = await cartService.updateCart({ sessions }, version);
             cartVersionRef.current = result.version;
             setCartVersion(result.version);
             return result.version;
-          } catch (innerError) {
-            if (throwOnError) throw innerError;
+          } catch (error: unknown) {
+            if (isAxiosError(error) && error.response?.status === 409) {
+              const serverCart = await cartService.getCart();
+              version = serverCart.version;
+              cartVersionRef.current = version;
+              setCartVersion(version);
+              items = cartItemsRef.current;
+              continue;
+            }
+            if (throwOnError) throw error;
             return null;
           }
         }
-        if (throwOnError) throw error;
+
+        if (throwOnError)
+          throw new Error("Cart sync failed after multiple retries due to conflicts.");
         return null;
       } finally {
         setIsSyncing(false);
