@@ -305,7 +305,7 @@ export default function CheckoutPage() {
     totalPointsRef.current = totalPoints;
   });
 
-  useSignalr(
+  const { connect: connectSignalr, disconnect: disconnectSignalr } = useSignalr(
     useCallback((notification: NotificationItem) => {
       if (notification.type === "Payment.Completed") {
         toast.success("Nạp tiền thành công! Đang kiểm tra số dư...");
@@ -324,6 +324,17 @@ export default function CheckoutPage() {
       }
     }, []),
   );
+
+  useEffect(() => {
+    if (isTopUpOpen) {
+      connectSignalr();
+    } else {
+      disconnectSignalr();
+    }
+    return () => {
+      disconnectSignalr();
+    };
+  }, [isTopUpOpen, connectSignalr, disconnectSignalr]);
 
   const [fireworkParticles] = useState(() => {
     const COLORS = [
