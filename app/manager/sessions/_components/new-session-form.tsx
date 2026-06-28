@@ -131,11 +131,6 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     });
   };
 
-  const toMinutes = (dt: string) => {
-    const d = dayjs(dt);
-    return d.hour() * 60 + d.minute();
-  };
-
   const [dishSearch, setDishSearch] = useState("");
   const [selectedDishIds, setSelectedDishIds] = useState<Set<string>>(new Set());
   const [draggedDishId, setDraggedDishId] = useState<string | null>(null);
@@ -656,7 +651,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
       {/* 2-Column Responsive Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Form Details & Templates */}
-        <div className="lg:col-span-7 space-y-8">
+        <div className="lg:col-span-6 space-y-8">
           {/* General Metadata */}
           <div className="bg-white rounded-3xl border border-gray-200/35 p-6 sm:p-8 space-y-6 shadow-3xs">
             <h2 className="text-xl font-black text-gray-900 uppercase tracking-wide border-b border-gray-100 pb-3 flex items-center gap-2">
@@ -666,7 +661,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
+                <label className="block text-sm font-black text-gray-500 uppercase tracking-wider mb-2">
                   Tên ca phục vụ *
                 </label>
                 <input
@@ -695,7 +690,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
+                <label className="block text-sm font-black text-gray-500 uppercase tracking-wider mb-2">
                   Mô tả ngắn gọn *
                 </label>
                 <textarea
@@ -726,93 +721,328 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                 )}
               </div>
 
-              {/* Serves Schedule date */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
-                    Ngày mở đặt (Mặc định: Hôm nay)
-                  </label>
-                  <input
-                    type="date"
-                    min={dayjs().format("YYYY-MM-DD")}
-                    value={orderOpenDate}
-                    onChange={(e) => {
-                      const newD = e.target.value;
-                      setOrderOpenDate(newD);
-                      if (availableForOrder)
-                        setAvailableForOrder(
-                          `${newD}T${availableForOrder.split("T")[1] || "07:00"}`,
-                        );
-                      if (errors.orderOpenDate) {
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.orderOpenDate;
-                          return next;
-                        });
-                      }
-                    }}
-                    className={cn(
-                      "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
-                      errors.orderOpenDate
-                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                        : "border-gray-200/35 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900",
-                    )}
-                  />
-                  {errors.orderOpenDate && (
-                    <p className="text-red-500 text-xs font-semibold mt-1.5 ml-1">
-                      {errors.orderOpenDate}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
-                    Ngày phục vụ (Mặc định: Hôm nay)
-                  </label>
-                  <input
-                    type="date"
-                    min={dayjs().format("YYYY-MM-DD")}
-                    value={sessionDate}
-                    onChange={(e) => {
-                      const newD = e.target.value;
-                      setSessionDate(newD);
-                      if (errors.sessionDate) {
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.sessionDate;
-                          return next;
-                        });
-                      }
-                      if (availableFrom)
-                        setAvailableFrom(`${newD}T${availableFrom.split("T")[1] || "11:00"}`);
-                      if (availableTo)
-                        setAvailableTo(`${newD}T${availableTo.split("T")[1] || "13:30"}`);
-                      if (finalizationDeadline)
-                        setFinalizationDeadline(
-                          `${newD}T${finalizationDeadline.split("T")[1] || "09:30"}`,
-                        );
-                    }}
-                    className={cn(
-                      "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
-                      errors.sessionDate
-                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                        : "border-gray-200/35 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900",
-                    )}
-                  />
-                  {errors.sessionDate && (
-                    <p className="text-red-500 text-xs font-semibold mt-1.5 ml-1">
-                      {errors.sessionDate}
-                    </p>
-                  )}
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                {/* Order Open Section */}
+                <div className="bg-orange-50/20 border border-orange-200/30 rounded-3xl p-5 space-y-4">
+                  <h3 className="text-sm font-black text-[#D35400] uppercase tracking-wider flex items-center gap-2">
+                    <Play className="w-4 h-4" /> Mở đặt
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
+                        Ngày mở đặt
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-[#D35400] rounded-l-2xl z-10" />
+                        <input
+                          type="date"
+                          min={dayjs().format("YYYY-MM-DD")}
+                          value={orderOpenDate}
+                          onChange={(e) => {
+                            const newD = e.target.value;
+                            setOrderOpenDate(newD);
+                            if (availableForOrder)
+                              setAvailableForOrder(
+                                `${newD}T${availableForOrder.split("T")[1] || "07:00"}`,
+                              );
+                            if (errors.orderOpenDate) {
+                              setErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.orderOpenDate;
+                                return next;
+                              });
+                            }
+                          }}
+                          className={cn(
+                            "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
+                            errors.orderOpenDate
+                              ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                              : "border-orange-200/60 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900",
+                          )}
+                        />
+                      </div>
+                      {errors.orderOpenDate && (
+                        <p className="text-red-500 text-xs font-semibold mt-1 ml-1">
+                          {errors.orderOpenDate}
+                        </p>
+                      )}
+                    </div>
+                    <div
+                      className="flex flex-col gap-1.5"
+                      onClick={() => setClickedFields((prev) => new Set(prev).add("order"))}
+                    >
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                        Giờ
+                      </label>
+                      <TimePicker
+                        ampm={false}
+                        value={availableForOrder ? dayjs(availableForOrder) : null}
+                        onChange={(v) => handleTimeSelect("order", v)}
+                        shouldDisableTime={(value, view) => {
+                          const isToday = orderOpenDate === dayjs().format("YYYY-MM-DD");
+                          if (isToday && view === "hours" && value.hour() < dayjs().hour())
+                            return true;
+                          if (
+                            isToday &&
+                            view === "minutes" &&
+                            value.hour() === dayjs().hour() &&
+                            value.minute() <= dayjs().minute()
+                          )
+                            return true;
+                          if (orderOpenDate === sessionDate && finalizationDeadline) {
+                            const dl = dayjs(finalizationDeadline);
+                            if (view === "hours" && value.hour() > dl.hour()) return true;
+                            if (
+                              view === "minutes" &&
+                              value.hour() === dl.hour() &&
+                              value.minute() >= dl.minute()
+                            )
+                              return true;
+                          }
+                          return false;
+                        }}
+                        disabled={!orderOpenDate}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            error: !!errors.availableForOrder,
+                            sx: {
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "16px",
+                                fontSize: "0.875rem",
+                                fontWeight: 700,
+                                backgroundColor: "#fff",
+                              },
+                            },
+                          },
+                        }}
+                      />
+                      {clickedFields.has("order") &&
+                        (!orderOpenDate || errors.availableForOrder) && (
+                          <p className="text-xs font-semibold text-red-500">
+                            ⚠️{" "}
+                            {!orderOpenDate ? "Chọn ngày mở đặt trước" : errors.availableForOrder}
+                          </p>
+                        )}
+                    </div>
+                  </div>
                 </div>
 
+                {/* Service Section */}
+                <div className="bg-blue-50/20 border border-blue-200/30 rounded-3xl p-5 space-y-4">
+                  <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
+                    <CalendarPlus className="w-4 h-4" /> Phục vụ
+                  </h3>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
+                      Ngày phục vụ
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 w-1 bg-blue-500 rounded-l-2xl z-10" />
+                      <input
+                        type="date"
+                        min={dayjs().format("YYYY-MM-DD")}
+                        value={sessionDate}
+                        onChange={(e) => {
+                          const newD = e.target.value;
+                          setSessionDate(newD);
+                          if (errors.sessionDate) {
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.sessionDate;
+                              return next;
+                            });
+                          }
+                          if (availableFrom)
+                            setAvailableFrom(`${newD}T${availableFrom.split("T")[1] || "11:00"}`);
+                          if (availableTo)
+                            setAvailableTo(`${newD}T${availableTo.split("T")[1] || "13:30"}`);
+                          if (finalizationDeadline)
+                            setFinalizationDeadline(
+                              `${newD}T${finalizationDeadline.split("T")[1] || "09:30"}`,
+                            );
+                        }}
+                        className={cn(
+                          "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
+                          errors.sessionDate
+                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                            : "border-blue-200/60 focus:ring-blue-500/20 focus:border-blue-500 text-gray-900",
+                        )}
+                      />
+                    </div>
+                    {errors.sessionDate && (
+                      <p className="text-red-500 text-xs font-semibold mt-1 ml-1">
+                        {errors.sessionDate}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div
+                      className="flex flex-col gap-1.5"
+                      onClick={() => setClickedFields((prev) => new Set(prev).add("deadline"))}
+                    >
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <Hourglass className="w-3 h-3 text-blue-500" />
+                        Hạn chốt món
+                      </label>
+                      <TimePicker
+                        ampm={false}
+                        value={finalizationDeadline ? dayjs(finalizationDeadline) : null}
+                        onChange={(v) => handleTimeSelect("deadline", v)}
+                        shouldDisableTime={(value, view) => {
+                          if (availableForOrder && orderOpenDate === sessionDate) {
+                            const order = dayjs(availableForOrder);
+                            if (view === "hours" && value.hour() < order.hour()) return true;
+                            if (
+                              view === "minutes" &&
+                              value.hour() === order.hour() &&
+                              value.minute() <= order.minute()
+                            )
+                              return true;
+                          }
+                          return false;
+                        }}
+                        disabled={!availableForOrder}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            error: !!errors.finalizationDeadline,
+                            sx: {
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "16px",
+                                fontSize: "0.875rem",
+                                fontWeight: 700,
+                                backgroundColor: "#fff",
+                              },
+                            },
+                          },
+                        }}
+                      />
+                      {clickedFields.has("deadline") &&
+                        (!availableForOrder || errors.finalizationDeadline) && (
+                          <p className="text-xs font-semibold text-red-500">
+                            ⚠️{" "}
+                            {!availableForOrder
+                              ? "Chọn giờ mở đặt trước"
+                              : errors.finalizationDeadline}
+                          </p>
+                        )}
+                    </div>
+                    <div
+                      className="flex flex-col gap-1.5"
+                      onClick={() => setClickedFields((prev) => new Set(prev).add("start"))}
+                    >
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <CalendarPlus className="w-3 h-3 text-green-600" />
+                        Bắt đầu ca
+                      </label>
+                      <TimePicker
+                        ampm={false}
+                        value={availableFrom ? dayjs(availableFrom) : null}
+                        onChange={(v) => handleTimeSelect("start", v)}
+                        shouldDisableTime={(value, view) => {
+                          if (finalizationDeadline) {
+                            const dl = dayjs(finalizationDeadline);
+                            if (view === "hours" && value.hour() < dl.hour()) return true;
+                            if (
+                              view === "minutes" &&
+                              value.hour() === dl.hour() &&
+                              value.minute() <= dl.minute()
+                            )
+                              return true;
+                          }
+                          return false;
+                        }}
+                        disabled={!finalizationDeadline}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            error: !!errors.availableFrom,
+                            sx: {
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "16px",
+                                fontSize: "0.875rem",
+                                fontWeight: 700,
+                                backgroundColor: "#fff",
+                              },
+                            },
+                          },
+                        }}
+                      />
+                      {clickedFields.has("start") &&
+                        (!finalizationDeadline || errors.availableFrom) && (
+                          <p className="text-xs font-semibold text-red-500">
+                            ⚠️{" "}
+                            {!finalizationDeadline
+                              ? "Chọn hạn chốt món trước"
+                              : errors.availableFrom}
+                          </p>
+                        )}
+                    </div>
+                    <div
+                      className="flex flex-col gap-1.5"
+                      onClick={() => setClickedFields((prev) => new Set(prev).add("end"))}
+                    >
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <Lock className="w-3 h-3 text-red-500" />
+                        Kết thúc ca
+                      </label>
+                      <TimePicker
+                        ampm={false}
+                        value={availableTo ? dayjs(availableTo) : null}
+                        onChange={(v) => handleTimeSelect("end", v)}
+                        shouldDisableTime={(value, view) => {
+                          if (availableFrom) {
+                            const start = dayjs(availableFrom);
+                            if (view === "hours" && value.hour() < start.hour()) return true;
+                            if (
+                              view === "minutes" &&
+                              value.hour() === start.hour() &&
+                              value.minute() <= start.minute()
+                            )
+                              return true;
+                          }
+                          return false;
+                        }}
+                        disabled={!availableFrom}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            error: !!errors.availableTo,
+                            sx: {
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "16px",
+                                fontSize: "0.875rem",
+                                fontWeight: 700,
+                                backgroundColor: "#fff",
+                              },
+                            },
+                          },
+                        }}
+                      />
+                      {clickedFields.has("end") && (!availableFrom || errors.availableTo) && (
+                        <p className="text-xs font-semibold text-red-500">
+                          ⚠️ {!availableFrom ? "Chọn giờ bắt đầu ca trước" : errors.availableTo}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </LocalizationProvider>
+
+              {/* Policy Section */}
+              <div className="bg-gray-50/50 border border-gray-200/30 rounded-3xl p-5 space-y-4">
+                <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                  ⚙️ Chính sách
+                </h3>
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">
-                    Chính sách tự động chốt
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
+                    Tự động chốt
                   </label>
                   <select
                     value={autoFinalizePolicy}
                     onChange={(e) => setAutoFinalizePolicy(Number(e.target.value))}
-                    className="w-full px-4 py-3 bg-white border border-gray-200/35 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-3xs cursor-pointer"
+                    className="w-full px-4 py-3 bg-white border border-gray-200/60 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-3xs cursor-pointer"
                   >
                     <option value={0}>Không tự động chốt</option>
                     <option value={1}>Tự động chốt khi hết hạn order</option>
@@ -820,204 +1050,6 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   </select>
                 </div>
               </div>
-
-              {/* MUI TimePickers */}
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                  <div
-                    className="flex flex-col gap-1.5"
-                    onClick={() => setClickedFields((prev) => new Set(prev).add("order"))}
-                  >
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Play className="w-3 h-3 text-[#D35400]" />
-                      Mở đặt
-                    </label>
-                    <TimePicker
-                      ampm={false}
-                      value={availableForOrder ? dayjs(availableForOrder) : null}
-                      onChange={(v) => handleTimeSelect("order", v)}
-                      shouldDisableTime={(value) => {
-                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
-                        if (
-                          orderOpenDate === dayjs().format("YYYY-MM-DD") &&
-                          val <= toMinutes(dayjs().format("YYYY-MM-DDTHH:mm"))
-                        )
-                          return true;
-                        if (orderOpenDate === sessionDate) {
-                          if (finalizationDeadline && val >= toMinutes(finalizationDeadline))
-                            return true;
-                          if (availableFrom && val >= toMinutes(availableFrom)) return true;
-                          if (availableTo && val >= toMinutes(availableTo)) return true;
-                        }
-                        return false;
-                      }}
-                      disabled={!orderOpenDate}
-                      slotProps={{
-                        textField: {
-                          size: "small",
-                          error: !!errors.availableForOrder,
-                          sx: {
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "16px",
-                              fontSize: "0.875rem",
-                              fontWeight: 700,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        },
-                      }}
-                    />
-                    {clickedFields.has("order") && (!orderOpenDate || errors.availableForOrder) && (
-                      <p className="text-[11px] font-semibold text-red-500">
-                        ⚠️{" "}
-                        {!orderOpenDate
-                          ? "Vui lòng chọn ngày mở đặt trước"
-                          : errors.availableForOrder}
-                      </p>
-                    )}
-                  </div>
-
-                  <div
-                    className="flex flex-col gap-1.5"
-                    onClick={() => setClickedFields((prev) => new Set(prev).add("deadline"))}
-                  >
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Hourglass className="w-3 h-3 text-blue-500" />
-                      Hạn chốt món
-                    </label>
-                    <TimePicker
-                      ampm={false}
-                      value={finalizationDeadline ? dayjs(finalizationDeadline) : null}
-                      onChange={(v) => handleTimeSelect("deadline", v)}
-                      shouldDisableTime={(value) => {
-                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
-                        if (
-                          availableForOrder &&
-                          orderOpenDate === sessionDate &&
-                          val <= toMinutes(availableForOrder)
-                        )
-                          return true;
-                        if (availableFrom && val >= toMinutes(availableFrom)) return true;
-                        if (availableTo && val >= toMinutes(availableTo)) return true;
-                        return false;
-                      }}
-                      disabled={!availableForOrder}
-                      slotProps={{
-                        textField: {
-                          size: "small",
-                          error: !!errors.finalizationDeadline,
-                          sx: {
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "16px",
-                              fontSize: "0.875rem",
-                              fontWeight: 700,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        },
-                      }}
-                    />
-                    {clickedFields.has("deadline") &&
-                      (!availableForOrder || errors.finalizationDeadline) && (
-                        <p className="text-[11px] font-semibold text-red-500">
-                          ⚠️{" "}
-                          {!availableForOrder
-                            ? "Vui lòng chọn giờ mở đặt trước"
-                            : errors.finalizationDeadline}
-                        </p>
-                      )}
-                  </div>
-
-                  <div
-                    className="flex flex-col gap-1.5"
-                    onClick={() => setClickedFields((prev) => new Set(prev).add("start"))}
-                  >
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <CalendarPlus className="w-3 h-3 text-green-600" />
-                      Bắt đầu ca
-                    </label>
-                    <TimePicker
-                      ampm={false}
-                      value={availableFrom ? dayjs(availableFrom) : null}
-                      onChange={(v) => handleTimeSelect("start", v)}
-                      shouldDisableTime={(value) => {
-                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
-                        if (finalizationDeadline && val <= toMinutes(finalizationDeadline))
-                          return true;
-                        if (availableTo && val >= toMinutes(availableTo)) return true;
-                        return false;
-                      }}
-                      disabled={!finalizationDeadline}
-                      slotProps={{
-                        textField: {
-                          size: "small",
-                          error: !!errors.availableFrom,
-                          sx: {
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "16px",
-                              fontSize: "0.875rem",
-                              fontWeight: 700,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        },
-                      }}
-                    />
-                    {clickedFields.has("start") &&
-                      (!finalizationDeadline || errors.availableFrom) && (
-                        <p className="text-[11px] font-semibold text-red-500">
-                          ⚠️{" "}
-                          {!finalizationDeadline
-                            ? "Vui lòng chọn hạn chốt món trước"
-                            : errors.availableFrom}
-                        </p>
-                      )}
-                  </div>
-
-                  <div
-                    className="flex flex-col gap-1.5"
-                    onClick={() => setClickedFields((prev) => new Set(prev).add("end"))}
-                  >
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Lock className="w-3 h-3 text-red-500" />
-                      Kết thúc ca
-                    </label>
-                    <TimePicker
-                      ampm={false}
-                      value={availableTo ? dayjs(availableTo) : null}
-                      onChange={(v) => handleTimeSelect("end", v)}
-                      shouldDisableTime={(value) => {
-                        const val = toMinutes(value.format("YYYY-MM-DDTHH:mm"));
-                        if (finalizationDeadline && val <= toMinutes(finalizationDeadline))
-                          return true;
-                        if (availableFrom && val <= toMinutes(availableFrom)) return true;
-                        return false;
-                      }}
-                      disabled={!availableFrom}
-                      slotProps={{
-                        textField: {
-                          size: "small",
-                          error: !!errors.availableTo,
-                          sx: {
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "16px",
-                              fontSize: "0.875rem",
-                              fontWeight: 700,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        },
-                      }}
-                    />
-                    {clickedFields.has("end") && (!availableFrom || errors.availableTo) && (
-                      <p className="text-[11px] font-semibold text-red-500">
-                        ⚠️{" "}
-                        {!availableFrom ? "Vui lòng chọn giờ bắt đầu ca trước" : errors.availableTo}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </LocalizationProvider>
             </div>
           </div>
 
@@ -1270,7 +1302,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         </div>
 
         {/* Right Column: Drag and Drop Workspace */}
-        <div className="lg:col-span-5 space-y-8 lg:sticky lg:top-0">
+        <div className="lg:col-span-6 space-y-8 lg:sticky lg:top-0">
           {/* Mapped Session Dishes Pool (Drop zone) */}
           <div
             ref={dropZoneRef}

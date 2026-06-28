@@ -574,13 +574,13 @@ function MenuContent() {
 
         {/* ── TEMPLATE CAROUSEL ── */}
         {templates.length > 0 && (
-          <div className="w-full pt-6">
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-[2.5rem] p-6 border border-orange-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-full pt-4">
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-[2rem] p-4 border border-orange-100 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-3 px-1">
                 <div
-                  className={`w-3 h-3 rounded-full ${noTemplateChosen ? "bg-[#FF4C24] animate-pulse" : "bg-green-500"}`}
+                  className={`w-2.5 h-2.5 rounded-full ${noTemplateChosen ? "bg-[#FF4C24] animate-pulse" : "bg-green-500"}`}
                 />
-                <span className="text-sm font-black text-gray-700 uppercase tracking-wider">
+                <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
                   {noTemplateChosen ? "Chọn Template để bắt đầu đặt món" : "Đang đặt món theo:"}
                 </span>
               </div>
@@ -590,7 +590,7 @@ function MenuContent() {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                className="flex gap-5 overflow-x-auto scrollbar-none pb-1 select-none active:cursor-grabbing cursor-grab items-center"
+                className="flex gap-3 overflow-x-auto scrollbar-none pb-1 select-none active:cursor-grabbing cursor-grab items-center"
               >
                 {templates.map((t, idx) => {
                   const isActive = selectedTemplateIdx === idx;
@@ -607,14 +607,14 @@ function MenuContent() {
                           setSelectedTemplateIdx(idx);
                         }
                       }}
-                      className={`shrink-0 px-10 py-5 rounded-2xl text-lg font-black transition-all duration-200 whitespace-nowrap shadow-xs ${
+                      className={`shrink-0 px-6 py-3 rounded-xl text-sm font-black transition-all duration-200 whitespace-nowrap shadow-xs ${
                         isActive
-                          ? "bg-[#FF4C24] text-white shadow-xl shadow-orange-500/30 scale-105 border-2 border-[#FF4C24]"
+                          ? "bg-[#FF4C24] text-white shadow-lg shadow-orange-500/30 scale-105 border-2 border-[#FF4C24]"
                           : "bg-white text-gray-700 border-2 border-gray-100 hover:border-[#FF4C24] hover:text-[#FF4C24] hover:shadow-md"
                       }`}
                     >
-                      <span className="flex items-center gap-2.5">
-                        {isActive && <span className="w-2.5 h-2.5 rounded-full bg-white" />}
+                      <span className="flex items-center gap-2">
+                        {isActive && <span className="w-2 h-2 rounded-full bg-white" />}
                         {t.name}
                       </span>
                     </button>
@@ -626,11 +626,11 @@ function MenuContent() {
         )}
 
         {/* ── MAIN TWO-COLUMN LAYOUT ── */}
-        <div className="w-full flex flex-col lg:flex-row mt-8 gap-10">
-          {/* ═══════ LEFT COLUMN: ẢNH MÂM TO KHỔNG LỒ ── */}
+        <div className="w-full flex flex-col lg:flex-row mt-8 gap-8">
+          {/* ═══════ LEFT COLUMN: MÂM ── */}
           <div
             ref={trayRef}
-            className="w-full lg:w-[500px] xl:w-[680px] shrink-0 lg:sticky lg:top-24 self-start bg-gray-50 rounded-[3.5rem] p-6 border border-gray-100/70 shadow-xs"
+            className="w-full lg:w-[420px] xl:w-[500px] shrink-0 lg:sticky lg:top-24 self-start bg-gray-50 rounded-[3.5rem] p-6 border border-gray-100/70 shadow-xs"
           >
             <div
               onDragOver={handleDragOver}
@@ -656,14 +656,14 @@ function MenuContent() {
                     .filter((i) => i.sessionId === sessionId)
                     .map((item, idx) => {
                       const positions = [
-                        { top: "22%", left: "22%", w: "17%", h: "19%" },
-                        { top: "22%", left: "54%", w: "17%", h: "19%" },
-                        { top: "56%", left: "18%", w: "17%", h: "19%" },
-                        { top: "56%", left: "50%", w: "17%", h: "19%" },
-                        { top: "38%", left: "7%", w: "14%", h: "16%" },
-                        { top: "14%", left: "40%", w: "14%", h: "16%" },
-                        { top: "60%", left: "70%", w: "14%", h: "16%" },
-                        { top: "38%", left: "38%", w: "17%", h: "19%" },
+                        { top: "24%", left: "24%", w: "16%", h: "16%" },
+                        { top: "24%", left: "54%", w: "16%", h: "16%" },
+                        { top: "56%", left: "22%", w: "16%", h: "16%" },
+                        { top: "56%", left: "52%", w: "16%", h: "16%" },
+                        { top: "40%", left: "8%", w: "13%", h: "13%" },
+                        { top: "16%", left: "42%", w: "13%", h: "13%" },
+                        { top: "60%", left: "72%", w: "13%", h: "13%" },
+                        { top: "40%", left: "39%", w: "16%", h: "16%" },
                       ];
                       const p = positions[Math.min(idx, positions.length - 1)];
                       const tilt = idx % 2 === 0 ? "rotate(-3deg)" : "rotate(4deg)";
@@ -704,18 +704,17 @@ function MenuContent() {
                             transform: tilt,
                           }}
                         >
-                          {/* 🌟 ĐÃ SỬA: Đảm bảo class rounded-full và overflow-hidden bọc chặt bo tròn ảnh trên mâm */}
-                          <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-2xl tray-food-item">
+                          <div className="relative w-full aspect-square rounded-full overflow-hidden border-[3px] border-white shadow-lg tray-food-item">
                             <Image
                               src={item.imgUrl || "/placeholder-food.png"}
                               alt={item.name}
                               fill
                               className="object-cover rounded-full"
-                              sizes="180px"
+                              sizes="160px"
                             />
                           </div>
                           {item.quantity > 1 && (
-                            <span className="absolute -top-1.5 -right-2 bg-[#FF4C24] text-white text-[10px] font-black min-w-[22px] h-5.5 rounded-full flex items-center justify-center px-1.5 shadow-md border-2 border-white">
+                            <span className="absolute -top-1 -right-1.5 bg-[#FF4C24] text-white text-[9px] font-black min-w-[20px] h-5 rounded-full flex items-center justify-center px-1 shadow-md border-2 border-white">
                               x{item.quantity}
                             </span>
                           )}
@@ -756,7 +755,7 @@ function MenuContent() {
               setIsDragOverRightPanel(false);
               handleDropFromTray(e);
             }}
-            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-4 lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] ${
+            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-6 lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] ${
               isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
             }`}
           >
@@ -767,24 +766,24 @@ function MenuContent() {
               </div>
             ) : (
               <>
-                <div className="w-full bg-gray-50 p-5 rounded-[2.5rem] border border-gray-150/50 shadow-inner">
-                  <div className="flex gap-8 items-center overflow-x-auto scrollbar-none">
+                <div className="w-full bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-[2rem] border border-orange-100/60 shadow-sm">
+                  <div className="flex gap-5 items-center overflow-x-auto scrollbar-none">
                     {/* All Category Button */}
                     <button
                       onClick={() => setSelectedCategoryId(null)}
-                      className="flex flex-col items-center gap-3 shrink-0 group"
+                      className="flex flex-col items-center gap-2 shrink-0 group"
                     >
                       <div
-                        className={`relative w-14 h-14 md:w-18 md:h-18 ml-2 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center ${
+                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center ${
                           selectedCategoryId === null
-                            ? "ring-4 ring-[#FF4C24] ring-offset-2 scale-105 shadow-xl shadow-orange-500/20 bg-[#FF4C24] text-white animate-bounce-subtle"
-                            : "ring-1 ring-gray-200 bg-white text-gray-500 hover:ring-[#FF4C24]/50 hover:scale-105"
+                            ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 bg-[#FF4C24] text-white animate-bounce-subtle"
+                            : "ring-1 ring-gray-200 bg-white text-gray-500 hover:ring-[#FF4C24]/50"
                         }`}
                       >
-                        <ShoppingCart className="w-8 h-8" />
+                        <ShoppingCart className="w-6 h-6" />
                       </div>
                       <span
-                        className={`text-sm font-black whitespace-nowrap transition-colors duration-200 ${
+                        className={`text-xs font-black whitespace-nowrap transition-colors duration-200 ${
                           selectedCategoryId === null
                             ? "text-[#FF4C24]"
                             : "text-gray-500 group-hover:text-gray-800"
@@ -803,13 +802,13 @@ function MenuContent() {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategoryId(category.id)}
-                          className="flex flex-col items-center gap-3 shrink-0 group"
+                          className="flex flex-col items-center gap-2 shrink-0 group"
                         >
                           <div
-                            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden transition-all duration-300 ${
+                            className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden transition-all duration-300 ${
                               isActive
-                                ? "ring-4 ring-[#FF4C24] ring-offset-2 scale-105 shadow-xl shadow-orange-500/20 animate-bounce-subtle"
-                                : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50 hover:scale-105"
+                                ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 animate-bounce-subtle"
+                                : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50"
                             }`}
                           >
                             <Image
@@ -817,16 +816,16 @@ function MenuContent() {
                               alt={category.name}
                               fill
                               className="object-cover rounded-full"
-                              sizes="100px"
+                              sizes="80px"
                             />
                             {cartCount > 0 && (
-                              <span className="absolute -top-0.5 -right-0.5 bg-[#FF4C24] text-white text-xs font-black min-w-[22px] h-5.5 rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
+                              <span className="absolute -top-0.5 -right-0.5 bg-[#FF4C24] text-white text-[10px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
                                 {cartCount}
                               </span>
                             )}
                           </div>
                           <span
-                            className={`text-sm font-black whitespace-nowrap transition-colors duration-200 ${
+                            className={`text-xs font-black whitespace-nowrap transition-colors duration-200 ${
                               isActive
                                 ? "text-[#FF4C24]"
                                 : "text-gray-500 group-hover:text-gray-800"
@@ -842,7 +841,7 @@ function MenuContent() {
 
                 {/* Grid Món ăn */}
                 {selectedCategoryId === null ? (
-                  <div className="space-y-10">
+                  <div className="space-y-6">
                     {categories.map((cat) => {
                       const catDishes = dishes.filter((d) => d.categoryId === cat.id);
                       if (catDishes.length === 0) return null;
@@ -854,9 +853,9 @@ function MenuContent() {
                       return (
                         <div
                           key={cat.id}
-                          className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 md:p-8 space-y-6"
+                          className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 space-y-5"
                         >
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <div className="flex items-center gap-3.5">
                               <div className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-100">
                                 <Image
@@ -924,8 +923,8 @@ function MenuContent() {
                     const notInTemplate = setting === null && selectedTemplate !== null;
 
                     return (
-                      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 md:p-8 space-y-6">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 space-y-5">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                           <div className="flex items-center gap-3.5">
                             <div className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-100">
                               <Image
@@ -1162,16 +1161,16 @@ function DishCard({
         userSelect: "none",
         WebkitUserSelect: "none",
       }}
-      className={`dish-card-customer group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[260px] justify-between shadow-xs ${
+      className={`dish-card-customer group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[250px] justify-between shadow-xs ${
         disabled
           ? notInTemplate
             ? "border-gray-50 opacity-40 grayscale-[0.4]"
             : "pointer-events-none opacity-45"
-          : "cursor-pointer hover:shadow-2xl hover:scale-[1.01] active:scale-[0.98] hover:border-orange-300 border-gray-100"
+          : "cursor-pointer hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] hover:border-orange-300 border-gray-100"
       }`}
     >
       <div
-        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-md group-hover:scale-105 transition-transform duration-300"
+        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-lg group-hover:scale-105 transition-transform duration-300"
         style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
       >
         <Image
@@ -1267,7 +1266,7 @@ function DishGrid({
   const canAddMore = !setting || cartCount < setting.maxQuantity;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-3 2xl:grid-cols-4 gap-5 md:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
       {categoryDishes.map((dish) => {
         const finalImageUrl = getUrl(dish.imgUrl);
         const finalDishGuid = (dish as { dishId?: string }).dishId || dish.id;
