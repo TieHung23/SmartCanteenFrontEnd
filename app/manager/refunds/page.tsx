@@ -10,9 +10,9 @@ import Modal from "../_components/modal";
 import { RefundDetailsContent } from "./_components/refund-details-content";
 
 const STATUS_STYLES: Record<string, { label: string; color: string; bg: string }> = {
-  Pending: { label: "Pending", color: "text-yellow-800", bg: "bg-yellow-100" },
-  Approved: { label: "Approved", color: "text-green-800", bg: "bg-green-100" },
-  Rejected: { label: "Rejected", color: "text-red-800", bg: "bg-red-100" },
+  Pending: { label: "Chờ xử lý", color: "text-yellow-800", bg: "bg-yellow-100" },
+  Approved: { label: "Đã duyệt", color: "text-green-800", bg: "bg-green-100" },
+  Rejected: { label: "Từ chối", color: "text-red-800", bg: "bg-red-100" },
 };
 
 export default function ManagerRefundsPage() {
@@ -62,7 +62,7 @@ export default function ManagerRefundsPage() {
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-4xl font-extrabold text-gray-900">Refund Requests</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900">Yêu cầu hoàn tiền</h1>
         <p className="text-lg text-gray-500 mt-1.5">
           Phê duyệt hoặc từ chối các yêu cầu hoàn tiền của người dùng.
         </p>
@@ -79,9 +79,9 @@ export default function ManagerRefundsPage() {
           className="w-full sm:w-60 px-4 py-3.5 bg-white border border-gray-200/60 rounded-2xl text-base font-medium outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-2xs cursor-pointer"
         >
           <option value="">Tất cả trạng thái</option>
-          <option value="1">Pending</option>
-          <option value="2">Approved</option>
-          <option value="3">Rejected</option>
+          <option value="1">Chờ xử lý</option>
+          <option value="2">Đã duyệt</option>
+          <option value="3">Từ chối</option>
         </select>
       </div>
 
@@ -112,7 +112,7 @@ export default function ManagerRefundsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        User ID
+                        Mã người dùng
                       </p>
                       <p className="text-sm font-mono font-bold text-gray-800 truncate mt-0.5">
                         {req.userId.slice(0, 12)}...
@@ -184,7 +184,7 @@ export default function ManagerRefundsPage() {
                   className="w-full py-3 bg-[#D35400]/10 hover:bg-[#D35400] text-[#D35400] hover:text-white rounded-2xl text-sm font-bold transition-all text-center flex items-center justify-center gap-2"
                 >
                   <Eye className="w-4 h-4" />
-                  Review
+                  Xem xét
                 </button>
               </div>
             );

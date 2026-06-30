@@ -26,13 +26,13 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="w-full mb-6">
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Reset Password</h1>
-            <p className="text-sm text-gray-400">Enter your new password.</p>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt lại mật khẩu</h1>
+            <p className="text-sm text-gray-400">Nhập mật khẩu mới của bạn.</p>
           </div>
 
           <Suspense
             fallback={
-              <div className="w-full py-8 text-center text-sm text-gray-500">Loading...</div>
+              <div className="w-full py-8 text-center text-sm text-gray-500">Đang tải...</div>
             }
           >
             <ResetPasswordForm />

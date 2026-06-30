@@ -329,7 +329,7 @@ export default function CartDrawer() {
                           <span>{formatPts(group.totalPrice)}</span>
                           <Image
                             src="/logo_point.png"
-                            alt="coin"
+                            alt="xu"
                             width={14}
                             height={14}
                             className="object-contain"
@@ -438,7 +438,7 @@ export default function CartDrawer() {
                                   <span>{formatPts(item.price * item.quantity)}</span>
                                   <Image
                                     src="/logo_point.png"
-                                    alt="coin"
+                                    alt="xu"
                                     width={12}
                                     height={12}
                                     className="object-contain"
@@ -483,7 +483,7 @@ export default function CartDrawer() {
                   <span>{formatPts(selectedTotal)}</span>
                   <Image
                     src="/logo_point.png"
-                    alt="coin"
+                    alt="xu"
                     width={18}
                     height={18}
                     className="object-contain"

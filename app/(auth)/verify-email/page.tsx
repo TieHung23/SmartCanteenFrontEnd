@@ -33,12 +33,12 @@ function VerifyEmailContent() {
     try {
       const res = (await authService.verifyEmail(e, c)) as { message?: string };
       setStatus("success");
-      setMessage(res?.message || "Email verified successfully!");
+      setMessage(res?.message || "Xác thực email thành công!");
     } catch (error: unknown) {
       setStatus("error");
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Email verification failed. The link may be expired or invalid.";
+        "Xác thực email thất bại. Liên kết có thể đã hết hạn hoặc không hợp lệ.";
       setMessage(msg);
     }
   };
@@ -53,11 +53,11 @@ function VerifyEmailContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      toast.error("Please enter your email");
+      toast.error("Vui lòng nhập email");
       return;
     }
     if (!code.trim()) {
-      toast.error("Please enter the verification code");
+      toast.error("Vui lòng nhập mã xác thực");
       return;
     }
     verify(email.trim(), code.trim());
@@ -80,9 +80,9 @@ function VerifyEmailContent() {
             </div>
             <Loader2 className="w-8 h-8 text-[#D35400] animate-spin" />
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-800">Verifying Email</h1>
+              <h1 className="text-2xl font-extrabold text-gray-800">Đang xác thực email</h1>
               <p className="text-gray-400 text-sm mt-1">
-                Please wait while we verify your email address.
+                Vui lòng đợi trong khi chúng tôi xác thực địa chỉ email của bạn.
               </p>
             </div>
           </div>
@@ -94,14 +94,14 @@ function VerifyEmailContent() {
               <ShieldCheck className="w-14 h-14 text-emerald-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-850">Email Verified!</h1>
+              <h1 className="text-2xl font-extrabold text-gray-850">Email đã được xác thực!</h1>
               <p className="text-gray-400 text-sm mt-1 font-semibold">{message}</p>
             </div>
             <Link
               href="/login"
               className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] text-center block"
             >
-              Sign In Now
+              Đăng nhập ngay
             </Link>
           </div>
         )}
@@ -112,7 +112,7 @@ function VerifyEmailContent() {
               <XCircle className="w-10 h-10 text-red-500" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-800">Verification Failed</h1>
+              <h1 className="text-2xl font-extrabold text-gray-800">Xác thực thất bại</h1>
               <p className="text-gray-400 text-sm mt-1">{message}</p>
             </div>
             <div className="w-full flex flex-col gap-3">
@@ -123,13 +123,13 @@ function VerifyEmailContent() {
                 }}
                 className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)]"
               >
-                Try Again
+                Thử lại
               </button>
               <Link
                 href="/login"
                 className="w-full py-4 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all text-center block"
               >
-                Back to Login
+                Quay lại đăng nhập
               </Link>
             </div>
           </div>
@@ -141,9 +141,9 @@ function VerifyEmailContent() {
               <Mail className="w-10 h-10 text-[#D35400]" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-800">Verify Email</h1>
+              <h1 className="text-2xl font-extrabold text-gray-800">Xác thực email</h1>
               <p className="text-gray-400 text-sm mt-1">
-                Enter the verification code sent to your email.
+                Nhập mã xác thực đã được gửi đến email của bạn.
               </p>
             </div>
             <form onSubmit={handleSubmit} className="w-full space-y-6 text-center">
@@ -152,14 +152,12 @@ function VerifyEmailContent() {
                 <Input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  placeholder="email@example.com"
                   className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base text-center bg-transparent"
                 />
               </div>
               <div>
-                <label className="text-sm font-bold text-gray-700 block mb-3">
-                  Verification Code
-                </label>
+                <label className="text-sm font-bold text-gray-700 block mb-3">Mã xác thực</label>
                 <div className="flex justify-center">
                   <InputOTP maxLength={6} value={code} onChange={(value) => setCode(value)}>
                     <InputOTPGroup>
@@ -180,14 +178,14 @@ function VerifyEmailContent() {
                 type="submit"
                 className="w-full py-6 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl shadow-[0_4px_14px_rgba(211,84,0,0.3)] animate-none"
               >
-                Verify Email
+                Xác thực email
               </Button>
             </form>
             <Link
               href="/login"
               className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-orange-500 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" /> Back to Login
+              <ArrowLeft className="w-4 h-4" /> Quay lại đăng nhập
             </Link>
           </div>
         )}

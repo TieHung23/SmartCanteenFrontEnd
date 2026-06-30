@@ -21,6 +21,9 @@ function formatDate(iso: string) {
 }
 
 export default function ManagerSessionsPage() {
+  const isSessionLive = (s: SessionListItem) =>
+    s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date());
+
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -66,7 +69,7 @@ export default function ManagerSessionsPage() {
   }, [showActive]);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete session "${name}"?`)) return;
+    if (!confirm(`Xóa ca phục vụ "${name}"?`)) return;
     try {
       await sessionService.deleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -99,7 +102,7 @@ export default function ManagerSessionsPage() {
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900">Serving Sessions</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900">Ca phục vụ</h1>
           <p className="text-lg text-gray-500 mt-1.5">
             Quản lý và điều phối các phiên/ca ăn phục vụ.
           </p>
@@ -109,7 +112,7 @@ export default function ManagerSessionsPage() {
           className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
           <Plus className="w-5 h-5" />
-          New Session
+          Ca phục vụ mới
         </button>
       </div>
 
@@ -176,12 +179,12 @@ export default function ManagerSessionsPage() {
                   <span
                     className={cn(
                       "shrink-0 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider",
-                      session.isActive
+                      isSessionLive(session)
                         ? "bg-green-100 text-green-800"
                         : "bg-gray-100 text-gray-500",
                     )}
                   >
-                    {session.isActive ? "Active" : "Inactive"}
+                    {isSessionLive(session) ? "Hoạt động" : "Ngừng hoạt động"}
                   </span>
                 </div>
 
@@ -201,7 +204,7 @@ export default function ManagerSessionsPage() {
                     Kết thúc: {formatDate(session.availableTo)}
                   </span>
                   <span className="font-bold text-[#D35400] bg-orange-50 border border-orange-100/40 rounded-xl px-2 py-0.5 text-xs">
-                    {session.dishes?.length ?? 0} dishes
+                    {session.dishes?.length ?? 0} món
                   </span>
                 </div>
               </div>
@@ -213,7 +216,7 @@ export default function ManagerSessionsPage() {
                     handleOpenCopy(session.id);
                   }}
                   className="p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all shrink-0"
-                  title="Copy session template"
+                  title="Sao chép mẫu ca phục vụ"
                 >
                   <Copy className="w-5 h-5" />
                 </button>
@@ -224,7 +227,7 @@ export default function ManagerSessionsPage() {
                   }}
                   className="px-5 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
                 >
-                  Edit
+                  Sửa
                 </button>
                 <button
                   onClick={(e) => {

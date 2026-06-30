@@ -56,7 +56,10 @@ export const API_ENDPOINTS = {
   },
   SETTINGS: {
     LIST: "/api/Settings",
+    CREATE: "/api/Settings",
     GET: (id: string) => `/api/Settings/${id}`,
+    UPDATE: (id: string) => `/api/Settings/${id}`,
+    DELETE: (id: string) => `/api/Settings/${id}`,
   },
   REFUND: {
     LIST: "/api/refunds",
@@ -66,6 +69,11 @@ export const API_ENDPOINTS = {
     MANAGER_GET: (id: string) => `/api/manager/refunds/${id}`,
     MANAGER_APPROVE: (id: string) => `/api/manager/refunds/${id}/approve`,
     MANAGER_REJECT: (id: string) => `/api/manager/refunds/${id}/reject`,
+    POLICIES: "/api/refund-policies",
+    MANAGER_POLICIES: "/api/manager/refund-policies",
+    MANAGER_POLICY_CREATE: "/api/manager/refund-policies",
+    MANAGER_POLICY_UPDATE: (code: string) => `/api/manager/refund-policies/${code}`,
+    MANAGER_POLICY_DELETE: (code: string) => `/api/manager/refund-policies/${code}`,
   },
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",

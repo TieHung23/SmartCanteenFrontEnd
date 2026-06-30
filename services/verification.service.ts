@@ -84,6 +84,17 @@ export const verificationService = {
     documentTypes.forEach((dt) => formData.append("documentTypes", String(dt)));
 
     try {
+      const profile = await import("./user.service").then((m) =>
+        m.userService.getProfile().catch(() => null),
+      );
+      if (profile) {
+        if (profile.majorOrClass) formData.append("MajorOrClass", profile.majorOrClass);
+        if (profile.dateOfBirth) formData.append("DateOfBirth", profile.dateOfBirth.split("T")[0]);
+        if (profile.studentId) formData.append("StudentId", profile.studentId);
+      }
+    } catch {}
+
+    try {
       const token = getAccessToken();
       const baseURL = apiClient.defaults.baseURL || "";
       const res = await fetch(`${baseURL}${API_ENDPOINTS.VERIFICATION.SUBMIT}`, {

@@ -2,15 +2,15 @@ import Link from "next/link";
 import { Cpu, PackageCheck, Radio, Utensils } from "lucide-react";
 
 const robotLanes = [
-  { label: "Pickup lane A", status: "Ready", icon: PackageCheck },
-  { label: "Pickup lane B", status: "Standby", icon: PackageCheck },
-  { label: "Holding area", status: "Monitoring", icon: Utensils },
+  { label: "Làn nhận A", status: "Sẵn sàng", icon: PackageCheck },
+  { label: "Làn nhận B", status: "Chờ", icon: PackageCheck },
+  { label: "Khu vực chờ", status: "Đang giám sát", icon: Utensils },
 ];
 
 const robotSteps = [
-  "Paid orders can create serving jobs through the robot serving API.",
-  "The current API docs expose job creation, but not a manager job list endpoint.",
-  "This page keeps the manager robot route available until live telemetry is connected.",
+  "Đơn hàng đã thanh toán có thể tạo công việc phục vụ qua robot.",
+  "API hiện tại hỗ trợ tạo công việc nhưng chưa có danh sách quản lý.",
+  "Trang này giữ sẵn giao diện robot cho đến khi kết nối dữ liệu thực tế.",
 ];
 
 export default function ManagerRobotPage() {
@@ -18,9 +18,9 @@ export default function ManagerRobotPage() {
     <div className="space-y-8 animate-fade-in pb-12">
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900">Robot Slots</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900">Vị trí Robot</h1>
           <p className="text-lg text-gray-500 mt-1.5">
-            Monitor serving lanes and robot handoff readiness from the manager portal.
+            Giám sát làn phục vụ và trạng thái sẵn sàng của robot.
           </p>
         </div>
         <Link
@@ -28,7 +28,7 @@ export default function ManagerRobotPage() {
           className="shrink-0 inline-flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
           <Utensils className="w-5 h-5" />
-          View Sessions
+          Xem ca phục vụ
         </Link>
       </div>
 
@@ -59,11 +59,11 @@ export default function ManagerRobotPage() {
             <Cpu className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-gray-900">Robot telemetry is pending</h2>
+            <h2 className="text-2xl font-black text-gray-900">Dữ liệu từ xa robot đang chờ</h2>
             <p className="text-base text-gray-500 mt-2 max-w-3xl">
-              The available robot module currently supports creating serving jobs for orders. A live
-              manager feed can be added here when the backend exposes queue, tray, or robot-status
-              endpoints.
+              Mô-đun robot hiện tại hỗ trợ tạo công việc phục vụ cho đơn hàng. Nguồn cấp dữ liệu
+              trực tiếp có thể được thêm vào đây khi backend cung cấp các điểm cuối về hàng đợi,
+              khay hoặc trạng thái robot.
             </p>
           </div>
         </div>
@@ -72,7 +72,7 @@ export default function ManagerRobotPage() {
       <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <Radio className="w-5 h-5 text-[#D35400]" />
-          <h3 className="text-xl font-black text-gray-900">Integration checklist</h3>
+          <h3 className="text-xl font-black text-gray-900">Danh sách kiểm tra tích hợp</h3>
         </div>
         <div className="space-y-4">
           {robotSteps.map((step, index) => (

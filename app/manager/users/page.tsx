@@ -3,33 +3,33 @@ import { BadgeCheck, ShieldAlert, UserCog, Users } from "lucide-react";
 
 const userWorkflows = [
   {
-    title: "Identity queue",
+    title: "Hàng đợi xác thực",
     description:
-      "Review pending student verification requests before accounts can use restricted flows.",
+      "Xem xét các yêu cầu xác thực sinh viên đang chờ trước khi tài khoản có thể sử dụng.",
     href: "/manager/verify",
     icon: BadgeCheck,
   },
   {
-    title: "Refund history",
-    description: "Inspect refund requests when a user's order or wallet balance needs follow-up.",
+    title: "Lịch sử hoàn tiền",
+    description: "Kiểm tra yêu cầu hoàn tiền khi đơn hàng hoặc số dư cần xử lý.",
     href: "/manager/refunds",
     icon: ShieldAlert,
   },
 ];
 
 const userStats = [
-  { label: "Active students", value: "-", hint: "Awaiting user list API" },
-  { label: "Staff accounts", value: "-", hint: "Awaiting role management API" },
-  { label: "Suspended users", value: "-", hint: "Awaiting account status API" },
+  { label: "Sinh viên đang hoạt động", value: "-", hint: "Đang chờ API danh sách người dùng" },
+  { label: "Tài khoản nhân viên", value: "-", hint: "Đang chờ API quản lý vai trò" },
+  { label: "Người dùng bị khóa", value: "-", hint: "Đang chờ API trạng thái tài khoản" },
 ];
 
 export default function ManagerUsersPage() {
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-4xl font-extrabold text-gray-900">Manage Users</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900">Quản lý người dùng</h1>
         <p className="text-lg text-gray-500 mt-1.5">
-          User administration shell for account review, verification, and support workflows.
+          Trang quản lý người dùng cho việc xem xét tài khoản, xác thực và hỗ trợ.
         </p>
       </div>
 
@@ -55,12 +55,11 @@ export default function ManagerUsersPage() {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-gray-900">
-              Account module is not connected yet
+              Mô-đun tài khoản chưa được kết nối
             </h2>
             <p className="text-base text-gray-500 max-w-3xl">
-              The frontend currently has profile APIs, but no manager user-list or role-management
-              endpoint is exposed in the local API docs. This page keeps the manager route available
-              and links to the user workflows that already exist.
+              Frontend hiện có API hồ sơ, nhưng chưa có API danh sách người dùng hoặc quản lý vai
+              trò. Trang này giữ sẵn giao diện và liên kết đến các quy trình đã có.
             </p>
           </div>
         </div>
@@ -89,7 +88,7 @@ export default function ManagerUsersPage() {
       <div className="bg-white rounded-3xl border border-dashed border-gray-200 p-12 text-center">
         <Users className="w-12 h-12 text-gray-300 mx-auto" />
         <p className="text-lg font-bold text-gray-400 mt-4">
-          User table will appear here after the manager user endpoint is added.
+          Bảng người dùng sẽ xuất hiện tại đây sau khi có endpoint quản lý người dùng.
         </p>
       </div>
     </div>

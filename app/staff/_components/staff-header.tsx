@@ -15,7 +15,7 @@ export function StaffHeader({ onMenuClick }: { onMenuClick?: () => void }) {
     fetchProfile();
   }, [fetchProfile]);
 
-  const displayName = profile?.name || "Staff";
+  const displayName = profile?.name || "Nhân Viên";
   const avatarUrl = profile?.imgUrl || null;
 
   return (
@@ -25,7 +25,7 @@ export function StaffHeader({ onMenuClick }: { onMenuClick?: () => void }) {
           <button
             onClick={onMenuClick}
             className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-800 focus:outline-none shrink-0"
-            aria-label="Open sidebar"
+            aria-label="Mở sidebar"
           >
             <Menu className="w-6 h-6" />
           </button>

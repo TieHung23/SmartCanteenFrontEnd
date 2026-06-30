@@ -120,7 +120,7 @@ export const sessionService = {
     try {
       const response = (await apiClient.post<ApiResponse<{ message: string }>>(
         API_ENDPOINTS.SESSION.FINALIZE(id),
-        { preparedDishes },
+        { sessionId: id, preparedDishes },
       )) as unknown as ApiResponse<{ message: string }>;
 
       return response;

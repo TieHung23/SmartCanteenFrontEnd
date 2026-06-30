@@ -39,8 +39,8 @@ import {
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
-  { id: 4, name: "Bank Transfer" },
-  { id: 5, name: "Smart Canteen Wallet" },
+  { id: 4, name: "Chuyển khoản ngân hàng" },
+  { id: 5, name: "Ví Smart Canteen" },
 ];
 
 const COMING_SOON_METHODS = ["Momo", "VNPay", "ZaloPay"];
@@ -258,7 +258,7 @@ export default function CheckoutPage() {
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error("Vui lòng nhập số tiền hợp lệ");
       return;
     }
     setIsTopUpping(true);
@@ -266,7 +266,7 @@ export default function CheckoutPage() {
       const data: TopUpRequest = { amountVnd: topUpAmount, method: topUpMethod };
       const result = await paymentService.topUpWallet(data);
       setTopUpResult(result);
-      toast.success("Top-up request created!");
+      toast.success("Tạo yêu cầu nạp tiền thành công!");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
       toast.error(err?.response?.data?.message || err?.message || "Top-up failed");
@@ -284,12 +284,12 @@ export default function CheckoutPage() {
       } else {
         toast.error(
           res
-            ? `Insufficient balance. You have ${res.balanceAmount} pts, need ${totalPoints} pts.`
-            : "Unable to check balance. Please try again.",
+            ? `Số dư không đủ. Bạn có ${res.balanceAmount} điểm, cần ${totalPoints} điểm.`
+            : "Không thể kiểm tra số dư. Vui lòng thử lại.",
         );
       }
     } catch {
-      toast.error("Unable to check balance. Please try again.");
+      toast.error("Không thể kiểm tra số dư. Vui lòng thử lại.");
     }
   };
 
@@ -418,7 +418,7 @@ export default function CheckoutPage() {
                   <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                 </div>
               </div>
-              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Order Confirmed!</h1>
+              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt hàng thành công!</h1>
               <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
 
               <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
@@ -426,37 +426,37 @@ export default function CheckoutPage() {
                   <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
                     <Receipt className="w-4 h-4 text-[#D35400]" />
                   </div>
-                  <span className="text-sm font-bold text-gray-700">Order Receipt</span>
+                  <span className="text-sm font-bold text-gray-700">Hóa đơn đơn hàng</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Order ID</span>
+                  <span className="text-gray-500">Mã đơn hàng</span>
                   <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
                     {orderResult.id.slice(0, 12)}...
                   </span>
                 </div>
                 {orderResult.transactionId && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Transaction ID</span>
+                    <span className="text-gray-500">Mã giao dịch</span>
                     <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
                       {orderResult.transactionId.slice(0, 12)}...
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Payment Method</span>
+                  <span className="text-gray-500">Phương thức thanh toán</span>
                   <span className="font-bold text-gray-700 flex items-center gap-1.5">
-                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Wallet Points
+                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Điểm ví
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
-                  <span className="text-base font-bold text-gray-800">Total Paid</span>
+                  <span className="text-base font-bold text-gray-800">Tổng đã thanh toán</span>
                   <PtsDisplay
                     amount={orderResult.totalPrice}
                     className="text-lg font-black text-[#D35400]"
                   />
                 </div>
                 <div className="flex justify-between text-sm pt-2">
-                  <span className="text-gray-500">Remaining Balance</span>
+                  <span className="text-gray-500">Số dư còn lại</span>
                   <PtsDisplay
                     amount={orderResult.userRemainingBalance}
                     className="font-bold text-[#D35400]"
@@ -472,7 +472,7 @@ export default function CheckoutPage() {
                   }}
                   className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
                 >
-                  View My Orders
+                  Xem đơn hàng
                 </button>
                 <button
                   onClick={() => {
@@ -481,7 +481,7 @@ export default function CheckoutPage() {
                   }}
                   className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
                 >
-                  Browse Sessions
+                  Chọn phiên ăn
                 </button>
               </div>
             </div>
@@ -513,7 +513,7 @@ export default function CheckoutPage() {
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            <ArrowLeft className="w-4 h-4" /> Quay lại
           </button>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-gray-100 pb-6">
@@ -522,7 +522,7 @@ export default function CheckoutPage() {
                 <ShoppingBag className="w-5 h-5 text-[#D35400]" />
               </div>
               <div>
-                <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
+                <h1 className="text-3xl font-extrabold text-gray-800">Thanh toán</h1>
                 {sessionLabels.length > 0 && (
                   <p
                     suppressHydrationWarning
@@ -844,30 +844,32 @@ export default function CheckoutPage() {
                     <Wallet className="w-4 h-4 text-[#D35400]" />
                   </div>
                   <h2 className="text-base font-bold text-gray-700 uppercase tracking-wide">
-                    Payment Summary
+                    Tổng kết thanh toán
                   </h2>
                 </div>
 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400 font-medium">
-                      Items ({activeCartItems.length})
+                      Món ăn ({activeCartItems.length})
                     </span>
                     <PtsDisplay amount={totalPoints} className="font-bold text-gray-800" />
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400 font-medium">Your Balance</span>
+                    <span className="text-gray-400 font-medium">Số dư của bạn</span>
                     <PtsDisplay amount={balance} className="font-bold text-[#D35400]" />
                   </div>
                   <div className="border-t border-gray-100 pt-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-gray-800">Payment Method</span>
+                      <span className="text-sm font-bold text-gray-800">
+                        Phương thức thanh toán
+                      </span>
                       <span className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-orange-50/60 px-3 py-1.5 rounded-xl border border-orange-100/40">
-                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Digital Wallet
+                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Ví điện tử
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
-                      <span className="font-bold text-gray-800">Total Price</span>
+                      <span className="font-bold text-gray-800">Tổng tiền</span>
                       <PtsDisplay
                         amount={totalPoints}
                         className="font-black text-[#D35400] text-xl"
@@ -944,7 +946,7 @@ export default function CheckoutPage() {
                     disabled
                     className="w-full py-4 bg-gray-300 text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2"
                   >
-                    <Loader2 className="w-4 h-4 animate-spin" /> Checking...
+                    <Loader2 className="w-4 h-4 animate-spin" /> Đang kiểm tra...
                   </button>
                 ) : hasEnoughPoints ? (
                   <button
@@ -954,11 +956,11 @@ export default function CheckoutPage() {
                   >
                     {isSubmitting || isSyncing ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                        <Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...
                       </>
                     ) : (
                       <>
-                        <Wallet className="w-4 h-4" /> Pay{" "}
+                        <Wallet className="w-4 h-4" /> Thanh toán{" "}
                         <PtsDisplay amount={totalPoints} className="text-white" />
                       </>
                     )}
@@ -968,11 +970,11 @@ export default function CheckoutPage() {
                     <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-bold text-[#B34700]">Insufficient Balance</p>
+                        <p className="text-sm font-bold text-[#B34700]">Số dư không đủ</p>
                         <p className="text-xs text-orange-500 mt-1 flex items-center gap-1 flex-wrap">
-                          You need{" "}
+                          Bạn cần thêm{" "}
                           <PtsDisplay amount={neededPoints} className="font-bold text-[#D35400]" />{" "}
-                          to complete this order. Please top up.
+                          để hoàn tất đơn hàng. Vui lòng nạp thêm.
                         </p>
                       </div>
                     </div>
@@ -986,12 +988,12 @@ export default function CheckoutPage() {
                         disabled={expiredSessions.length > 0}
                         className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        <ArrowUpRight className="w-4 h-4" /> Top Up &amp; Pay
+                        <ArrowUpRight className="w-4 h-4" /> Nạp tiền &amp; Thanh toán
                       </button>
                     ) : (
                       <div className="space-y-4 bg-gray-50/50 rounded-2xl p-4 border border-gray-100 animate-fadeIn">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
-                          Top Up Your Wallet
+                          Nạp tiền vào ví
                         </h3>
 
                         {topUpResult ? (
@@ -999,7 +1001,7 @@ export default function CheckoutPage() {
                             <div className="bg-white border border-gray-100 rounded-xl p-4 text-center shadow-xs">
                               <CheckCircle2 className="w-8 h-8 text-[#D35400] mx-auto mb-2" />
                               <p className="text-sm font-bold text-gray-800">
-                                Top-up request created!
+                                Tạo yêu cầu nạp tiền thành công!
                               </p>
                               <p className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
                                 {formatPts(topUpResult.amountVnd)} VND {" → "}
@@ -1028,7 +1030,7 @@ export default function CheckoutPage() {
                                   rel="noopener noreferrer"
                                   className="flex items-center gap-1.5 text-xs font-bold text-[#D35400] hover:underline"
                                 >
-                                  <ExternalLink className="w-3.5 h-3.5" /> Open payment gateway
+                                  <ExternalLink className="w-3.5 h-3.5" /> Mở cổng thanh toán
                                 </a>
                               </div>
                             )}
@@ -1041,7 +1043,7 @@ export default function CheckoutPage() {
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(topUpResult.paymentContent || "");
-                                    toast.success("Copied to clipboard!");
+                                    toast.success("Đã sao chép vào bộ nhớ tạm!");
                                   }}
                                   className="text-xs font-black text-[#D35400] tracking-wider bg-gray-50 py-2 px-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full truncate"
                                 >
@@ -1054,7 +1056,7 @@ export default function CheckoutPage() {
                               onClick={handleRetryCheckout}
                               className="w-full py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
                             >
-                              <RotateCcw className="w-4 h-4" /> Check Balance &amp; Place Order
+                              <RotateCcw className="w-4 h-4" /> Kiểm tra số dư &amp; Đặt hàng
                             </button>
                             <button
                               onClick={() => {
@@ -1063,14 +1065,14 @@ export default function CheckoutPage() {
                               }}
                               className="w-full py-1.5 text-gray-400 font-bold text-xs hover:text-gray-600 transition-colors text-center"
                             >
-                              Cancel
+                              Hủy
                             </button>
                           </div>
                         ) : (
                           <>
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                Amount (VND)
+                                Số tiền (VND)
                               </label>
                               <div className="grid grid-cols-3 gap-1.5">
                                 {[50000, 100000, 200000].map((amt) => (
@@ -1099,7 +1101,7 @@ export default function CheckoutPage() {
 
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                Payment Method
+                                Phương thức thanh toán
                               </label>
                               <div className="grid grid-cols-2 gap-1.5">
                                 {PAYMENT_METHODS.filter((m) => m.id === 4).map((pm) => (
@@ -1119,7 +1121,7 @@ export default function CheckoutPage() {
                                   >
                                     {name}
                                     <span className="absolute -top-1 -right-3 bg-gray-200 text-gray-400 text-[6px] font-black uppercase px-2 py-0.5 -rotate-[16deg]">
-                                      Soon
+                                      Sắp có
                                     </span>
                                   </button>
                                 ))}
@@ -1133,13 +1135,13 @@ export default function CheckoutPage() {
                                 className="flex-1 py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/10"
                               >
                                 {isTopUpping && <Loader2 className="w-4 h-4 animate-spin" />}
-                                {isTopUpping ? "Processing..." : "Get QR Code"}
+                                {isTopUpping ? "Đang xử lý..." : "Lấy mã QR"}
                               </button>
                               <button
                                 onClick={() => setIsTopUpOpen(false)}
                                 className="py-3 px-4 bg-white text-gray-500 font-bold text-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
                               >
-                                Cancel
+                                Hủy
                               </button>
                             </div>
                           </>

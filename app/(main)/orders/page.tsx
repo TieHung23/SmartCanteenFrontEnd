@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,21 +8,24 @@ import Navbar from "@/components/layout/Navbar";
 import { useMyOrders } from "@/lib/hooks/useCanteen";
 import { ORDER_STATUS_META, type OrderStatus } from "@/types/order.types";
 import { refundService } from "@/services/refund.service";
-import { REFUND_STATUS_META } from "@/types/refund.types";
+import { REFUND_STATUS_META, normalizeRefundStatus } from "@/types/refund.types";
 import { ROUTES } from "@/config/routes";
 import { ClipboardList, ChevronRight, ShoppingBag, Clock } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSignalr } from "@/lib/hooks/use-signalr";
+import type { NotificationItem } from "@/types/notification.types";
 
 const TABS: { label: string; status: OrderStatus | null }[] = [
-  { label: "All", status: null },
-  { label: "Pending", status: 0 },
-  { label: "Ready for Pickup", status: 1 },
-  { label: "Completed", status: 2 },
-  { label: "Cancelled", status: 3 },
+  { label: "Tất cả", status: null },
+  { label: "Chờ xử lý", status: 0 },
+  { label: "Sẵn sàng", status: 1 },
+  { label: "Hoàn thành", status: 2 },
+  { label: "Đã hủy", status: 3 },
 ];
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
+  return d.toLocaleDateString("vi-VN", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -32,11 +35,31 @@ function formatDate(dateStr: string) {
 
 export default function OrdersPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<OrderStatus | null>(null);
   const [refundMap, setRefundMap] = useState<Record<string, number>>({});
 
-  const { data: ordersData, isLoading } = useMyOrders(
-    activeTab !== null ? { status: activeTab, pageSize: 50 } : { pageSize: 50 },
+  const { data: ordersData, isLoading } = useMyOrders({ pageSize: 100 });
+
+  useSignalr(
+    useCallback(
+      (notification: NotificationItem) => {
+        if (notification.type === "Order.StatusChanged" || notification.type === "Order.Created") {
+          queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+          refundService
+            .getMyRefunds()
+            .then((res) => {
+              const map: Record<string, number> = {};
+              (res?.items || []).forEach((r: { orderId: string; status: unknown }) => {
+                map[r.orderId] = normalizeRefundStatus(r.status);
+              });
+              setRefundMap(map);
+            })
+            .catch(() => {});
+        }
+      },
+      [queryClient],
+    ),
   );
 
   const responseData = ordersData as unknown as {
@@ -52,7 +75,8 @@ export default function OrdersPage() {
     }>;
   };
 
-  const orders = responseData?.items || [];
+  const allOrders = responseData?.items || [];
+  const orders = activeTab !== null ? allOrders.filter((o) => o.status === activeTab) : allOrders;
 
   useEffect(() => {
     refundService
@@ -74,7 +98,7 @@ export default function OrdersPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-8">
             <ClipboardList className="w-7 h-7 text-[#D35400]" />
-            <h1 className="text-3xl font-extrabold text-gray-800">My Orders</h1>
+            <h1 className="text-3xl font-extrabold text-gray-800">Đơn hàng của tôi</h1>
           </div>
 
           {/* Tabs */}
@@ -107,17 +131,17 @@ export default function OrdersPage() {
           ) : orders.length === 0 ? (
             <div className="text-center py-24 bg-white rounded-[2rem] border-2 border-dashed border-gray-100 shadow-sm">
               <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-500 mb-2">No orders found</h3>
+              <h3 className="text-lg font-bold text-gray-500 mb-2">Không có đơn hàng</h3>
               <p className="text-sm text-gray-400 mb-6">
                 {activeTab !== null
-                  ? `No orders with status "${ORDER_STATUS_META[activeTab]?.label}".`
-                  : "You haven't placed any orders yet."}
+                  ? `Không có đơn hàng với trạng thái "${ORDER_STATUS_META[activeTab]?.label}".`
+                  : "Bạn chưa đặt đơn hàng nào."}
               </p>
               <Link
                 href={ROUTES.SESSION}
                 className="inline-flex items-center px-6 py-3 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)]"
               >
-                Browse Sessions
+                Chọn phiên ăn
               </Link>
             </div>
           ) : (
@@ -167,7 +191,7 @@ export default function OrdersPage() {
                             </span>
                           </div>
                           <p className="text-base font-extrabold text-gray-800 mt-2.5">
-                            {order.itemCount} item{order.itemCount > 1 ? "s" : ""} •{" "}
+                            {order.itemCount} món •{" "}
                             <span className="inline-flex items-center gap-1 text-[#D35400] font-black text-lg">
                               <span>{new Intl.NumberFormat("vi-VN").format(order.totalPrice)}</span>
                               <Image

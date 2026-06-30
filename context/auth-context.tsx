@@ -9,6 +9,7 @@ import {
   migrateLegacyAuthTokens,
   setAuthTokens,
 } from "@/lib/auth-token-storage";
+import { connectSignalr, disconnectSignalr } from "@/lib/hooks/use-signalr";
 
 interface AuthContextType {
   user: UserProfileResponse | null;
@@ -60,11 +61,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, fetchProfile]);
 
   useEffect(() => {
+    if (token && !loading) {
+      connectSignalr();
+    }
+  }, [token, loading]);
+
+  useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "accessToken") {
         Promise.resolve().then(() => setToken(e.newValue));
         if (!e.newValue) {
           setUser(null);
+          disconnectSignalr();
         }
       }
     };
@@ -85,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAuthTokens();
     setToken(null);
     setUser(null);
+    disconnectSignalr();
     router.push("/login");
   }, [router]);
 

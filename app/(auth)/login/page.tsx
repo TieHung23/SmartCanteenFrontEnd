@@ -26,13 +26,13 @@ export default function LoginPage() {
           </div>
 
           <div className="w-full mb-4">
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Sign in</h1>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đăng nhập</h1>
           </div>
 
           <Suspense
             fallback={
               <div className="w-full py-8 text-center text-sm text-gray-500">
-                Loading login form...
+                Đang tải biểu mẫu đăng nhập...
               </div>
             }
           >

@@ -41,7 +41,7 @@ export default function Home() {
       }
       const fullProfile = await userService.getProfile().catch(() => null);
       if (fullProfile && (fullProfile.status === 4 || fullProfile.status === 5)) {
-        router.push(ROUTES.LOGIN);
+        router.push(ROUTES.SUSPENDED);
         return;
       }
       setIsLoading(false);
@@ -54,7 +54,7 @@ export default function Home() {
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
           <h1 className="text-sm font-medium text-gray-500 animate-pulse">
-            Verifying account role, please wait...
+            Đang xác thực tài khoản, vui lòng đợi...
           </h1>
         </div>
       </div>
@@ -64,9 +64,9 @@ export default function Home() {
   return (
     <div>
       <Navbar />
-      <h1 className="text-2xl font-bold text-center mt-10">Welcome to the Home Page!</h1>
+      <h1 className="text-2xl font-bold text-center mt-10">Chào mừng đến với Trang chủ!</h1>
       <p className="text-center mt-4 text-gray-600">
-        This is the landing page for students after login.
+        Đây là trang chủ dành cho sinh viên sau khi đăng nhập.
       </p>
     </div>
   );

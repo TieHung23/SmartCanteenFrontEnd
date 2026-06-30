@@ -1131,6 +1131,10 @@ function DishCard({
           }
           return;
         }
+        if (!canOrder) {
+          toast.error("Phiên ăn chưa mở đặt — vui lòng chờ đến giờ mở bán");
+          return;
+        }
         onRipple(e);
         if (setting && !canAddMore) {
           toast.error(`Đã giới hạn số lượng món cho danh mục ${categoryName}`);
@@ -1142,7 +1146,7 @@ function DishCard({
             name: dish.name,
             price: dishPrice,
             imgUrl: finalImageUrl,
-            description: dish.description || "Fresh select item.",
+            description: dish.description || "Món tươi ngon.",
             sessionId: sessionId || undefined,
             sessionName: mealDetail?.name || undefined,
             categoryId,

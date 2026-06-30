@@ -26,13 +26,15 @@ export default function ForgotPasswordPage() {
           </div>
 
           <div className="w-full mb-6">
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Forgot Password</h1>
-            <p className="text-sm text-gray-400">Enter your email to receive a reset link.</p>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Quên mật khẩu</h1>
+            <p className="text-sm text-gray-400">
+              Nhập email của bạn để nhận liên kết đặt lại mật khẩu.
+            </p>
           </div>
 
           <Suspense
             fallback={
-              <div className="w-full py-8 text-center text-sm text-gray-500">Loading...</div>
+              <div className="w-full py-8 text-center text-sm text-gray-500">Đang tải...</div>
             }
           >
             <ForgotPasswordForm />

@@ -40,7 +40,7 @@ export default function ManagerVerifyPage() {
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-4xl font-extrabold text-gray-900">Identity Verification</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900">Xác thực danh tính</h1>
         <p className="text-lg text-gray-500 mt-1.5">
           Phê duyệt hoặc bác bỏ các yêu cầu xác thực danh tính sinh viên.
         </p>
@@ -107,7 +107,7 @@ export default function ManagerVerifyPage() {
                 className="w-full py-3 bg-[#D35400]/10 hover:bg-[#D35400] text-[#D35400] hover:text-white rounded-2xl text-sm font-bold transition-all text-center flex items-center justify-center gap-2"
               >
                 <Eye className="w-4 h-4" />
-                Review
+                Xem xét
               </button>
             </div>
           ))}

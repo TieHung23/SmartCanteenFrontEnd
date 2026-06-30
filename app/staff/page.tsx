@@ -4,16 +4,10 @@ import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { StatsGrid } from "./_components/stats-grid";
 import { AlertTriangle, Cpu, RefreshCw } from "lucide-react";
-import apiClient from "@/lib/api/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useGlobalSearch } from "@/lib/stores/use-search";
-
-interface LiveOrder {
-  id: string;
-  userName?: string;
-  items?: { dishName?: string; quantity?: number }[];
-  totalPrice?: number;
-}
+import { orderService } from "@/services/order.service";
+import type { OrderListItem } from "@/types/order.types";
 
 interface Robot {
   id: string;
@@ -24,31 +18,28 @@ interface Robot {
 
 export default function StaffDashboardPage() {
   const { toast } = useToast();
-  const [liveOrders, setLiveOrders] = useState<LiveOrder[]>([]);
+  const [liveOrders, setLiveOrders] = useState<OrderListItem[]>([]);
   const [robots, setRobots] = useState<Robot[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchOperationData = () => {
-    apiClient
-      .get("/api/staff/orders?status=Processing&pageSize=5")
-      .then((orderRes: unknown) => {
-        const typedOrderRes = orderRes as { value?: { items?: LiveOrder[] } };
-        setLiveOrders(typedOrderRes?.value?.items || []);
+    orderService
+      .getMyOrders({ status: 0, pageSize: 5 })
+      .then((data) => {
+        setLiveOrders(data?.items || []);
       })
-      .catch((err: unknown) => console.error(err));
+      .catch(() => {
+        setLiveOrders([]);
+      });
 
-    apiClient
-      .get("/api/staff/robots")
-      .then((robotRes: unknown) => {
-        const typedRobotRes = robotRes as { value?: Robot[] };
-        setRobots(
-          typedRobotRes?.value || [
-            { id: "1", code: "ROBOT-ALPHA", status: "Serving", currentOrderId: "ORD-9872" },
-            { id: "2", code: "ROBOT-BETA", status: "MidOrderFailure", currentOrderId: "ORD-5541" },
-          ],
-        );
+    fetch("/api/staff/robots")
+      .then((r) => r.json())
+      .then((data: { value?: Robot[] }) => {
+        setRobots(data?.value || []);
       })
-      .catch((err: unknown) => console.error(err))
+      .catch(() => {
+        setRobots([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -65,12 +56,8 @@ export default function StaffDashboardPage() {
     if (!q) return liveOrders;
     return liveOrders.filter((o) => {
       const id = (o.id || "").toLowerCase();
-      const name = (o.userName || "").toLowerCase();
-      const itemsStr = (o.items || [])
-        .map((i) => i.dishName || "")
-        .join(" ")
-        .toLowerCase();
-      return id.includes(q) || name.includes(q) || itemsStr.includes(q);
+      const userId = (o.userId || "").toLowerCase();
+      return id.includes(q) || userId.includes(q);
     });
   }, [liveOrders, globalQuery]);
 
@@ -85,13 +72,14 @@ export default function StaffDashboardPage() {
     });
   }, [robots, globalQuery]);
 
-  const handleManualFulfillment = async (_robotId: string, orderId?: string) => {
+  const handleManualFulfillment = async (orderId?: string) => {
     if (!orderId) return;
     try {
-      await apiClient.post(`/api/staff/orders/${orderId}/transitions`, {
-        targetStatus: "Completed",
-        note: "Robot gặp sự cố giữa chừng. Nhân viên phục vụ thủ công hoàn tất phần món còn lại.",
-      });
+      await orderService.updateOrderStatus(
+        orderId,
+        2,
+        "Robot gặp sự cố giữa chừng. Nhân viên phục vụ thủ công hoàn tất phần món còn lại.",
+      );
       toast({
         title: "Xử lý thủ công thành công",
         description: `Đơn hàng #${orderId.slice(0, 8)} đã được chuyển sang Trạng thái Hoàn thành.`,
@@ -157,13 +145,17 @@ export default function StaffDashboardPage() {
                       </span>
                       <span className="text-sm text-gray-400">·</span>
                       <span className="text-base font-semibold text-gray-800">
-                        {order.userName || "Sinh viên"}
+                        {order.userId?.slice(0, 10) || "Sinh viên"}
                       </span>
                     </div>
                     <p className="text-sm text-gray-500 leading-relaxed">
-                      {order.items
-                        ?.map((i) => `${i.dishName || "Món ăn"} x${i.quantity}`)
-                        .join(", ")}
+                      {order.itemCount} món ·{" "}
+                      {order.createdAtUtc
+                        ? new Date(order.createdAtUtc).toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
@@ -221,7 +213,7 @@ export default function StaffDashboardPage() {
                           Sự cố đơn #{bot.currentOrderId}
                         </p>
                         <button
-                          onClick={() => handleManualFulfillment(bot.id, bot.currentOrderId)}
+                          onClick={() => handleManualFulfillment(bot.currentOrderId)}
                           className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-sm py-2.5 rounded-xl transition shadow-xs"
                         >
                           Tiếp quản thủ công

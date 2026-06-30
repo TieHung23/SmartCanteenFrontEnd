@@ -1,6 +1,6 @@
 "use client";
 import { isAxiosError } from "axios";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   Loader2,
   Camera,
+  History,
 } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 import { orderService } from "@/services/order.service";
@@ -29,19 +30,21 @@ import { authService } from "@/services/auth.service";
 import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
 import { useCurrency } from "@/lib/hooks/use-currency";
+import { useSignalr } from "@/lib/hooks/use-signalr";
+import type { NotificationItem } from "@/types/notification.types";
 
 const getRoleName = (roleId: number) => {
   switch (roleId) {
     case 1:
-      return "Admin";
+      return "Quản trị viên";
     case 2:
-      return "Manager";
+      return "Quản lý";
     case 3:
-      return "User";
+      return "Người dùng";
     case 4:
-      return "Staff";
+      return "Nhân viên";
     default:
-      return "Unknown Role";
+      return "Không xác định";
   }
 };
 
@@ -106,7 +109,7 @@ const cardThemes = [
   },
 ];
 
-const PAYMENT_METHODS = [{ id: 4, name: "Bank Transfer" }];
+const PAYMENT_METHODS = [{ id: 4, name: "Chuyển khoản ngân hàng" }];
 const COMING_SOON_METHODS = ["MoMo", "ZaloPay", "VNPay"];
 
 type WalletTab = "overview" | "topup";
@@ -135,6 +138,34 @@ export default function ProfilePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const response = (await userService.getProfile()) as unknown as UserProfileResponse & {
+        value?: UserProfileResponse;
+      };
+      const profileData = response?.value || response;
+      const balance = profileData?.balanceAmount ?? 0;
+      const data = normalizeProfile(profileData);
+      setProfile({ ...data, balanceAmount: Number(balance) });
+      setOriginalProfile({ ...data, balanceAmount: Number(balance) });
+    } catch (error) {
+      console.error("Failed to refresh profile:", error);
+    }
+  }, []);
+
+  useSignalr(
+    useCallback(
+      (notification: NotificationItem) => {
+        if (notification.type === "Payment.Completed") {
+          refreshProfile();
+          toast.success("Nạp tiền thành công! Số dư đã được cập nhật.");
+          setTopUpResult(null);
+        }
+      },
+      [refreshProfile],
+    ),
+  );
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -251,7 +282,7 @@ export default function ProfilePage() {
       const refreshed = await userService.getProfile();
       const updated = normalizeProfile(refreshed);
       window.dispatchEvent(new Event("profileUpdated"));
-      toast.success("Profile updated successfully!");
+      toast.success("Cập nhật thông tin thành công!");
 
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -272,7 +303,7 @@ export default function ProfilePage() {
           toast.error(data.message || "Lỗi cập nhật thông tin");
         }
       } else {
-        toast.error("An unexpected error occurred while saving your profile.");
+        toast.error("Đã xảy ra lỗi khi lưu thông tin cá nhân.");
       }
     } finally {
       setIsSaving(false);
@@ -282,13 +313,13 @@ export default function ProfilePage() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("Confirm password does not match.");
+      toast.error("Mật khẩu xác nhận không khớp.");
       return;
     }
     setIsSaving(true);
     try {
       await authService.changePassword(passwordForm);
-      toast.success("Password changed successfully! 🎉");
+      toast.success("Đổi mật khẩu thành công! 🎉");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err: unknown) {
       const axiosErr = err as {
@@ -298,7 +329,7 @@ export default function ProfilePage() {
       if (serverErrors && serverErrors.NewPassword) {
         serverErrors.NewPassword.forEach((msg: string) => toast.error(msg));
       } else {
-        toast.error(axiosErr.response?.data?.message || "Failed to change password.");
+        toast.error(axiosErr.response?.data?.message || "Đổi mật khẩu thất bại.");
       }
     } finally {
       setIsSaving(false);
@@ -311,11 +342,11 @@ export default function ProfilePage() {
 
   const handleTopUp = async () => {
     if (topUpAmount < minTopUpAmount) {
-      toast.error(`Minimum top-up is ${new Intl.NumberFormat("vi-VN").format(minTopUpAmount)} VND`);
+      toast.error(`Nạp tối thiểu ${new Intl.NumberFormat("vi-VN").format(minTopUpAmount)} VND`);
       return;
     }
     if (topUpAmount > maxTopUpAmount) {
-      toast.error(`Maximum top-up is ${new Intl.NumberFormat("vi-VN").format(maxTopUpAmount)} VND`);
+      toast.error(`Nạp tối đa ${new Intl.NumberFormat("vi-VN").format(maxTopUpAmount)} VND`);
       return;
     }
     setIsTopUpping(true);
@@ -325,10 +356,20 @@ export default function ProfilePage() {
         method: topUpMethod,
       });
       setTopUpResult(result);
-      toast.success("Top-up request created! 🎉");
+      try {
+        const { saveLocalTopup } = await import("@/app/(main)/wallet/transactions/page");
+        saveLocalTopup({
+          id: `topup_${result.paymentId}`,
+          type: "topup",
+          label: "Nạp tiền",
+          amount: result.amountVnd,
+          date: new Date().toISOString(),
+        });
+      } catch {}
+      toast.success("Tạo yêu cầu nạp tiền thành công! 🎉");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
-      toast.error(err?.response?.data?.message || err?.message || "Top-up failed");
+      toast.error(err?.response?.data?.message || err?.message || "Nạp tiền thất bại");
     } finally {
       setIsTopUpping(false);
     }
@@ -347,7 +388,7 @@ export default function ProfilePage() {
   if (!profile)
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500 font-sans">
-        Please log in to view your profile.
+        Vui lòng đăng nhập để xem thông tin cá nhân.
       </div>
     );
 
@@ -394,7 +435,7 @@ export default function ProfilePage() {
                   className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
                     ${activeTab === "personal" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                 >
-                  <User className="w-5 h-5" /> Personal Information
+                  <User className="w-5 h-5" /> Thông tin cá nhân
                 </button>
 
                 <button
@@ -405,7 +446,7 @@ export default function ProfilePage() {
                   className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
                     ${activeTab === "wallet" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                 >
-                  <Wallet className="w-5 h-5" /> My Wallet &amp; Card
+                  <Wallet className="w-5 h-5" /> Ví &amp; Thẻ của tôi
                 </button>
 
                 <div className="h-px w-full bg-gray-100 my-2" />
@@ -415,14 +456,14 @@ export default function ProfilePage() {
                   className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
                     ${activeTab === "security" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                 >
-                  <Lock className="w-5 h-5" /> Change Password
+                  <Lock className="w-5 h-5" /> Đổi mật khẩu
                 </button>
 
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-4 w-full text-gray-500 hover:bg-red-50 hover:text-red-500 px-5 py-3.5 rounded-2xl font-bold text-sm transition-colors mt-2"
                 >
-                  <LogOut className="w-5 h-5" /> Log Out
+                  <LogOut className="w-5 h-5" /> Đăng xuất
                 </button>
               </div>
             </div>
@@ -431,12 +472,12 @@ export default function ProfilePage() {
           <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[600px]">
             {activeTab === "personal" && (
               <div className="animate-fadeIn">
-                <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Personal Information</h3>
+                <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Thông tin cá nhân</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Full Name
+                      Họ và tên
                     </label>
                     <input
                       type="text"
@@ -449,7 +490,7 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2 md:col-span-2 relative">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Email Address
+                      Địa chỉ Email
                     </label>
                     <input
                       type="email"
@@ -459,14 +500,14 @@ export default function ProfilePage() {
                     />
                     {profile.emailVerified && (
                       <span className="absolute bottom-3.5 right-4 flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Đã xác thực
                       </span>
                     )}
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Student ID
+                      Mã số sinh viên
                     </label>
                     <input
                       type="text"
@@ -479,21 +520,21 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Major / Class
+                      Chuyên ngành / Lớp
                     </label>
                     <input
                       type="text"
                       name="majorOrClass"
                       value={s(profile.majorOrClass)}
                       onChange={handleInputChange}
-                      placeholder="e.g. Software Engineering"
+                      placeholder="VD: Công nghệ phần mềm"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
                     />
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Phone Number
+                      Số điện thoại
                     </label>
                     <input
                       type="tel"
@@ -507,7 +548,7 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Date of Birth
+                      Ngày sinh
                     </label>
                     <input
                       type="date"
@@ -520,7 +561,7 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2 bg-transparent">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Gender
+                      Giới tính
                     </label>
                     <select
                       name="gender"
@@ -536,14 +577,14 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Address
+                      Địa chỉ
                     </label>
                     <input
                       type="text"
                       name="address"
                       value={s(profile.address)}
                       onChange={handleInputChange}
-                      placeholder="Your current address"
+                      placeholder="Địa chỉ hiện tại của bạn"
                       className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
                     />
                   </div>
@@ -558,7 +599,7 @@ export default function ProfilePage() {
                     }}
                     className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-800 transition-all"
                   >
-                    Discard Changes
+                    Hủy thay đổi
                   </button>
                   <button
                     onClick={handleSave}
@@ -568,7 +609,7 @@ export default function ProfilePage() {
                     {isSaving ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      "Save Changes"
+                      "Lưu thay đổi"
                     )}
                   </button>
                 </div>
@@ -646,7 +687,7 @@ export default function ProfilePage() {
                         : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    Overview
+                    Tổng quan
                   </button>
                   <button
                     onClick={() => setWalletTab("topup")}
@@ -656,17 +697,17 @@ export default function ProfilePage() {
                         : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    Top Up
+                    Nạp tiền
                   </button>
                 </div>
 
                 {walletTab === "overview" && (
                   <>
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-2xl font-extrabold text-gray-800">Digital Wallet</h3>
+                      <h3 className="text-2xl font-extrabold text-gray-800">Ví điện tử</h3>
                       <div className="text-right">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-                          Available Balance
+                          Số dư khả dụng
                         </p>
                         <div className="flex items-center justify-end gap-2">
                           <p className="text-3xl font-black text-[#D35400]">
@@ -699,11 +740,11 @@ export default function ProfilePage() {
                           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-sm">
                             <Wallet className="w-5 h-5 text-white" />
                             <span className="text-[10px] font-black tracking-wider uppercase opacity-90">
-                              Canteen Pass
+                              Thẻ Canteen
                             </span>
                           </div>
                           <div className="text-[11px] font-black bg-black/20 backdrop-blur-xs px-2.5 py-1 rounded-md tracking-widest opacity-80 uppercase">
-                            Virtual Only
+                            Thẻ ảo
                           </div>
                         </div>
 
@@ -717,7 +758,7 @@ export default function ProfilePage() {
                           <div className="flex justify-between items-end mt-4">
                             <div>
                               <p className="text-[9px] uppercase tracking-widest opacity-60 font-bold mb-0.5">
-                                Pass Holder
+                                Chủ thẻ
                               </p>
                               <p className="font-bold tracking-widest uppercase truncate max-w-[220px] drop-shadow-md text-sm md:text-base">
                                 {profile.name}
@@ -743,7 +784,7 @@ export default function ProfilePage() {
                       <div className="flex items-center gap-2 mb-5">
                         <Paintbrush className="w-5 h-5 text-gray-500" />
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                          Customize Pass Theme
+                          Tùy chỉnh giao diện thẻ
                         </h4>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -772,14 +813,14 @@ export default function ProfilePage() {
                     <div className="mt-8">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                          Transaction History
+                          Đơn hàng gần đây
                         </h4>
-                        <button
-                          onClick={fetchOrders}
-                          className="text-[10px] font-bold text-[#D35400] hover:text-[#B34700] transition-colors"
+                        <Link
+                          href={ROUTES.WALLET_TRANSACTIONS}
+                          className="flex items-center gap-1 text-[10px] font-bold text-[#D35400] hover:text-[#B34700] transition-colors"
                         >
-                          Refresh
-                        </button>
+                          <History className="w-3 h-3" /> Xem lịch sử giao dịch
+                        </Link>
                       </div>
                       {isLoadingTx ? (
                         <div className="flex justify-center py-8">
@@ -788,16 +829,16 @@ export default function ProfilePage() {
                       ) : orders.length === 0 ? (
                         <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                           <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                          <p className="text-xs font-bold text-gray-500">No orders yet</p>
+                          <p className="text-xs font-bold text-gray-500">Chưa có đơn hàng</p>
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
                           {orders.map((order) => {
                             const orderStatusLabels: Record<number, string> = {
-                              0: "Pending",
-                              1: "Ready for Pickup",
-                              2: "Completed",
-                              3: "Cancelled",
+                              0: "Chờ xử lý",
+                              1: "Sẵn sàng",
+                              2: "Hoàn thành",
+                              3: "Đã hủy",
                             };
                             const orderStatusColors: Record<number, string> = {
                               0: "text-amber-600 bg-amber-50",
@@ -815,15 +856,17 @@ export default function ProfilePage() {
                                     <ArrowUpRight className="w-4 h-4 text-red-500" />
                                   </div>
                                   <div>
-                                    <p className="text-sm font-bold text-gray-800">Order Payment</p>
+                                    <p className="text-sm font-bold text-gray-800">
+                                      Thanh toán đơn hàng
+                                    </p>
                                     <p className="text-[10px] text-gray-400">
-                                      {new Date(order.createdAtUtc).toLocaleDateString("en-US", {
+                                      {new Date(order.createdAtUtc).toLocaleDateString("vi-VN", {
                                         month: "short",
                                         day: "numeric",
                                         hour: "2-digit",
                                         minute: "2-digit",
                                       })}{" "}
-                                      · {order.itemCount} item{order.itemCount > 1 ? "s" : ""}
+                                      · {order.itemCount} món
                                     </p>
                                   </div>
                                 </div>
@@ -868,7 +911,9 @@ export default function ProfilePage() {
                       <div className="space-y-4">
                         <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center shadow-xs">
                           <CheckCircle2 className="w-12 h-12 text-[#D35400] mx-auto mb-3" />
-                          <p className="text-lg font-bold text-[#B34700]">Top-up Created!</p>
+                          <p className="text-lg font-bold text-[#B34700]">
+                            Tạo nạp tiền thành công!
+                          </p>
                           {topUpResult.gatewayOrderId && (
                             <p className="text-[10px] text-gray-400 mt-1 font-mono">
                               Mã GD: {topUpResult.gatewayOrderId}
@@ -891,14 +936,14 @@ export default function ProfilePage() {
                             />
                           </p>
                           <p className="text-xs text-gray-400 mt-2 font-medium">
-                            Status: {topUpResult.status}
+                            Trạng thái: {topUpResult.status}
                           </p>
                         </div>
 
                         {topUpResult.payUrl && (
                           <div className="mt-4 p-6 bg-white border border-gray-100 rounded-[1.5rem] flex flex-col items-center gap-4 shadow-sm">
                             <p className="text-lg font-black text-gray-400 uppercase tracking-wider">
-                              Scan QR Code to Pay
+                              Quét mã QR để thanh toán
                             </p>
                             <div className="relative w-[360px] h-[360px] border border-gray-100 rounded-2xl overflow-hidden p-3 bg-white shadow-xs transition-transform duration-300 hover:scale-102">
                               <Image
@@ -937,14 +982,14 @@ export default function ProfilePage() {
                           }}
                           className="w-full py-4 bg-white text-gray-500 font-extrabold text-base rounded-xl border border-gray-200 hover:bg-gray-50 hover:text-gray-700 transition-colors mt-2"
                         >
-                          Make Another Top-up
+                          Nạp thêm
                         </button>
                       </div>
                     ) : (
                       <div className="space-y-6">
                         <div>
                           <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
-                            Amount (VND)
+                            Số tiền (VND)
                           </label>
                           <div className="grid grid-cols-3 gap-2 mb-3">
                             {[20000, 50000, 100000, 200000, 500000].map((amt) => (
@@ -976,7 +1021,7 @@ export default function ProfilePage() {
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200"
                           />
                           <p className="text-xs text-gray-400 mt-2">
-                            You will receive approximately{" "}
+                            Bạn sẽ nhận được khoảng{" "}
                             {new Intl.NumberFormat("vi-VN").format(convertVndToPoints(topUpAmount))}{" "}
                             {pointName} (1 {pointName} ={" "}
                             {new Intl.NumberFormat("vi-VN").format(vndPerPoint)} {currency})
@@ -985,7 +1030,7 @@ export default function ProfilePage() {
 
                         <div>
                           <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-                            Payment Method
+                            Phương thức thanh toán
                           </label>
                           <div className="grid grid-cols-2 gap-3">
                             {PAYMENT_METHODS.map((pm) => (
@@ -1009,7 +1054,7 @@ export default function ProfilePage() {
                               >
                                 {name}
                                 <span className="absolute -top-1 -right-3 bg-gray-200 text-gray-400 text-[7px] font-black uppercase px-2 py-0.5 -rotate-[16deg]">
-                                  Soon
+                                  Sắp có
                                 </span>
                               </button>
                             ))}
@@ -1027,11 +1072,11 @@ export default function ProfilePage() {
                         >
                           {isTopUpping ? (
                             <>
-                              <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                              <Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...
                             </>
                           ) : (
                             <>
-                              <Plus className="w-4 h-4" /> Top Up{" "}
+                              <Plus className="w-4 h-4" /> Nạp tiền{" "}
                               {new Intl.NumberFormat("vi-VN").format(topUpAmount)} VND
                             </>
                           )}
@@ -1045,11 +1090,11 @@ export default function ProfilePage() {
 
             {activeTab === "security" && (
               <div className="animate-fadeIn">
-                <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Security Setting</h3>
+                <h3 className="text-2xl font-extrabold text-gray-800 mb-8">Cài đặt bảo mật</h3>
                 <form onSubmit={handleUpdatePassword} className="space-y-6 max-w-md">
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Current Password
+                      Mật khẩu hiện tại
                     </label>
                     <PasswordInput
                       required
@@ -1063,7 +1108,7 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      New Password
+                      Mật khẩu mới
                     </label>
                     <PasswordInput
                       required
@@ -1077,7 +1122,7 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Confirm Password
+                      Xác nhận mật khẩu
                     </label>
                     <PasswordInput
                       required
@@ -1098,7 +1143,7 @@ export default function ProfilePage() {
                       {isSaving ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
-                        "Update Password"
+                        "Cập nhật mật khẩu"
                       )}
                     </button>
                   </div>
