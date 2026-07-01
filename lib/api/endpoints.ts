@@ -91,8 +91,9 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/api/notifications/${id}`,
   },
   CHANGE_PROPOSAL: {
-    ACCEPT: (id: string) => `/api/change-proposals/${id}/accept`,
-    REQUEST_REFUND: (id: string) => `/api/change-proposals/${id}/refund`,
+    LIST: "/api/ChangeProposals",
+    ACCEPT: (id: string) => `/api/ChangeProposals/${id}/accept`,
+    REQUEST_REFUND: (id: string) => `/api/ChangeProposals/${id}/request-refund`,
   },
   PICKUP: {
     ASSIGN: "/api/pickup/assign",

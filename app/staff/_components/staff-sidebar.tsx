@@ -14,6 +14,7 @@ import {
   ChefHat,
   Package,
   X,
+  ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/stores/use-user";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { label: "Đơn Phục Vụ", href: "/staff/live-orders", icon: ChefHat },
   { label: "Phiên Ăn", href: "/staff/sessions", icon: CalendarDays },
   { label: "Đơn Hàng", href: "/staff/orders", icon: ClipboardList },
+  { label: "Đổi Món", href: "/staff/change-proposals", icon: ArrowLeftRight },
   { label: "Tồn Kho", href: "/staff/stock", icon: Package },
   { label: "Hồ Sơ", href: "/staff/profile", icon: User },
 ];
