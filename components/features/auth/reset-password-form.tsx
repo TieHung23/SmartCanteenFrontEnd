@@ -38,7 +38,7 @@ const ResetPasswordFormInner = () => {
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (error as Error)?.message ||
-        "Failed to reset password";
+        "Không thể đặt lại mật khẩu";
       toast.error(msg);
     },
   });
@@ -50,13 +50,15 @@ const ResetPasswordFormInner = () => {
   if (!token) {
     return (
       <div className="w-full text-center space-y-4">
-        <p className="text-sm text-red-500">Invalid or expired reset link.</p>
+        <p className="text-sm text-red-500">
+          Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.
+        </p>
         <Button
           type="button"
           onClick={() => router.push(ROUTES.FORGOT_PASSWORD)}
           className="bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl text-base font-semibold"
         >
-          Request Again
+          Yêu cầu lại
         </Button>
       </div>
     );
@@ -68,14 +70,14 @@ const ResetPasswordFormInner = () => {
         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-800">Password Reset Successful</h2>
-        <p className="text-sm text-gray-400">You can now log in with your new password.</p>
+        <h2 className="text-xl font-bold text-gray-800">Đặt lại mật khẩu thành công</h2>
+        <p className="text-sm text-gray-400">Bạn có thể đăng nhập bằng mật khẩu mới.</p>
         <Button
           type="button"
           onClick={() => router.push(ROUTES.LOGIN)}
           className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl text-base font-semibold"
         >
-          Log In Now
+          Đăng nhập ngay
         </Button>
       </div>
     );
@@ -86,20 +88,20 @@ const ResetPasswordFormInner = () => {
       <input type="hidden" {...register("token")} />
 
       <div className="space-y-1">
-        <label className="text-sm font-bold text-gray-700 block">New Password</label>
+        <label className="text-sm font-bold text-gray-700 block">Mật khẩu mới</label>
         <PasswordInput
           {...register("newPassword")}
-          placeholder="Enter new password"
+          placeholder="Nhập mật khẩu mới"
           inputClassName={AUTH_INPUT_CLASS}
         />
         {errors.newPassword && <p className="text-xs text-red-500">{errors.newPassword.message}</p>}
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-bold text-gray-700 block">Confirm Password</label>
+        <label className="text-sm font-bold text-gray-700 block">Xác nhận mật khẩu</label>
         <PasswordInput
           {...register("confirmPassword")}
-          placeholder="Re-enter new password"
+          placeholder="Nhập lại mật khẩu mới"
           inputClassName={AUTH_INPUT_CLASS}
         />
         {errors.confirmPassword && (
@@ -114,11 +116,11 @@ const ResetPasswordFormInner = () => {
       >
         {mutation.isPending ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+            <Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...
           </>
         ) : (
           <>
-            <Lock className="w-4 h-4" /> Reset Password
+            <Lock className="w-4 h-4" /> Đặt lại mật khẩu
           </>
         )}
       </Button>
@@ -129,7 +131,7 @@ const ResetPasswordFormInner = () => {
 export const ResetPasswordForm = () => {
   return (
     <Suspense
-      fallback={<div className="w-full py-8 text-center text-sm text-gray-500">Loading...</div>}
+      fallback={<div className="w-full py-8 text-center text-sm text-gray-500">Đang tải...</div>}
     >
       <ResetPasswordFormInner />
     </Suspense>

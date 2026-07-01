@@ -34,7 +34,7 @@ export const ForgotPasswordForm = () => {
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (error as Error)?.message ||
-        "Failed to send request";
+        "Không thể gửi yêu cầu";
       toast.error(msg);
     },
   });
@@ -49,16 +49,16 @@ export const ForgotPasswordForm = () => {
         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-800">Email Sent</h2>
+        <h2 className="text-xl font-bold text-gray-800">Đã gửi email</h2>
         <p className="text-sm text-gray-400">
-          Check your email and follow the instructions to reset your password.
+          Kiểm tra email của bạn và làm theo hướng dẫn để đặt lại mật khẩu.
         </p>
         <Button
           type="button"
           onClick={() => router.push(ROUTES.LOGIN)}
           className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl text-base font-semibold"
         >
-          Back to Login
+          Quay lại đăng nhập
         </Button>
       </div>
     );
@@ -70,7 +70,7 @@ export const ForgotPasswordForm = () => {
         onClick={() => router.push(ROUTES.LOGIN)}
         className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-orange-500 transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Back to Login
+        <ArrowLeft className="w-4 h-4" /> Quay lại đăng nhập
       </button>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -78,7 +78,7 @@ export const ForgotPasswordForm = () => {
           <label className="text-sm font-bold text-gray-700 block">Email</label>
           <Input
             {...register("email")}
-            placeholder="Enter your email"
+            placeholder="Nhập email của bạn"
             className={AUTH_INPUT_CLASS}
           />
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
@@ -91,11 +91,11 @@ export const ForgotPasswordForm = () => {
         >
           {mutation.isPending ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+              <Loader2 className="w-4 h-4 animate-spin" /> Đang gửi...
             </>
           ) : (
             <>
-              <Mail className="w-4 h-4" /> Send Reset Email
+              <Mail className="w-4 h-4" /> Gửi email đặt lại mật khẩu
             </>
           )}
         </Button>

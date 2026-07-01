@@ -21,118 +21,33 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useGlobalSearch } from "@/lib/stores/use-search";
+import { orderService } from "@/services/order.service";
+import { pickupService } from "@/services/pickup.service";
+import { robotService } from "@/services/robot.service";
 
-interface OrderItem {
+interface OrderItemDisplay {
   dishName: string;
   quantity: number;
-  price: number;
+  unitPrice?: number;
 }
 
 interface LiveOrder {
   id: string;
-  studentName: string;
-  studentId: string;
-  status: "Processing" | "ReadyForPickup" | "Completed" | "Cancelled" | "Failed";
-  items: OrderItem[];
+  userName?: string;
+  studentId?: string;
+  status: number;
+  items: OrderItemDisplay[];
   totalPrice: number;
   note?: string;
-  createdAt: string;
+  createdAtUtc: string;
 }
 
-const MOCK_LIVE_ORDERS: LiveOrder[] = [
-  {
-    id: "ORD-240612-001",
-    studentName: "Nguyễn Văn An",
-    studentId: "SE170123",
-    status: "Processing",
-    items: [
-      { dishName: "Cơm sườn nướng", quantity: 1, price: 35000 },
-      { dishName: "Canh rau củ", quantity: 1, price: 10000 },
-    ],
-    totalPrice: 45000,
-    createdAt: "2026-06-16T11:20:00Z",
-  },
-  {
-    id: "ORD-240612-002",
-    studentName: "Trần Thị Bình",
-    studentId: "SE180456",
-    status: "Processing",
-    items: [
-      { dishName: "Cá ba sa kho tộ", quantity: 1, price: 35000 },
-      { dishName: "Cơm trắng", quantity: 1, price: 5000 },
-      { dishName: "Dưa leo", quantity: 1, price: 5000 },
-    ],
-    totalPrice: 45000,
-    createdAt: "2026-06-16T11:22:00Z",
-  },
-  {
-    id: "ORD-240612-003",
-    studentName: "Lê Hoàng Nam",
-    studentId: "SE190789",
-    status: "ReadyForPickup",
-    items: [
-      { dishName: "Ức gà áp chảo", quantity: 2, price: 25000 },
-      { dishName: "Salad trộn", quantity: 1, price: 15000 },
-    ],
-    totalPrice: 65000,
-    createdAt: "2026-06-16T11:15:00Z",
-  },
-  {
-    id: "ORD-240612-004",
-    studentName: "Phạm Minh Đức",
-    studentId: "SE160234",
-    status: "ReadyForPickup",
-    items: [{ dishName: "Bún bò Huế", quantity: 1, price: 40000 }],
-    totalPrice: 40000,
-    createdAt: "2026-06-16T11:10:00Z",
-  },
-  {
-    id: "ORD-240612-005",
-    studentName: "Hoàng Thị Mai",
-    studentId: "SE200567",
-    status: "Processing",
-    items: [
-      { dishName: "Cơm gà xối mỡ", quantity: 1, price: 35000 },
-      { dishName: "Nước ngọt", quantity: 1, price: 10000 },
-    ],
-    totalPrice: 45000,
-    createdAt: "2026-06-16T11:25:00Z",
-  },
-  {
-    id: "ORD-240612-006",
-    studentName: "Võ Thanh Tùng",
-    studentId: "SE210890",
-    status: "Processing",
-    items: [
-      { dishName: "Mì xào bò", quantity: 1, price: 30000 },
-      { dishName: "Chả giò", quantity: 2, price: 5000 },
-      { dishName: "Rau muống luộc", quantity: 1, price: 8000 },
-    ],
-    totalPrice: 48000,
-    createdAt: "2026-06-16T11:28:00Z",
-  },
-  {
-    id: "ORD-240612-007",
-    studentName: "Đặng Thị Hương",
-    studentId: "SE151234",
-    status: "ReadyForPickup",
-    items: [{ dishName: "Phở bò tái", quantity: 1, price: 45000 }],
-    totalPrice: 45000,
-    createdAt: "2026-06-16T11:05:00Z",
-  },
-  {
-    id: "ORD-240612-008",
-    studentName: "Bùi Quốc Anh",
-    studentId: "SE220345",
-    status: "Processing",
-    items: [
-      { dishName: "Cơm tấm bì chả", quantity: 1, price: 35000 },
-      { dishName: "Trà đá", quantity: 1, price: 5000 },
-    ],
-    totalPrice: 40000,
-    createdAt: "2026-06-16T11:30:00Z",
-  },
-];
+const STATUS_NAMES: Record<number, string> = {
+  0: "Processing",
+  1: "ReadyForPickup",
+  2: "Completed",
+  3: "Cancelled",
+};
 
 const STATUS_STYLES: Record<string, { label: string; bg: string; text: string; dot: string }> = {
   Processing: {
@@ -159,12 +74,6 @@ const STATUS_STYLES: Record<string, { label: string; bg: string; text: string; d
     text: "text-red-700",
     dot: "bg-red-500",
   },
-  Failed: {
-    label: "Thất bại",
-    bg: "bg-rose-50 border-rose-200",
-    text: "text-rose-700",
-    dot: "bg-rose-500",
-  },
 };
 
 function formatTime(dateStr: string) {
@@ -182,7 +91,7 @@ function elapsedMinutes(dateStr: string) {
 }
 
 export default function LiveOrdersPage() {
-  const [orders, setOrders] = useState<LiveOrder[]>(MOCK_LIVE_ORDERS);
+  const [orders, setOrders] = useState<LiveOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const searchQuery = useGlobalSearch((s) => s.query);
   const setSearchQuery = useGlobalSearch((s) => s.setQuery);
@@ -195,20 +104,24 @@ export default function LiveOrdersPage() {
 
   const fetchOrders = () => {
     setLoading(true);
-    setTimeout(() => {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.status === "Processing" && Math.random() > 0.85
-            ? { ...o, status: "ReadyForPickup" as const }
-            : o,
-        ),
-      );
-      setLoading(false);
-      setCountdown(10);
-    }, 600);
+    orderService
+      .getMyOrders({ pageSize: 100, pageNumber: 1 })
+      .then((data) => {
+        const items = (data?.items || []) as unknown as LiveOrder[];
+        setOrders(items);
+      })
+      .catch(() => {
+        setOrders([]);
+      })
+      .finally(() => {
+        setLoading(false);
+        setCountdown(10);
+      });
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOrders();
     intervalRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
@@ -225,53 +138,75 @@ export default function LiveOrdersPage() {
 
   const filteredOrders = orders.filter((o) => {
     const q = searchQuery.toLowerCase().trim();
+    const statusStr = STATUS_NAMES[o.status] || "Processing";
     const matchSearch =
       !q ||
       o.id.toLowerCase().includes(q) ||
-      o.studentName.toLowerCase().includes(q) ||
-      o.studentId.toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || o.status === statusFilter;
+      (o.userName || "").toLowerCase().includes(q) ||
+      (o.studentId || "").toLowerCase().includes(q);
+    const matchStatus = statusFilter === "all" || statusStr === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const stats = {
-    processing: orders.filter((o) => o.status === "Processing").length,
-    ready: orders.filter((o) => o.status === "ReadyForPickup").length,
-    completed: orders.filter((o) => o.status === "Completed").length,
-    failed: orders.filter((o) => o.status === "Failed").length,
+    processing: orders.filter((o) => o.status === 0).length,
+    ready: orders.filter((o) => o.status === 1).length,
+    completed: orders.filter((o) => o.status === 2).length,
+    failed: orders.filter((o) => o.status === 3).length,
   };
 
-  const handleComplete = (orderId: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: "Completed" as const } : o)),
-    );
-    toast.success(`Đơn #${orderId.slice(0, 8)} đã hoàn thành`);
-    setSelectedOrder(null);
+  const handleAssignPickup = async (orderId: string) => {
+    try {
+      await pickupService.assign({ orderId });
+      toast.success(`Đã gán pickup cho đơn #${orderId.slice(0, 8)}`);
+      fetchOrders();
+    } catch {
+      toast.error("Không thể gán pickup slot.");
+    }
   };
 
-  const handleCancel = () => {
+  const handleCreateRobotJob = async (orderId: string) => {
+    try {
+      await robotService.createServingJob({ orderId });
+      toast.success(`Robot job đã tạo cho đơn #${orderId.slice(0, 8)}`);
+      fetchOrders();
+    } catch {
+      toast.error("Không thể tạo robot serving job.");
+    }
+  };
+
+  const handleCollect = async (orderId: string) => {
+    try {
+      await pickupService.collect(orderId);
+      toast.success(`Thu món thành công - Đơn #${orderId.slice(0, 8)}`);
+      setSelectedOrder(null);
+      fetchOrders();
+    } catch {
+      toast.error("Không thể thu món.");
+    }
+  };
+
+  const handleCancelOrder = async () => {
     if (!selectedOrder || !cancelReason.trim()) return;
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === selectedOrder.id ? { ...o, status: "Cancelled" as const, note: cancelReason } : o,
-      ),
-    );
-    toast.success(`Đơn #${selectedOrder.id.slice(0, 8)} đã hủy`);
-    setCancelReason("");
-    setSelectedOrder(null);
+    try {
+      await orderService.updateOrderStatus(selectedOrder.id, 3, cancelReason);
+      toast.success(`Đơn #${selectedOrder.id.slice(0, 8)} đã hủy`);
+      setCancelReason("");
+      setSelectedOrder(null);
+      fetchOrders();
+    } catch {
+      toast.error("Không thể hủy đơn.");
+    }
   };
 
-  const handleQrPickup = () => {
+  const handleQrPickup = async () => {
     const token = manualQrInput.trim();
     if (!token) return;
     const found = orders.find((o) => o.id.toLowerCase() === token.toLowerCase());
-    if (found && found.status === "ReadyForPickup") {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === found.id ? { ...o, status: "Completed" as const } : o)),
-      );
-      toast.success(`Bàn giao thành công - Đơn #${found.id.slice(0, 8)}`);
+    if (found && found.status === 1) {
+      await handleCollect(found.id);
       setManualQrInput("");
-    } else if (found && found.status !== "ReadyForPickup") {
+    } else if (found && found.status !== 1) {
       toast.error("Đơn chưa sẵn sàng để bàn giao");
     } else {
       toast.error("Không tìm thấy mã đơn");
@@ -328,7 +263,7 @@ export default function LiveOrdersPage() {
             icon: CheckCircle2,
           },
           {
-            label: "Thất bại",
+            label: "Đã hủy",
             value: stats.failed,
             color: "text-rose-600",
             bg: "bg-rose-50",
@@ -376,7 +311,6 @@ export default function LiveOrdersPage() {
               <option value="ReadyForPickup">Sẵn sàng nhận</option>
               <option value="Completed">Hoàn thành</option>
               <option value="Cancelled">Đã hủy</option>
-              <option value="Failed">Thất bại</option>
             </select>
           </div>
 
@@ -411,8 +345,9 @@ export default function LiveOrdersPage() {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => {
-              const s = STATUS_STYLES[order.status];
-              const elapsed = elapsedMinutes(order.createdAt);
+              const statusStr = STATUS_NAMES[order.status] || "Processing";
+              const s = STATUS_STYLES[statusStr];
+              const elapsed = elapsedMinutes(order.createdAtUtc);
               return (
                 <div
                   key={order.id}
@@ -422,7 +357,7 @@ export default function LiveOrdersPage() {
                     <div className="flex items-start gap-5 min-w-0 flex-1">
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FF4C24]/10 to-orange-100 flex items-center justify-center shrink-0 border-2 border-white shadow-xs">
                         <span className="text-xl font-extrabold text-[#FF4C24]">
-                          {order.studentName.charAt(0)}
+                          {(order.userName || order.id).charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
@@ -436,30 +371,30 @@ export default function LiveOrdersPage() {
                             <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                             {s.label}
                           </span>
-                          {elapsed > 15 &&
-                            order.status !== "Completed" &&
-                            order.status !== "Cancelled" && (
-                              <span className="text-sm font-bold text-red-500 bg-red-50 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                                Quá {elapsed} phút
-                              </span>
-                            )}
+                          {elapsed > 15 && order.status !== 2 && order.status !== 3 && (
+                            <span className="text-sm font-bold text-red-500 bg-red-50 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              Quá {elapsed} phút
+                            </span>
+                          )}
                         </div>
                         <h4 className="font-bold text-gray-900 mt-2 text-lg">
-                          {order.studentName}
+                          {order.userName || "Đơn hàng"}
                         </h4>
                         <div className="flex items-center gap-4 mt-1.5 text-sm font-medium text-gray-500">
-                          <span className="flex items-center gap-1.5">
-                            <Hash className="w-4 h-4" />
-                            {order.studentId}
-                          </span>
+                          {order.studentId && (
+                            <span className="flex items-center gap-1.5">
+                              <Hash className="w-4 h-4" />
+                              {order.studentId}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1.5">
                             <ShoppingBag className="w-4 h-4" />
                             {order.items.reduce((s, i) => s + i.quantity, 0)} món
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Clock className="w-4 h-4" />
-                            {formatTime(order.createdAt)}
+                            {formatTime(order.createdAtUtc)}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">
@@ -494,13 +429,13 @@ export default function LiveOrdersPage() {
                           <Eye className="w-4 h-4" />
                           Chi tiết
                         </button>
-                        {order.status === "ReadyForPickup" && (
+                        {order.status === 1 && (
                           <button
-                            onClick={() => handleComplete(order.id)}
+                            onClick={() => handleCollect(order.id)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2"
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                            Bàn giao
+                            Thu món
                           </button>
                         )}
                       </div>
@@ -538,13 +473,17 @@ export default function LiveOrdersPage() {
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#FF4C24]/10 flex items-center justify-center text-[#FF4C24] font-bold">
-                    {selectedOrder.studentName.charAt(0)}
+                    {(selectedOrder.userName || selectedOrder.id).charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900">{selectedOrder.studentName}</p>
-                    <p className="text-sm text-gray-500 font-mono">
-                      MSSV: {selectedOrder.studentId}
+                    <p className="font-bold text-gray-900">
+                      {selectedOrder.userName || "Đơn hàng"}
                     </p>
+                    {selectedOrder.studentId && (
+                      <p className="text-sm text-gray-500 font-mono">
+                        MSSV: {selectedOrder.studentId}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -563,7 +502,7 @@ export default function LiveOrdersPage() {
                         <div>
                           <p className="font-semibold text-gray-800 text-sm">{item.dishName}</p>
                           <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <span>Đơn giá: {item.price.toLocaleString()}</span>
+                            <span>Đơn giá: {(item.unitPrice || 0).toLocaleString()}</span>
                             <Image
                               src="/logo_point.png"
                               alt="coin"
@@ -575,7 +514,7 @@ export default function LiveOrdersPage() {
                         </div>
                       </div>
                       <span className="font-bold text-gray-900 flex items-center gap-1">
-                        <span>{(item.price * item.quantity).toLocaleString()}</span>
+                        <span>{((item.unitPrice || 0) * item.quantity).toLocaleString()}</span>
                         <Image
                           src="/logo_point.png"
                           alt="coin"
@@ -604,35 +543,41 @@ export default function LiveOrdersPage() {
 
               <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3 border">
                 <Clock className="w-4 h-4 text-gray-400" />
-                Đặt lúc {formatTime(selectedOrder.createdAt)} ·{" "}
-                {elapsedMinutes(selectedOrder.createdAt)} phút trước
+                Đặt lúc {formatTime(selectedOrder.createdAtUtc)} ·{" "}
+                {elapsedMinutes(selectedOrder.createdAtUtc)} phút trước
               </div>
 
-              {(selectedOrder.status === "Processing" ||
-                selectedOrder.status === "ReadyForPickup") && (
+              {(selectedOrder.status === 0 || selectedOrder.status === 1) && (
                 <div className="border-t border-dashed border-gray-200 pt-4 space-y-3">
                   <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
                     <UtensilsCrossed className="w-3.5 h-3.5" />
                     Nghiệp vụ quầy
                   </p>
 
-                  {selectedOrder.status === "ReadyForPickup" && (
+                  {selectedOrder.status === 0 && (
+                    <>
+                      <button
+                        onClick={() => handleAssignPickup(selectedOrder.id)}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs"
+                      >
+                        Gán Pickup Slot
+                      </button>
+                      <button
+                        onClick={() => handleCreateRobotJob(selectedOrder.id)}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs"
+                      >
+                        Tạo Robot Serving
+                      </button>
+                    </>
+                  )}
+
+                  {selectedOrder.status === 1 && (
                     <button
-                      onClick={() => handleComplete(selectedOrder.id)}
+                      onClick={() => handleCollect(selectedOrder.id)}
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-2"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      Xác nhận bàn giao món (Hoàn thành)
-                    </button>
-                  )}
-
-                  {selectedOrder.status === "Processing" && (
-                    <button
-                      onClick={() => handleComplete(selectedOrder.id)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Đánh dấu đã chế biến xong
+                      Thu món (Collect)
                     </button>
                   )}
 
@@ -649,7 +594,7 @@ export default function LiveOrdersPage() {
                       rows={2}
                     />
                     <button
-                      onClick={handleCancel}
+                      onClick={handleCancelOrder}
                       disabled={!cancelReason.trim()}
                       className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:text-gray-400 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-2"
                     >

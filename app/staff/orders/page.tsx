@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, startTransition } from "react";
 import Image from "next/image";
 import {
   Loader2,
@@ -15,8 +15,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import { orderService } from "@/services/order.service";
-import apiClient from "@/lib/api/client";
-import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import { pickupService } from "@/services/pickup.service";
+import { robotService } from "@/services/robot.service";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 
@@ -52,87 +52,6 @@ const STATUS_MAP: Record<number, { label: string; icon: typeof Clock; className:
   3: { label: "Đã hủy đơn", icon: Ban, className: "text-red-600 bg-red-50 border-red-200" },
 };
 
-const MOCK_ORDERS = [
-  {
-    id: "1123",
-    Id: "1123",
-    userName: "Marian Det",
-    UserName: "Marian Det",
-    studentId: "SE180120",
-    StudentId: "SE180120",
-    status: 2,
-    Status: 2,
-    totalPrice: 40,
-    TotalPrice: 40,
-    items: [{ dishName: "Com Suon Nuong", quantity: 1, price: 40 }],
-  },
-  {
-    id: "1130",
-    Id: "1130",
-    userName: "Ly Det",
-    UserName: "Ly Det",
-    studentId: "SE180450",
-    StudentId: "SE180450",
-    status: 2,
-    Status: 2,
-    totalPrice: 40,
-    TotalPrice: 40,
-    items: [{ dishName: "Cá ba sa kho tộ", quantity: 1, price: 40 }],
-  },
-  {
-    id: "1124",
-    Id: "1124",
-    userName: "Dom",
-    UserName: "Dom",
-    studentId: "SE180990",
-    StudentId: "SE180990",
-    status: 0,
-    Status: 0,
-    totalPrice: 40,
-    TotalPrice: 40,
-    items: [{ dishName: "Ức gà áp chảo", quantity: 1, price: 40 }],
-  },
-  {
-    id: "1125",
-    Id: "1125",
-    userName: "Yumnh",
-    UserName: "Yumnh",
-    studentId: "SE170110",
-    StudentId: "SE170110",
-    status: 0,
-    Status: 0,
-    totalPrice: 40,
-    TotalPrice: 40,
-    items: [{ dishName: "Com Trung Chien", quantity: 1, price: 40 }],
-  },
-  {
-    id: "1126",
-    Id: "1126",
-    userName: "Mony",
-    UserName: "Mony",
-    studentId: "SE181122",
-    StudentId: "SE181122",
-    status: 0,
-    Status: 0,
-    totalPrice: 40,
-    TotalPrice: 40,
-    items: [{ dishName: "Bún tươi", quantity: 1, price: 40 }],
-  },
-  {
-    id: "1127",
-    Id: "1127",
-    userName: "Leng",
-    UserName: "Leng",
-    studentId: "SE160999",
-    StudentId: "SE160999",
-    status: 0,
-    Status: 0,
-    totalPrice: 40,
-    TotalPrice: 40,
-    items: [{ dishName: "Com Ga Xoi Mo", quantity: 1, price: 40 }],
-  },
-];
-
 export default function StaffOrdersPage() {
   const { toast } = useToast();
   const [orders, setOrders] = useState<StaffOrder[]>([]);
@@ -146,32 +65,21 @@ export default function StaffOrdersPage() {
   const [cancelReason, setCancelReason] = useState("");
 
   useEffect(() => {
-    const params: Record<string, unknown> = { pageNumber: 1, pageSize: 100 };
-    if (filter !== "all") params.status = filter;
+    startTransition(() => {
+      setLoading(true);
+    });
+
+    const params: Record<string, unknown> = { PageNumber: 1, PageSize: 100 };
+    if (filter !== "all") params.Status = filter;
 
     orderService
       .getMyOrders(params)
       .then((data) => {
-        const response = data as {
-          items?: StaffOrder[];
-          Items?: StaffOrder[];
-          value?: { items?: StaffOrder[] };
-        };
-        let extractedOrders: StaffOrder[] = [];
-        if (response && Array.isArray(response.items)) extractedOrders = response.items;
-        else if (
-          response &&
-          Array.isArray((response as Record<string, unknown>).Items as StaffOrder[])
-        )
-          extractedOrders = (response as Record<string, unknown>).Items as StaffOrder[];
-        else if (Array.isArray(response)) extractedOrders = response;
-        else if (response && response.value && Array.isArray(response.value.items))
-          extractedOrders = response.value.items;
-
-        setOrders(extractedOrders.length > 0 ? extractedOrders : MOCK_ORDERS);
+        const items = (data?.items || []) as unknown as StaffOrder[];
+        setOrders(items);
       })
       .catch(() => {
-        setOrders(MOCK_ORDERS);
+        setOrders([]);
       })
       .finally(() => setLoading(false));
   }, [filter]);
@@ -180,47 +88,32 @@ export default function StaffOrdersPage() {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
 
-    const id = (order?.id || order?.Id || "").toLowerCase();
-    const studentId = (order?.studentId || order?.StudentId || "").toLowerCase();
-    const userName = (order?.userName || order?.UserName || "").toLowerCase();
+    const id = (order.id || "").toLowerCase();
+    const studentId = (order.studentId || "").toLowerCase();
+    const userName = (order.userName || "").toLowerCase();
 
     return id.includes(query) || studentId.includes(query) || userName.includes(query);
   });
 
-  // Tính toán các con số Thống kê đầu bảng (KPI Cards)
   const stats = useMemo(() => {
     const total = orders.length;
-    const delivered = orders.filter((o) => (o.status ?? o.Status) === 2).length;
-    const canceled = orders.filter((o) => (o.status ?? o.Status) === 3).length;
+    const delivered = orders.filter((o) => o.status === 2).length;
+    const canceled = orders.filter((o) => o.status === 3).length;
     const revenue = orders
-      .filter((o) => (o.status ?? o.Status) === 2)
-      .reduce((sum, o) => sum + (o.totalPrice || o.TotalPrice || 0), 0);
+      .filter((o) => o.status === 2)
+      .reduce((sum, o) => sum + (o.totalPrice || 0), 0);
 
     return { total, delivered, canceled, revenue };
   }, [orders]);
 
   const refetchOrders = () => {
-    const params: Record<string, unknown> = { pageNumber: 1, pageSize: 100 };
-    if (filter !== "all") params.status = filter;
+    const params: Record<string, unknown> = { PageNumber: 1, PageSize: 100 };
+    if (filter !== "all") params.Status = filter;
     orderService
       .getMyOrders(params)
       .then((data) => {
-        const response = data as {
-          items?: StaffOrder[];
-          Items?: StaffOrder[];
-          value?: { items?: StaffOrder[] };
-        };
-        let extractedOrders: StaffOrder[] = [];
-        if (response && Array.isArray(response.items)) extractedOrders = response.items;
-        else if (
-          response &&
-          Array.isArray((response as Record<string, unknown>).Items as StaffOrder[])
-        )
-          extractedOrders = (response as Record<string, unknown>).Items as StaffOrder[];
-        else if (Array.isArray(response)) extractedOrders = response;
-        else if (response && response.value && Array.isArray(response.value.items))
-          extractedOrders = response.value.items;
-        setOrders(extractedOrders.length > 0 ? extractedOrders : MOCK_ORDERS);
+        const items = (data?.items || []) as unknown as StaffOrder[];
+        setOrders(items);
       })
       .catch(() => {});
   };
@@ -247,9 +140,9 @@ export default function StaffOrdersPage() {
   const handleCancelOrderOverride = async () => {
     if (!selectedOrder || !cancelReason.trim()) return;
     try {
-      const orderId = selectedOrder.id ?? selectedOrder.Id;
+      const orderId = selectedOrder.id;
       if (!orderId) return;
-      await apiClient.put(API_ENDPOINTS.ORDER.UPDATE(orderId), { status: 3, note: cancelReason });
+      await orderService.updateOrderStatus(orderId, 3, cancelReason);
 
       toast({ title: "Đã hủy đơn", description: "Đơn hàng đã được hủy thành công." });
       setSelectedOrder(null);
@@ -372,12 +265,12 @@ export default function StaffOrdersPage() {
           </div>
         ) : (
           filteredOrders.map((order, idx) => {
-            const currentId = order?.id || order?.Id || `temp-${idx}`;
-            const currentStatus = order?.status ?? order?.Status ?? 0;
-            const currentUserName = order?.userName || order?.UserName || "Ẩn danh";
-            const currentStudentId = order?.studentId || order?.StudentId || "N/A";
-            const currentItems: OrderItem[] = order?.items || order?.Items || [];
-            const currentTotalPrice = order?.totalPrice || order?.TotalPrice || 0;
+            const currentId = order.id || `temp-${idx}`;
+            const currentStatus = order.status ?? 0;
+            const currentUserName = order.userName || "Ẩn danh";
+            const currentStudentId = order.studentId || "N/A";
+            const currentItems: OrderItem[] = order.items || [];
+            const currentTotalPrice = order.totalPrice || 0;
 
             const s = STATUS_MAP[currentStatus] || STATUS_MAP[0];
 
@@ -464,10 +357,10 @@ export default function StaffOrdersPage() {
                   Thông tin khách hàng
                 </p>
                 <p className="font-black text-gray-800 text-base mt-1">
-                  {selectedOrder.userName || selectedOrder.UserName || "N/A"}
+                  {selectedOrder.userName || "N/A"}
                 </p>
                 <p className="font-semibold text-gray-400 font-mono text-xs">
-                  Mã sinh viên: {selectedOrder.studentId || selectedOrder.StudentId || "N/A"}
+                  Mã sinh viên: {selectedOrder.studentId || "N/A"}
                 </p>
               </div>
 
@@ -476,7 +369,7 @@ export default function StaffOrdersPage() {
                   Thực đơn suất ăn
                 </h4>
                 <div className="border border-gray-100 rounded-xl divide-y divide-gray-100 bg-white shadow-2xs">
-                  {(selectedOrder.items || selectedOrder.Items || []).map((item, idx: number) => (
+                  {(selectedOrder.items || []).map((item, idx: number) => (
                     <div key={idx} className="p-3.5 flex justify-between text-sm items-center">
                       <div>
                         <p className="font-bold text-gray-800">{item.dishName || "Món ăn"}</p>
@@ -499,36 +392,84 @@ export default function StaffOrdersPage() {
                 </div>
               </div>
 
-              {(selectedOrder.status ?? selectedOrder.Status ?? 0) < 2 && (
+              {(selectedOrder.status ?? 0) < 2 && (
                 <div className="border-t border-dashed border-gray-200 pt-4 space-y-4">
                   <h4 className="text-xs font-black text-amber-600 uppercase tracking-wider">
                     Nghiệp vụ quầy điều hành
                   </h4>
 
-                  {(selectedOrder.status ?? selectedOrder.Status) === 1 && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          const confirmId = selectedOrder.id ?? selectedOrder.Id;
-                          if (!confirmId) return;
-                          await orderService.confirmReceived(confirmId);
-                          toast({
-                            title: "Thành công",
-                            description: "Đơn hàng đã được hoàn thành.",
-                          });
-                          setSelectedOrder(null);
-                          refetchOrders();
-                        } catch {
-                          toast({
-                            title: "Lỗi",
-                            description: "Không thể cập nhật đơn.",
-                          });
-                        }
-                      }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-3 rounded-xl transition shadow-xs uppercase tracking-wider"
-                    >
-                      Bàn giao suất ăn (Hoàn thành)
-                    </button>
+                  {(selectedOrder.status ?? 0) === 1 && (
+                    <div className="space-y-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const orderId = selectedOrder.id;
+                            if (!orderId) return;
+                            await pickupService.assign({ orderId });
+                            toast({
+                              title: "Đã gán pickup",
+                              description: "Pickup slot đã được gán cho đơn hàng.",
+                            });
+                            refetchOrders();
+                          } catch {
+                            toast({
+                              title: "Lỗi",
+                              description: "Không thể gán pickup slot.",
+                            });
+                          }
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-2.5 rounded-xl transition shadow-xs uppercase tracking-wider"
+                      >
+                        Gán Pickup Slot
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          try {
+                            const orderId = selectedOrder.id;
+                            if (!orderId) return;
+                            await robotService.createServingJob({ orderId });
+                            toast({
+                              title: "Đã tạo robot job",
+                              description: "Robot sẽ bắt đầu phục vụ đơn hàng.",
+                            });
+                            refetchOrders();
+                          } catch {
+                            toast({
+                              title: "Lỗi",
+                              description: "Không thể tạo robot serving job.",
+                            });
+                          }
+                        }}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black text-xs py-2.5 rounded-xl transition shadow-xs uppercase tracking-wider"
+                      >
+                        Tạo Robot Serving
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          try {
+                            const orderId = selectedOrder.id;
+                            if (!orderId) return;
+                            await pickupService.collect(orderId);
+                            toast({
+                              title: "Thu món thành công",
+                              description: "Đơn hàng đã được thu món.",
+                            });
+                            setSelectedOrder(null);
+                            refetchOrders();
+                          } catch {
+                            toast({
+                              title: "Lỗi",
+                              description: "Không thể thu món.",
+                            });
+                          }
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2.5 rounded-xl transition shadow-xs uppercase tracking-wider"
+                      >
+                        Thu món (Collect)
+                      </button>
+                    </div>
                   )}
 
                   <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 space-y-3">

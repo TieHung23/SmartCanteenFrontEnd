@@ -37,10 +37,10 @@ export default function SessionDetailPage({ sessionData }: SessionDetailPageProp
     addToCart(
       {
         dishId: sessionData.mainDishId,
-        name: sessionData.name || "Classic Lunch",
+        name: sessionData.name || "Bữa trưa cổ điển",
         price: sessionData.price || 35000,
         imgUrl: sessionData.imgUrl,
-        description: sessionData.description || "Rice, Bruised Shrimp, Soup",
+        description: sessionData.description || "Cơm, Tôm rim, Canh",
         sessionId: sessionData.id,
         sessionTemplateId: sessionData.sessionTemplateId,
         categoryId: sessionData.categoryId,
@@ -56,7 +56,7 @@ export default function SessionDetailPage({ sessionData }: SessionDetailPageProp
       {/* Khung hiển thị khay cơm */}
       <div className="flex flex-col items-center">
         <h2 className="text-xl font-black text-gray-800 tracking-wider mb-6 uppercase">
-          Confirm Your Meal
+          Xác nhận bữa ăn
         </h2>
         <div className="relative w-full aspect-square max-w-[380px] bg-white rounded-3xl p-4 shadow-xs border border-gray-100">
           <Image
@@ -74,18 +74,18 @@ export default function SessionDetailPage({ sessionData }: SessionDetailPageProp
         <div className="space-y-6">
           <div>
             <h3 className="text-sm font-bold text-[#D35400] uppercase tracking-wider">
-              Your meal includes:
+              Bữa ăn của bạn gồm:
             </h3>
             <ul className="mt-3 space-y-2 text-sm font-bold text-gray-600">
-              <li>1x Rice</li>
-              <li>1x Braised Shrimp</li>
-              <li>1x Soup</li>
+              <li>1x Cơm</li>
+              <li>1x Tôm rim</li>
+              <li>1x Canh</li>
             </ul>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-              Special note for this item
+              Ghi chú cho món này
             </span>
             <input
               type="text"
@@ -118,7 +118,7 @@ export default function SessionDetailPage({ sessionData }: SessionDetailPageProp
             onClick={handleAddToCart}
             className="flex-1 py-3.5 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl shadow-lg shadow-orange-500/20 active:scale-[0.99] transition-all text-center"
           >
-            Add to cart
+            Thêm vào giỏ
           </button>
         </div>
       </div>

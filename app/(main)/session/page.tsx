@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSessions } from "@/lib/hooks/use-sessions";
-import { cn, isSessionActive, isSessionExpired } from "@/lib/utils";
+import { cn, isSessionExpired } from "@/lib/utils";
 import Navbar from "@/components/layout/Navbar";
 import Image from "next/image";
 import Link from "next/link";
@@ -17,6 +17,18 @@ const generateCalendarDays = () => {
   }
   return dates;
 };
+
+const WEEKDAY_LABELS_SHORT: Record<number, string> = {
+  0: "CN",
+  1: "Th 2",
+  2: "Th 3",
+  3: "Th 4",
+  4: "Th 5",
+  5: "Th 6",
+  6: "Th 7",
+};
+
+const getWeekdayShort = (date: Date) => WEEKDAY_LABELS_SHORT[date.getDay()];
 
 const formatTime = (dateString: string) => {
   if (!dateString) return "00 : 00";
@@ -42,15 +54,15 @@ const SESSION_TAGS: Record<
   { label: string; bg: string; color: string; accent: string; iconBg: string }
 > = {
   morning: {
-    label: "MORNING",
+    label: "SÁNG",
     bg: "#FEF3EC",
     color: "#A03D14",
     accent: "#F97316",
     iconBg: "#FEF3EC",
   },
-  lunch: { label: "LUNCH", bg: "#E8F5E9", color: "#2E7D32", accent: "#43A047", iconBg: "#F1F8E9" },
+  lunch: { label: "TRƯA", bg: "#E8F5E9", color: "#2E7D32", accent: "#43A047", iconBg: "#F1F8E9" },
   dinner: {
-    label: "DINNER",
+    label: "TỐI",
     bg: "#EDE7F6",
     color: "#512DA8",
     accent: "#7E57C2",
@@ -72,9 +84,9 @@ const SESSION_ICONS: Record<string, string> = {
 };
 
 const MOCK_PLATES = [
-  { id: 1, name: "Premium Steak", src: "/plate1.png" },
-  { id: 2, name: "Healthy Bowl", src: "/plate2.png" },
-  { id: 3, name: "Vegan Salad", src: "/plate3.png" },
+  { id: 1, name: "Bít tết cao cấp", src: "/plate1.png" },
+  { id: 2, name: "Bát healthy", src: "/plate2.png" },
+  { id: 3, name: "Salad chay", src: "/plate3.png" },
 ];
 
 export default function SessionPage() {
@@ -150,15 +162,14 @@ export default function SessionPage() {
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center gap-8 lg:gap-12 min-h-[24rem] lg:min-h-[30rem] px-6 md:px-12 relative z-10">
             <div className="flex flex-col items-center md:items-start text-center md:text-left w-full md:w-5/12 mb-16 md:mb-0">
               <span className="text-[#A03D14] font-bold tracking-[0.25em] uppercase text-sm md:text-base mb-5">
-                Curated Dining Experience
+                Trải nghiệm ẩm thực
               </span>
               <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-serif font-extrabold text-[#1a0a00] leading-[1.1] mb-6 drop-shadow-sm">
-                Elevate Your <br />
-                <span className="text-[#D35400]">Daily Meals</span>
+                Nâng tầm <br />
+                <span className="text-[#D35400]">Bữa ăn hàng ngày</span>
               </h1>
               <p className="text-gray-600 font-medium text-base md:text-lg max-w-md leading-relaxed">
-                Explore our curated menu, crafted by expert chefs. Select a session below to begin
-                your culinary journey.
+                Khám phá thực đơn được tuyển chọn bởi các đầu bếp. Chọn một phiên ăn để bắt đầu.
               </p>
             </div>
 
@@ -203,16 +214,14 @@ export default function SessionPage() {
         {/* ── Body ── */}
         <div className="px-4 md:px-6 lg:px-10 max-w-7xl mx-auto">
           <p className="text-sm md:text-base font-bold tracking-[0.2em] text-gray-400 uppercase mb-5">
-            Choose a day
+            Chọn ngày
           </p>
           <div className="flex overflow-x-auto gap-3 md:gap-5 mb-12 pb-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
             {calendarDays.map((date, index) => {
               const isSelected = isSameDay(date, selectedDate);
               const isToday = isSameDay(date, new Date());
               // Highlight chữ "Today" nếu là hôm nay
-              const dayName = isToday
-                ? "Today"
-                : date.toLocaleDateString("en-US", { weekday: "short" });
+              const dayName = isToday ? "Hôm nay" : getWeekdayShort(date);
               const dayNumber = date.getDate();
               const hasSession = hasSessionOnDate(date);
 
@@ -266,7 +275,7 @@ export default function SessionPage() {
           ) : (
             <>
               <p className="text-base font-bold text-gray-400 mb-6 tracking-wide">
-                {filteredSessions.length} SESSION{filteredSessions.length > 1 ? "S" : ""} AVAILABLE
+                {filteredSessions.length} PHIÊN ĂN CÓ SẴN
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 {filteredSessions.map((session: SessionListItem) => {
@@ -275,8 +284,11 @@ export default function SessionPage() {
                   const icon = SESSION_ICONS[type];
                   const orderExpired = session.isFinalized === true;
                   const expired = isSessionExpired(session.availableTo) || orderExpired;
-                  const active =
-                    isSessionActive(session.availableFrom, session.availableTo) && !orderExpired;
+                  const canOrderNow =
+                    !orderExpired &&
+                    !isSessionExpired(session.availableTo) &&
+                    new Date(session.availableForOrder) <= new Date();
+                  const active = canOrderNow;
 
                   const cardContent = (
                     <div
@@ -310,18 +322,18 @@ export default function SessionPage() {
                               )}
                             >
                               {session.isFinalized
-                                ? "FINALIZED"
+                                ? "ĐÃ CHỐT"
                                 : orderExpired
-                                  ? "ORDER CLOSED"
-                                  : "EXPIRED"}
+                                  ? "ĐÃ ĐÓNG"
+                                  : "HẾT HẠN"}
                             </span>
                           ) : active ? (
                             <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-green-100 text-green-700">
-                              ACTIVE
+                              ĐANG MỞ
                             </span>
                           ) : (
                             <span className="inline-block text-xs font-bold tracking-widest px-3 py-1 rounded-lg bg-blue-100 text-blue-700">
-                              UPCOMING
+                              SẮP DIỄN RA
                             </span>
                           )}
                           <span

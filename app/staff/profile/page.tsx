@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { User, Mail, ShieldCheck, Loader2, Save, Camera } from "lucide-react";
+import { User, Mail, ShieldCheck, Loader2, Save, Camera, Lock } from "lucide-react";
 import { userService, type UpdateProfilePayload } from "@/services/user.service";
+import { authService } from "@/services/auth.service";
+import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
 import Image from "next/image";
 
 export default function StaffProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   // Ref để trigger input file ẩn
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -36,10 +44,10 @@ export default function StaffProfilePage() {
       .getProfile()
       .then((data) => {
         if (data) {
-          let roleName = "Staff";
-          if (data.role === 1) roleName = "Admin";
-          else if (data.role === 2) roleName = "Manager";
-          else if (data.role === 3) roleName = "Customer";
+          let roleName = "Nhân Viên";
+          if (data.role === 1) roleName = "Quản Trị Viên";
+          else if (data.role === 2) roleName = "Quản Lý";
+          else if (data.role === 3) roleName = "Khách Hàng";
 
           setProfile({
             id: data.id || "",
@@ -65,6 +73,32 @@ export default function StaffProfilePage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await authService.changePassword(passwordForm);
+      toast.success("Đổi mật khẩu thành công!");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: unknown) {
+      const axiosErr = err as {
+        response?: { data?: { errors?: Record<string, string[]>; message?: string } };
+      };
+      const serverErrors = axiosErr.response?.data?.errors;
+      if (serverErrors?.NewPassword) {
+        serverErrors.NewPassword.forEach((msg: string) => toast.error(msg));
+      } else {
+        toast.error(axiosErr.response?.data?.message || "Đổi mật khẩu thất bại.");
+      }
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   // Xử lý khi người dùng chọn ảnh mới
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,6 +251,40 @@ export default function StaffProfilePage() {
                 className="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors"
               />
             </div>
+
+            <div className="space-y-3">
+              <label className="text-lg font-semibold text-gray-700">Ngày sinh</label>
+              <input
+                type="date"
+                value={profile.dateOfBirth?.split("T")[0] || ""}
+                onChange={(e) => setProfile({ ...profile, dateOfBirth: e.target.value })}
+                className="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-lg font-semibold text-gray-700">Giới tính</label>
+              <select
+                value={profile.gender ?? 1}
+                onChange={(e) => setProfile({ ...profile, gender: Number(e.target.value) || 1 })}
+                className="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors appearance-none cursor-pointer"
+              >
+                <option value={1}>♂ Nam</option>
+                <option value={2}>♀ Nữ</option>
+                <option value={3}>Khác</option>
+              </select>
+            </div>
+
+            <div className="space-y-3 lg:col-span-2">
+              <label className="text-lg font-semibold text-gray-700">Địa chỉ</label>
+              <input
+                type="text"
+                value={profile.address}
+                onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                placeholder="Nhập địa chỉ..."
+                className="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors"
+              />
+            </div>
           </div>
 
           <div className="pt-10 border-t border-gray-100 flex justify-end">
@@ -227,6 +295,63 @@ export default function StaffProfilePage() {
             >
               {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
               {saving ? "Đang lưu thay đổi..." : "Lưu Thay Đổi"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden">
+        <div className="border-b border-gray-100 bg-gray-50/80 px-10 py-6">
+          <div className="flex items-center gap-3">
+            <Lock className="w-6 h-6 text-gray-500" />
+            <h2 className="text-2xl font-bold text-gray-900">Đổi Mật Khẩu</h2>
+          </div>
+        </div>
+        <form onSubmit={handleUpdatePassword} className="p-10 space-y-6 max-w-lg">
+          <div className="space-y-3">
+            <label className="text-lg font-semibold text-gray-700">Mật khẩu hiện tại</label>
+            <PasswordInput
+              required
+              value={passwordForm.currentPassword}
+              onChange={(e) =>
+                setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+              }
+              inputClassName="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors"
+            />
+          </div>
+          <div className="space-y-3">
+            <label className="text-lg font-semibold text-gray-700">Mật khẩu mới</label>
+            <PasswordInput
+              required
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+              inputClassName="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors"
+            />
+          </div>
+          <div className="space-y-3">
+            <label className="text-lg font-semibold text-gray-700">Xác nhận mật khẩu mới</label>
+            <PasswordInput
+              required
+              value={passwordForm.confirmPassword}
+              onChange={(e) =>
+                setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+              }
+              inputClassName="w-full px-6 py-4 text-lg bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-colors"
+            />
+          </div>
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={passwordSaving}
+              className="inline-flex items-center justify-center gap-3 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white font-semibold text-lg px-10 py-4 rounded-xl transition-all w-full sm:w-auto shadow-sm"
+            >
+              {passwordSaving ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <Lock className="w-6 h-6" />
+              )}
+              {passwordSaving ? "Đang xử lý..." : "Đổi Mật Khẩu"}
             </button>
           </div>
         </form>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Coins, Landmark, FileText, CheckCircle2, XCircle, X } from "lucide-react";
+import Swal from "sweetalert2";
 import { refundService } from "@/services/refund.service";
 import type { ManagerRefundDetail } from "@/types/refund.types";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,17 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
   }, [requestId]);
 
   const handleApprove = async () => {
-    if (!confirm("Approve this refund request? The user will be credited.")) return;
+    const result = await Swal.fire({
+      title: "Xác nhận duyệt hoàn tiền",
+      text: "Người dùng sẽ được hoàn tiền vào ví. Bạn có chắc chắn muốn duyệt?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Duyệt & Hoàn tiền",
+      cancelButtonText: "Hủy",
+    });
+    if (!result.isConfirmed) return;
     setActionLoading(true);
     try {
       await refundService.managerApprove(requestId);

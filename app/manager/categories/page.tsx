@@ -52,7 +52,7 @@ export default function CategoryListPage() {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete category "${name}"?`)) return;
+    if (!confirm(`Xóa danh mục "${name}"?`)) return;
     try {
       await categoryService.delete(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
@@ -117,7 +117,7 @@ export default function CategoryListPage() {
       setIsCreateOpen(false);
       fetchCategories(true);
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Failed to create category");
+      setFormError(err instanceof Error ? err.message : "Tạo danh mục thất bại");
     } finally {
       setFormSubmitting(false);
     }
@@ -140,7 +140,7 @@ export default function CategoryListPage() {
       setIsEditOpen(false);
       fetchCategories(true);
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Failed to update category");
+      setFormError(err instanceof Error ? err.message : "Cập nhật danh mục thất bại");
     } finally {
       setFormSubmitting(false);
     }
@@ -151,7 +151,7 @@ export default function CategoryListPage() {
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900">Categories</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900">Danh mục</h1>
           <p className="text-lg text-gray-500 mt-1.5">Quản lý và thiết lập danh mục món ăn.</p>
         </div>
         <button
@@ -159,7 +159,7 @@ export default function CategoryListPage() {
           className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
           <Plus className="w-5 h-5" />
-          New Category
+          Danh mục mới
         </button>
       </div>
 
@@ -228,7 +228,7 @@ export default function CategoryListPage() {
                   onClick={() => openEditModal(category)}
                   className="flex-1 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
                 >
-                  Edit
+                  Sửa
                 </button>
                 <button
                   onClick={() => handleDelete(category.id, category.name)}
@@ -246,7 +246,7 @@ export default function CategoryListPage() {
       <Modal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="New Category"
+        title="Danh mục mới"
         size="md"
       >
         <div className="space-y-6">
@@ -327,7 +327,7 @@ export default function CategoryListPage() {
       <Modal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
-        title="Edit Category"
+        title="Sửa danh mục"
         size="md"
       >
         <div className="space-y-6">
@@ -345,7 +345,7 @@ export default function CategoryListPage() {
               <input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="Category name"
+                placeholder="Tên danh mục"
                 className="w-full px-4 py-3.5 text-base bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-3xs"
               />
             </div>
@@ -357,7 +357,7 @@ export default function CategoryListPage() {
               <textarea
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Category description"
+                placeholder="Mô tả danh mục"
                 rows={4}
                 className="w-full px-4 py-3.5 text-base bg-white border border-gray-200/35 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-3xs"
               />

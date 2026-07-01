@@ -23,9 +23,9 @@ export default function Navbar() {
   const totalCount = getCartCount();
 
   const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Session", href: "/session" },
-    { name: "About Us", href: "/about" },
+    { name: "Trang chủ", href: "/" },
+    { name: "Phiên ăn", href: "/session" },
+    { name: "Về chúng tôi", href: "/about" },
   ];
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -65,7 +65,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/logo.png"
-            alt="Smart Canteen Logo"
+            alt="Logo Smart Canteen"
             width={55}
             height={55}
             className="w-auto h-55 object-contain rounded-full pb-2"
@@ -135,12 +135,12 @@ export default function Navbar() {
           {isAuthenticated && userData ? (
             <>
               <span className="text-sm font-bold text-gray-700 hidden sm:block">
-                Hi, {userData.name}
+                Xin chào, {userData.name}
               </span>
               <Image
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 src={getSafeAvatar(userData.imgUrl, userData.id)}
-                alt={userData.name || "User avatar"}
+                alt={userData.name || "Ảnh đại diện"}
                 width={40}
                 height={40}
                 unoptimized
@@ -154,21 +154,28 @@ export default function Navbar() {
                     className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
                     onClick={() => setIsDropdownOpen(false)}
                   >
-                    Profile
+                    Hồ sơ
+                  </Link>
+                  <Link
+                    href="/notifications"
+                    className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    Thông báo
                   </Link>
                   <Link
                     href="/orders"
                     className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
                     onClick={() => setIsDropdownOpen(false)}
                   >
-                    My Orders
+                    Đơn hàng của tôi
                   </Link>
                   <div className="border-t border-gray-100" />
                   <button
                     className="w-full flex items-center gap-2 text-left px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-all"
                     onClick={logout}
                   >
-                    <LogOut className="w-4 h-4" /> Logout
+                    <LogOut className="w-4 h-4" /> Đăng xuất
                   </button>
                 </div>
               )}

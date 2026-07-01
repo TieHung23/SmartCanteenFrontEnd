@@ -266,28 +266,16 @@
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* === Sidebar nav (no scrollbar — auto-scroll on hover) === */
 .sidebar-nav {
   overflow-y: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.sidebar-nav::-webkit-scrollbar {
-  display: none;
+  scroll-behavior: smooth;
 }
 .sidebar-nav:hover {
   overflow-y: auto;
+  scrollbar-width: none;
 }
-.sidebar-nav:hover::-webkit-scrollbar {
-  display: block;
-  width: 4px;
-}
-.sidebar-nav:hover::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sidebar-nav:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 999px;
-}
-.sidebar-nav:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.15);
+.sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }

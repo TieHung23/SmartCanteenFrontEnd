@@ -14,15 +14,42 @@ export const orderService = {
     pageNumber?: number;
     status?: OrderStatus;
   }): Promise<PaginatedList<OrderListItem>> => {
+    const queryParams: Record<string, string | number | undefined> = {};
+    if (params) {
+      if (params.pageSize) queryParams.PageSize = params.pageSize;
+      if (params.pageNumber) queryParams.PageNumber = params.pageNumber;
+      if (params.status !== undefined) queryParams.Status = params.status;
+    }
     const response = (await apiClient.get<ApiResponse<PaginatedList<OrderListItem>>>(
       API_ENDPOINTS.ORDER.LIST,
-      { params },
+      { params: queryParams },
     )) as unknown as ApiResponse<PaginatedList<OrderListItem>>;
 
     return response.value;
   },
+
+  getAll: async (params?: {
+    pageSize?: number;
+    pageNumber?: number;
+    status?: OrderStatus;
+  }): Promise<PaginatedList<OrderListItem>> => {
+    const queryParams: Record<string, string | number | undefined> = {};
+    if (params) {
+      if (params.pageSize) queryParams.PageSize = params.pageSize;
+      if (params.pageNumber) queryParams.PageNumber = params.pageNumber;
+      if (params.status !== undefined) queryParams.Status = params.status;
+    }
+    const response = (await apiClient.get<ApiResponse<PaginatedList<OrderListItem>>>(
+      API_ENDPOINTS.ORDER.LIST,
+      { params: queryParams },
+    )) as unknown as ApiResponse<PaginatedList<OrderListItem>>;
+    return response.value;
+  },
   getOrderById: async (id: string): Promise<OrderDetail> => {
-    return await apiClient.get<OrderDetail, OrderDetail>(API_ENDPOINTS.ORDER.GET(id));
+    const response = (await apiClient.get<ApiResponse<OrderDetail>>(
+      API_ENDPOINTS.ORDER.GET(id),
+    )) as unknown as ApiResponse<OrderDetail>;
+    return response.value;
   },
 
   createOrder: async (sessionId: string, cartVersion: number): Promise<CreateOrderResponse> => {
@@ -41,6 +68,14 @@ export const orderService = {
       { id: orderId, status: 2 }, // 2 = Completed
     )) as unknown as ApiResponse<{ id: string; status: number; message: string }>;
 
+    return response.value;
+  },
+
+  updateOrderStatus: async (orderId: string, status: number, note?: string) => {
+    const response = (await apiClient.put<ApiResponse<{ message: string }>>(
+      API_ENDPOINTS.ORDER.UPDATE(orderId),
+      { id: orderId, status, ...(note && { note }) },
+    )) as unknown as ApiResponse<{ message: string }>;
     return response.value;
   },
 };

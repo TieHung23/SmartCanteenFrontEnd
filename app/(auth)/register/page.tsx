@@ -26,16 +26,16 @@ export default function RegisterPage() {
           </div>
 
           <div className="w-full mb-4">
-            <h1 className="text-2xl font-extrabold text-gray-800 mb-1">Create Account</h1>
+            <h1 className="text-2xl font-extrabold text-gray-800 mb-1">Tạo tài khoản</h1>
             <p className="text-sm text-gray-500">
-              Fill in your details to create your canteen account.
+              Điền thông tin của bạn để tạo tài khoản canteen.
             </p>
           </div>
 
           <Suspense
             fallback={
               <div className="w-full py-8 text-center text-sm text-gray-500">
-                Loading registration form...
+                Đang tải biểu mẫu đăng ký...
               </div>
             }
           >

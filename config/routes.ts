@@ -12,4 +12,7 @@ export const ROUTES = {
   REFUND: "/refund",
   FORGOT_PASSWORD: "/forgot-password",
   RESET_PASSWORD: "/reset-password",
+  SUSPENDED: "/suspended",
+  NOTIFICATIONS: "/notifications",
+  WALLET_TRANSACTIONS: "/wallet/transactions",
 } as const;
