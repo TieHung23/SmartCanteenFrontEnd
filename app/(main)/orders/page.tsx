@@ -18,9 +18,11 @@ import type { NotificationItem } from "@/types/notification.types";
 const TABS: { label: string; status: OrderStatus | null }[] = [
   { label: "Tất cả", status: null },
   { label: "Chờ xử lý", status: 0 },
+  { label: "Đang chuẩn bị", status: 4 },
   { label: "Sẵn sàng", status: 1 },
   { label: "Hoàn thành", status: 2 },
   { label: "Đã hủy", status: 3 },
+  { label: "Quá hạn", status: 7 },
 ];
 
 function formatDate(dateStr: string) {

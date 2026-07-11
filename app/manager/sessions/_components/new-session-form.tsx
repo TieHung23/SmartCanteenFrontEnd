@@ -653,7 +653,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         {/* Left Column: Form Details & Templates */}
         <div className="lg:col-span-6 space-y-8">
           {/* General Metadata */}
-          <div className="bg-white rounded-3xl border border-gray-200/35 p-6 sm:p-8 space-y-6 shadow-3xs">
+          <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-6 shadow-xs">
             <h2 className="text-xl font-black text-gray-900 uppercase tracking-wide border-b border-gray-100 pb-3 flex items-center gap-2">
               <CalendarPlus className="w-5 h-5 text-[#D35400]" />
               Thiết lập chung
@@ -678,7 +678,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   }}
                   placeholder="e.g. Suất trưa ngày 24/06/2026"
                   className={cn(
-                    "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm",
+                    "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-xs text-sm",
                     errors.name
                       ? "border-red-500 focus:ring-red-500/20 focus:border-red-500 text-gray-900"
                       : "border-gray-200/35 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400",
@@ -708,7 +708,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   placeholder="e.g. Suất ăn chính trưa thứ 4 bao gồm các món đạm và rau xanh"
                   rows={2}
                   className={cn(
-                    "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all resize-none shadow-3xs text-sm",
+                    "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all resize-none shadow-xs text-sm",
                     errors.description
                       ? "border-red-500 focus:ring-red-500/20 focus:border-red-500 text-gray-900"
                       : "border-gray-200/35 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400",
@@ -754,7 +754,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                             }
                           }}
                           className={cn(
-                            "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
+                            "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-xs text-sm cursor-pointer",
                             errors.orderOpenDate
                               ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
                               : "border-orange-200/60 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900",
@@ -863,7 +863,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                             );
                         }}
                         className={cn(
-                          "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-3xs text-sm cursor-pointer",
+                          "w-full px-4 py-3 bg-white border rounded-2xl outline-none focus:ring-2 transition-all shadow-xs text-sm cursor-pointer",
                           errors.sessionDate
                             ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
                             : "border-blue-200/60 focus:ring-blue-500/20 focus:border-blue-500 text-gray-900",
@@ -1042,7 +1042,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   <select
                     value={autoFinalizePolicy}
                     onChange={(e) => setAutoFinalizePolicy(Number(e.target.value))}
-                    className="w-full px-4 py-3 bg-white border border-gray-200/60 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-3xs cursor-pointer"
+                    className="w-full px-4 py-3 bg-white border border-gray-200/60 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-700 transition-all shadow-xs cursor-pointer"
                   >
                     <option value={0}>Không tự động chốt</option>
                     <option value={1}>Tự động chốt khi hết hạn order</option>
@@ -1056,7 +1056,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
           {/* Template Limits Configuration */}
           <div
             className={cn(
-              "bg-white rounded-3xl border p-6 sm:p-8 space-y-6 shadow-3xs transition-colors duration-300",
+              "bg-white rounded-3xl border p-6 sm:p-8 space-y-6 shadow-xs transition-colors duration-300",
               errors.templatesName || errors.templatesSettings
                 ? "border-red-400 bg-red-50/5"
                 : "border-gray-200/35",
@@ -1108,7 +1108,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                           value={template.name}
                           onChange={(e) => updateTemplateName(tIdx, e.target.value)}
                           placeholder="e.g. Suất ăn chay, Suất giàu đạm"
-                          className="font-bold text-gray-800 bg-white border border-gray-200/35 rounded-xl px-3 py-2 text-sm max-w-[10rem] focus:ring-1 focus:ring-[#D35400] shadow-3xs"
+                          className="font-bold text-gray-800 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm max-w-[10rem] focus:ring-1 focus:ring-[#D35400] shadow-xs"
                         />
                         {template.dishIds.length > 0 && (
                           <span className="text-[10px] font-black text-[#D35400] bg-orange-50 border border-orange-200/50 px-2.5 py-1 rounded-full shrink-0">
@@ -1310,12 +1310,12 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
             onDragLeave={() => setIsDragOverDropZone(false)}
             onDrop={handleDropToSelected}
             className={cn(
-              "bg-white rounded-3xl border p-6 min-h-[16rem] transition-all duration-300 flex flex-col shadow-3xs",
+              "bg-white rounded-3xl border p-6 min-h-[16rem] transition-all duration-300 flex flex-col shadow-xs",
               isDragOverDropZone
                 ? "bg-orange-50/40 border-dashed border-[#D35400] ring-2 ring-[#D35400]/10 scale-[1.01]"
                 : errors.dishes
                   ? "border-red-400 bg-red-50/5"
-                  : "border-gray-150",
+                  : "border-gray-200",
             )}
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 shrink-0">
@@ -1328,7 +1328,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
               <span
                 ref={counterRef}
                 className={cn(
-                  "border text-xs font-black px-3 py-1 rounded-full shadow-3xs transition-colors duration-300",
+                  "border text-xs font-black px-3 py-1 rounded-full shadow-xs transition-colors duration-300",
                   errors.dishes
                     ? "bg-red-50 border-red-200 text-red-500"
                     : "bg-orange-50 border-orange-100/50 text-[#D35400]",
@@ -1371,7 +1371,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     onDragStart={(e) => handleDragStart(e, dish.id)}
                     onDragEnd={handleDragEnd}
                     className={cn(
-                      "selected-dish-item drag-item dish-pop-in flex items-center gap-3 p-2.5 bg-white rounded-xl border border-[#D35400]/15 shadow-3xs hover:shadow-sm hover:border-[#D35400]/30 group transition-all cursor-grab active:cursor-grabbing",
+                      "selected-dish-item drag-item dish-pop-in flex items-center gap-3 p-2.5 bg-white rounded-xl border border-[#D35400]/15 shadow-xs hover:shadow-sm hover:border-[#D35400]/30 group transition-all cursor-grab active:cursor-grabbing",
                       draggedDishId === dish.id && "opacity-45",
                     )}
                   >
@@ -1433,7 +1433,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
             onDragLeave={() => setIsDragOverPool(false)}
             onDrop={handleDropToPool}
             className={cn(
-              "bg-white rounded-3xl border p-6 min-h-[22rem] flex flex-col shadow-3xs transition-all duration-300",
+              "bg-white rounded-3xl border p-6 min-h-[22rem] flex flex-col shadow-xs transition-all duration-300",
               isDragOverPool
                 ? "bg-gray-50 border-dashed border-gray-400 scale-[1.01]"
                 : "border-gray-200/30",
@@ -1463,7 +1463,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0",
                       categoryFilter === "all"
-                        ? "bg-[#D35400] text-white shadow-3xs"
+                        ? "bg-[#D35400] text-white shadow-xs"
                         : "bg-gray-100 text-gray-500 hover:text-gray-800",
                     )}
                   >
@@ -1477,7 +1477,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0",
                         categoryFilter === catId
-                          ? "bg-[#D35400] text-white shadow-3xs"
+                          ? "bg-[#D35400] text-white shadow-xs"
                           : "bg-gray-100 text-gray-500 hover:text-gray-800",
                       )}
                     >
@@ -1561,7 +1561,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-3.5 border border-gray-200/50 hover:border-gray-300 text-gray-600 rounded-2xl text-base font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-3xs"
+          className="px-6 py-3.5 border border-gray-200/50 hover:border-gray-300 text-gray-600 rounded-2xl text-base font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-xs"
         >
           Hủy bỏ
         </button>

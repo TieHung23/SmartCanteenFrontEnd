@@ -39,6 +39,7 @@ export const API_ENDPOINTS = {
     CREATE: "/api/Orders",
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
+    MANAGER_BY_SESSION: (sessionId: string) => `/api/manager/orders/session/${sessionId}`,
   },
   CART: {
     GET: "/api/Cart",

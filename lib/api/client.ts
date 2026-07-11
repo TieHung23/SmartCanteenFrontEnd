@@ -82,6 +82,12 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // Nếu request không có Authorization header nghĩa là user chưa đăng nhập
+      // thì không redirect, chỉ reject để component xử lý lỗi
+      if (!originalRequest.headers?.Authorization) {
+        return Promise.reject(error);
+      }
+
       // Fix lỗi 2: Xóa dấu chấm phẩy chặn xích Promise. Chờ giải cứu request
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

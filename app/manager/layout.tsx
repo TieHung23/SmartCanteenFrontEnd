@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  Package,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +56,7 @@ const MANAGER_MENU_GROUPS: MenuGroup[] = [
     icon: CalendarDays,
     items: [
       { name: "Phiên Phục Vụ", path: "/manager/sessions", icon: CalendarDays },
+      { name: "Đơn Hàng", path: "/manager/orders", icon: Package },
       { name: "Thực Đơn", path: "/manager/menu", icon: ChefHat },
       { name: "Danh Mục", path: "/manager/categories", icon: Layers },
     ],

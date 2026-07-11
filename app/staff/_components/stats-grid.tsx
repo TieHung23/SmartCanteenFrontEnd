@@ -80,14 +80,14 @@ export function StatsGrid() {
           },
           {
             label: "Sẵn Sàng Nhận Món",
-            value: String(todayOrders.filter((o) => o.status === 1 || o.status === 5).length),
+            value: String(todayOrders.filter((o) => o.status === 1).length),
             icon: CheckCircle2,
             color: "text-emerald-600",
             bg: "bg-emerald-100/80",
           },
           {
             label: "Đơn Gặp Sự Cố (Failed)",
-            value: String(todayOrders.filter((o) => o.status === 8).length),
+            value: String(todayOrders.filter((o) => o.status === 7).length),
             icon: AlertOctagon,
             color: "text-rose-600",
             bg: "bg-rose-100/80",

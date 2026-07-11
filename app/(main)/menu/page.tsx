@@ -1202,9 +1202,7 @@ function DishCard({
           {dish.name}
         </h4>
         {dish.description && (
-          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed h-8">
-            {dish.description}
-          </p>
+          <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">{dish.description}</p>
         )}
         <div className="font-black text-[#FF4C24] text-base sm:text-lg mt-1 bg-orange-50 px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5">
           <span>{formatPoints(dishPrice)}</span>

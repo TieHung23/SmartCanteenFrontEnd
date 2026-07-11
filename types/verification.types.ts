@@ -40,6 +40,7 @@ export interface AdminVerificationListItem {
   userName: string;
   submittedAt: string;
   documentCount: number;
+  status?: number;
 }
 
 export interface VerificationDocument {
