@@ -1,6 +1,7 @@
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 const LEGACY_TOKEN_KEY = "token";
+const BLOCKED_ACCOUNT_KEY = "blockedAccount";
 
 function getBrowserStorage(kind: "session" | "local") {
   if (typeof window === "undefined") return null;
@@ -46,6 +47,7 @@ export function setAuthTokens(accessToken: string, refreshToken?: string) {
   const local = getBrowserStorage("local");
   session?.setItem(ACCESS_TOKEN_KEY, accessToken);
   if (refreshToken) session?.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  session?.removeItem(BLOCKED_ACCOUNT_KEY);
 
   local?.removeItem(ACCESS_TOKEN_KEY);
   local?.removeItem(REFRESH_TOKEN_KEY);
@@ -61,4 +63,32 @@ export function clearAuthTokens() {
   local?.removeItem(ACCESS_TOKEN_KEY);
   local?.removeItem(REFRESH_TOKEN_KEY);
   local?.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export interface BlockedAccountInfo {
+  status?: number;
+  message?: string;
+  reason?: string;
+  errorCode?: string;
+}
+
+export function setBlockedAccountInfo(info: BlockedAccountInfo) {
+  const session = getBrowserStorage("session");
+  session?.setItem(BLOCKED_ACCOUNT_KEY, JSON.stringify(info));
+}
+
+export function getBlockedAccountInfo(): BlockedAccountInfo | null {
+  const session = getBrowserStorage("session");
+  const raw = session?.getItem(BLOCKED_ACCOUNT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as BlockedAccountInfo;
+  } catch {
+    return null;
+  }
+}
+
+export function clearBlockedAccountInfo() {
+  const session = getBrowserStorage("session");
+  session?.removeItem(BLOCKED_ACCOUNT_KEY);
 }

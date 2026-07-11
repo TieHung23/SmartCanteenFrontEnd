@@ -7,6 +7,7 @@ import {
   clearAuthTokens,
   getAccessToken,
   migrateLegacyAuthTokens,
+  setBlockedAccountInfo,
   setAuthTokens,
 } from "@/lib/auth-token-storage";
 import { connectSignalr, disconnectSignalr } from "@/lib/hooks/use-signalr";
@@ -31,6 +32,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const isInitialMount = useRef(true);
 
+  const handleBlockedProfile = useCallback(
+    (profile: UserProfileResponse) => {
+      setBlockedAccountInfo({
+        status: profile.status,
+        message:
+          profile.status === 5
+            ? "This account has been banned."
+            : "This account has been suspended.",
+      });
+      clearAuthTokens();
+      setToken(null);
+      setUser(null);
+      disconnectSignalr();
+      router.push("/suspended");
+    },
+    [router],
+  );
+
   const fetchProfile = useCallback(async () => {
     const t = getAccessToken();
     if (!t) {
@@ -40,6 +59,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const profile = await userService.getProfile();
+      if (profile.status === 4 || profile.status === 5) {
+        handleBlockedProfile(profile);
+        return;
+      }
       setUser(profile);
     } catch {
       clearAuthTokens();
@@ -47,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [handleBlockedProfile]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -65,6 +88,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       connectSignalr();
     }
   }, [token, loading]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = window.setInterval(() => {
+      fetchProfile();
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [fetchProfile, token]);
 
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
