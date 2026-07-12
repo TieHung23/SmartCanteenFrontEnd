@@ -6,7 +6,7 @@ import { authService } from "@/services/auth.service";
 import { userService } from "@/services/user.service";
 import { ROUTES } from "@/config/routes";
 import Navbar from "@/components/layout/Navbar";
-import { getAccessToken } from "@/lib/auth-token-storage";
+import { getAccessToken, setBlockedAccountInfo } from "@/lib/auth-token-storage";
 
 export default function Home() {
   const router = useRouter();
@@ -41,6 +41,13 @@ export default function Home() {
       }
       const fullProfile = await userService.getProfile().catch(() => null);
       if (fullProfile && (fullProfile.status === 4 || fullProfile.status === 5)) {
+        setBlockedAccountInfo({
+          status: fullProfile.status,
+          message:
+            fullProfile.status === 5
+              ? "This account has been banned."
+              : "This account has been suspended.",
+        });
         router.push(ROUTES.SUSPENDED);
         return;
       }

@@ -5,28 +5,38 @@ import { useRouter } from "next/navigation";
 import { ShieldAlert, Ban, Hourglass, ChevronLeft } from "lucide-react";
 import { userService } from "@/services/user.service";
 import { ROUTES } from "@/config/routes";
-import { clearAuthTokens } from "@/lib/auth-token-storage";
+import {
+  clearAuthTokens,
+  clearBlockedAccountInfo,
+  getBlockedAccountInfo,
+} from "@/lib/auth-token-storage";
 
 const STATUS_MAP: Record<number, { icon: typeof Ban; title: string; message: string }> = {
   4: {
-    icon: Ban,
-    title: "Tài khoản đã bị cấm",
-    message: "Tài khoản của bạn đã bị quản trị viên cấm. Bạn không thể tiếp tục sử dụng hệ thống.",
-  },
-  5: {
     icon: Hourglass,
     title: "Tài khoản tạm thời bị đình chỉ",
     message:
       "Tài khoản của bạn hiện đang bị đình chỉ. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.",
   },
+  5: {
+    icon: Ban,
+    title: "Tài khoản đã bị cấm",
+    message: "Tài khoản của bạn đã bị quản trị viên cấm. Bạn không thể tiếp tục sử dụng hệ thống.",
+  },
 };
 
 export default function SuspendedPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<number | null>(null);
+  const [blockedInfo] = useState(() => getBlockedAccountInfo());
+  const [status, setStatus] = useState<number | null>(blockedInfo?.status ?? null);
   const [userName, setUserName] = useState<string>("");
+  const [reason] = useState<string>(blockedInfo?.reason || "");
 
   useEffect(() => {
+    if (blockedInfo?.status) {
+      return;
+    }
+
     userService
       .getProfile()
       .then((profile) => {
@@ -37,7 +47,7 @@ export default function SuspendedPage() {
         clearAuthTokens();
         router.push(ROUTES.LOGIN);
       });
-  }, [router]);
+  }, [blockedInfo, router]);
 
   const info = status ? STATUS_MAP[status] : null;
   if (!info) {
@@ -58,8 +68,15 @@ export default function SuspendedPage() {
         </div>
 
         <h1 className="mb-2 text-2xl font-bold text-gray-900">{info.title}</h1>
-        <p className="mb-1 text-sm text-gray-500">{userName}</p>
+        {userName && <p className="mb-1 text-sm text-gray-500">{userName}</p>}
         <p className="mb-8 text-gray-600">{info.message}</p>
+
+        {reason && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-left text-sm text-red-800">
+            <p className="font-semibold">Lý do</p>
+            <p className="mt-1">{reason}</p>
+          </div>
+        )}
 
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-8 text-left text-sm text-amber-800">
           <div className="flex items-start gap-3">
@@ -80,6 +97,7 @@ export default function SuspendedPage() {
         <button
           onClick={() => {
             clearAuthTokens();
+            clearBlockedAccountInfo();
             router.push(ROUTES.LOGIN);
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800"

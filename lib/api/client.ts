@@ -5,6 +5,7 @@ import {
   clearAuthTokens,
   getAccessToken,
   getRefreshToken,
+  setBlockedAccountInfo,
   setAuthTokens,
 } from "@/lib/auth-token-storage";
 
@@ -16,11 +17,37 @@ interface FailedRequest {
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
+interface BlockedAccountResponse {
+  message?: string;
+  reason?: string;
+  errorCode?: string;
+}
+
 function redirectToLogin() {
   if (typeof window === "undefined") return;
   const path = window.location.pathname;
-  if (path === "/login" || path.startsWith("/auth/")) return;
+  if (path === "/login" || path === "/suspended" || path.startsWith("/auth/")) return;
   window.location.href = "/login";
+}
+
+function isBlockedAccountResponse(data: unknown): data is BlockedAccountResponse {
+  if (!data || typeof data !== "object") return false;
+  const errorCode = (data as BlockedAccountResponse).errorCode;
+  return errorCode === "AccountSuspended" || errorCode === "AccountBanned";
+}
+
+function handleBlockedAccount(data: BlockedAccountResponse) {
+  if (typeof window === "undefined") return;
+  setBlockedAccountInfo({
+    status: data.errorCode === "AccountBanned" ? 5 : 4,
+    message: data.message,
+    reason: data.reason,
+    errorCode: data.errorCode,
+  });
+  clearAuthTokens();
+  if (window.location.pathname !== "/suspended") {
+    window.location.href = "/suspended";
+  }
 }
 
 const processQueue = (error: unknown, token: string | null = null) => {
@@ -67,6 +94,15 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+    const responseData = error.response?.data;
+
+    if (
+      isBlockedAccountResponse(responseData) &&
+      !originalRequest?.url?.includes(API_ENDPOINTS.AUTH.LOGIN)
+    ) {
+      handleBlockedAccount(responseData);
+      return Promise.reject(error);
+    }
 
     // 🔍 XỬ LÝ RIÊNG ĐẦU LỖI 401 UNAUTHORIZED
     if (status === 401 && !originalRequest._retry) {
@@ -130,6 +166,12 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
+        const refreshData = (refreshError as { response?: { data?: unknown } }).response?.data;
+        if (isBlockedAccountResponse(refreshData)) {
+          handleBlockedAccount(refreshData);
+          processQueue(refreshError, null);
+          return Promise.reject(refreshError);
+        }
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
           clearAuthTokens();

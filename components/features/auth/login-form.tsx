@@ -30,6 +30,12 @@ const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   server_error: "Lỗi máy chủ, vui lòng thử lại",
 };
 
+interface LoginErrorResponse {
+  message?: string;
+  reason?: string;
+  errorCode?: "AccountSuspended" | "AccountBanned" | string;
+}
+
 export const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,9 +72,20 @@ export const LoginForm = () => {
       toast.success("Đăng nhập thành công!");
       router.push(ROUTES.HOME);
     },
-    onError: (error: AxiosError<{ message?: string }>) => {
+    onError: (error: AxiosError<LoginErrorResponse>) => {
       const serverMessage = error.response?.data?.message || "Lỗi đăng nhập";
-      toast.error(serverMessage);
+      const reason = error.response?.data?.reason;
+      const errorCode = error.response?.data?.errorCode;
+
+      if ((errorCode === "AccountSuspended" || errorCode === "AccountBanned") && reason) {
+        toast.error(serverMessage, {
+          description: `Lý do: ${reason}`,
+          duration: 7000,
+        });
+        return;
+      }
+
+      toast.error(reason ? `${serverMessage}. Lý do: ${reason}` : serverMessage);
     },
   });
 
