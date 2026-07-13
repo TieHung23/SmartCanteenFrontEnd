@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Mail,
   Phone,
+  RefreshCcw as RefreshCw,
   RotateCcw,
   Search,
   ShieldAlert,
@@ -72,26 +73,31 @@ const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.Staff]: "Nhân viên",
 };
 
-const STATUS_STYLES: Record<AccountStatus, { label: string; className: string }> = {
+const STATUS_STYLES: Record<AccountStatus, { label: string; className: string; dot: string }> = {
   [AccountStatus.Active]: {
     label: "Đang hoạt động",
     className: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    dot: "bg-emerald-500",
   },
   [AccountStatus.PendingEmailVerification]: {
     label: "Chờ email",
     className: "bg-sky-50 text-sky-700 border-sky-100",
+    dot: "bg-sky-500",
   },
   [AccountStatus.PendingIdentityVerification]: {
     label: "Chờ xác thực",
     className: "bg-amber-50 text-amber-700 border-amber-100",
+    dot: "bg-amber-500",
   },
   [AccountStatus.Suspended]: {
     label: "Tạm khóa",
     className: "bg-orange-50 text-orange-700 border-orange-100",
+    dot: "bg-orange-500",
   },
   [AccountStatus.Banned]: {
     label: "Bị cấm",
     className: "bg-red-50 text-red-700 border-red-100",
+    dot: "bg-red-500",
   },
 };
 
@@ -130,13 +136,17 @@ function getPageNumbers(currentPage: number, totalPages: number): number[] {
 
 function StatusBadge({ status }: { status: AccountStatus }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES[AccountStatus.Active];
+  const isActive = status === AccountStatus.Active;
   return (
     <span
       className={cn(
-        "inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wider",
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wider",
         style.className,
       )}
     >
+      <span
+        className={cn("w-2 h-2 rounded-full shrink-0", style.dot, isActive && "animate-glow-pulse")}
+      />
       {style.label}
     </span>
   );
@@ -148,14 +158,14 @@ function UserAvatar({ user }: { user: Pick<ManagerUserListItem, "name" | "imgUrl
       <div
         aria-label={user.name}
         role="img"
-        className="h-11 w-11 rounded-2xl border border-gray-100 bg-cover bg-center"
+        className="h-12 w-12 rounded-2xl border border-gray-100 bg-cover bg-center shadow-sm"
         style={{ backgroundImage: `url("${user.imgUrl}")` }}
       />
     );
   }
 
   return (
-    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-100 bg-orange-50 text-base font-black uppercase text-[#D35400]">
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E86A33]/20 bg-gradient-to-br from-[#D35400]/10 to-[#E86A33]/5 text-base font-black uppercase text-[#D35400] shadow-sm">
       {(user.name || "?").charAt(0)}
     </div>
   );
@@ -259,12 +269,29 @@ export default function ManagerUsersPage() {
   const stats = useMemo(() => {
     return [
       {
-        label: "Sinh viên đang hoạt động",
+        label: "Sinh viên hoạt động",
         value: statCounts.activeStudents,
-        hint: "Tổng tất cả trang",
+        hint: "Tài khoản đã xác thực",
+        color: "from-emerald-500 to-teal-600",
+        shadow: "shadow-emerald-500/25",
+        icon: Users,
       },
-      { label: "Tài khoản nhân viên", value: statCounts.staffAccounts, hint: "Tổng tất cả trang" },
-      { label: "Người dùng bị khóa", value: statCounts.lockedUsers, hint: "Tổng tất cả trang" },
+      {
+        label: "Nhân viên",
+        value: statCounts.staffAccounts,
+        hint: "Tài khoản nhân viên",
+        color: "from-sky-500 to-blue-600",
+        shadow: "shadow-sky-500/25",
+        icon: UserCog,
+      },
+      {
+        label: "Bị khóa / cấm",
+        value: statCounts.lockedUsers,
+        hint: "Tạm khóa + bị cấm",
+        color: "from-rose-500 to-red-600",
+        shadow: "shadow-rose-500/25",
+        icon: Ban,
+      },
     ];
   }, [statCounts]);
 
@@ -300,7 +327,7 @@ export default function ManagerUsersPage() {
     const isBan = action === "ban";
     const result = await Swal.fire({
       title: isBan ? "Cấm tài khoản?" : "Tạm khóa tài khoản?",
-      text: `${user.name} sẽ bị ${isBan ? "cấm vĩnh viễn" : "tạm khóa"} và refresh token đang hoạt động sẽ bị thu hồi.`,
+      html: `<span style="font-size:14px;color:#666">${user.name} sẽ bị <strong>${isBan ? "cấm vĩnh viễn" : "tạm khóa"}</strong> và refresh token đang hoạt động sẽ bị thu hồi.</span>`,
       input: "textarea",
       inputLabel: "Lý do",
       inputPlaceholder: "Nhập lý do xử lý tài khoản...",
@@ -309,6 +336,7 @@ export default function ManagerUsersPage() {
       confirmButtonText: isBan ? "Cấm tài khoản" : "Tạm khóa",
       cancelButtonText: "Hủy",
       confirmButtonColor: isBan ? "#dc2626" : "#D35400",
+      customClass: { popup: "rounded-3xl" },
     });
 
     if (!result.isConfirmed || !result.value?.trim()) return;
@@ -331,12 +359,13 @@ export default function ManagerUsersPage() {
   const handleReactivate = async (user: ManagerUserListItem) => {
     const result = await Swal.fire({
       title: "Mở lại tài khoản?",
-      text: `${user.name} sẽ được chuyển về trạng thái đang hoạt động.`,
+      html: `<span style="font-size:14px;color:#666">${user.name} sẽ được chuyển về trạng thái đang hoạt động.</span>`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Mở lại",
       cancelButtonText: "Hủy",
       confirmButtonColor: "#16a34a",
+      customClass: { popup: "rounded-3xl" },
     });
 
     if (!result.isConfirmed) return;
@@ -353,50 +382,98 @@ export default function ManagerUsersPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-4xl font-extrabold text-gray-900">Quản lý người dùng</h1>
-        <p className="text-lg text-gray-500 mt-1.5">
-          Theo dõi tài khoản, xác thực, trạng thái khóa và các quy trình hỗ trợ người dùng.
-        </p>
+    <div className="space-y-8 animate-fade-in pb-16">
+      {/* ── Header ── */}
+      <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#D35400] to-[#E86A33] flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0 animate-float">
+            <Users className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900">
+              Quản lý người dùng
+            </h1>
+            <p className="text-base text-gray-500 mt-0.5">
+              Theo dõi tài khoản, xác thực, trạng thái khóa và các quy trình hỗ trợ
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            setLoading(true);
+            Promise.all([fetchUsers(), fetchStats()]).finally(() => setLoading(false));
+          }}
+          className="p-3 border border-gray-200/60 hover:border-gray-300 text-gray-500 hover:text-gray-700 rounded-2xl hover:bg-gray-50 transition-all shadow-xs active:scale-95 shrink-0"
+          title="Làm mới"
+        >
+          <RefreshCw className={cn("w-5 h-5", loading && "animate-spin")} />
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {stats.map((stat) => (
+      {/* ── Stat Cards ── */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        {stats.map((stat, idx) => (
           <div
             key={stat.label}
-            className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm"
+            className={cn(
+              "relative rounded-2xl border border-gray-100/80 bg-white p-6 transition-all duration-300 hover:shadow-lg overflow-hidden card-3d animate-slide-up-3d",
+              `style={{ animationDelay: "${idx * 100}ms" } as React.CSSProperties}`,
+            )}
+            style={{ animationDelay: `${idx * 100}ms` } as React.CSSProperties}
           >
-            <p className="text-xs font-black uppercase tracking-wider text-gray-400">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br text-white shadow-lg",
+                  stat.color,
+                  stat.shadow,
+                )}
+              >
+                <stat.icon className="w-6 h-6" />
+              </div>
+            </div>
+            <p className="text-4xl font-extrabold text-gray-900">{formatCurrency(stat.value)}</p>
+            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">
               {stat.label}
             </p>
-            <p className="mt-2 text-3xl font-black text-gray-900">{stat.value}</p>
-            <p className="mt-2 text-sm font-semibold text-gray-400">{stat.hint}</p>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">{stat.hint}</p>
+            <div
+              className={cn(
+                "absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 bg-gradient-to-br -translate-y-8 translate-x-8",
+                stat.color,
+              )}
+            />
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {userWorkflows.map((workflow) => (
+      {/* ── Workflow Cards ── */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {userWorkflows.map((workflow, idx) => (
           <Link
             key={workflow.href}
             href={workflow.href}
-            className="group rounded-3xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:border-orange-200 hover:shadow-md"
+            className="group relative rounded-2xl border border-gray-100/80 bg-white p-6 transition-all duration-300 hover:shadow-lg hover:border-orange-200/60 overflow-hidden card-3d animate-slide-up-3d"
+            style={{ animationDelay: `${(idx + 3) * 100}ms` } as React.CSSProperties}
           >
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-gray-50 text-gray-500 transition-colors group-hover:border-orange-100 group-hover:bg-orange-50 group-hover:text-[#D35400]">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-gray-50 text-gray-500 transition-all duration-300 group-hover:border-[#E86A33]/20 group-hover:bg-gradient-to-br group-hover:from-[#D35400]/10 group-hover:to-[#E86A33]/5 group-hover:text-[#D35400] group-hover:shadow-md group-hover:shadow-orange-500/10">
                 <workflow.icon className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-gray-900">{workflow.title}</h3>
+                <h3 className="text-lg font-black text-gray-900 group-hover:text-[#D35400] transition-colors">
+                  {workflow.title}
+                </h3>
                 <p className="mt-1 text-sm font-medium text-gray-500">{workflow.description}</p>
               </div>
             </div>
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] pointer-events-none" />
           </Link>
         ))}
       </div>
 
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      {/* ── Search & Filters ── */}
+      <div className="rounded-2xl border border-gray-100/80 bg-white p-5 shadow-xs">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -406,53 +483,60 @@ export default function ManagerUsersPage() {
                 setSearch(event.target.value);
                 setPageNumber(1);
               }}
-              placeholder="Tìm theo tên, email hoặc mã sinh viên"
-              className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-12 pr-4 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15"
+              placeholder="Tìm theo tên, email hoặc mã sinh viên..."
+              className="h-12 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-12 pr-4 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
             />
           </div>
-          <select
-            value={roleFilter}
-            onChange={(event) => {
-              setRoleFilter(event.target.value);
-              setPageNumber(1);
-            }}
-            className="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-52"
-          >
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPageNumber(1);
-            }}
-            className="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-64"
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-3">
+            <select
+              value={roleFilter}
+              onChange={(event) => {
+                setRoleFilter(event.target.value);
+                setPageNumber(1);
+              }}
+              className="h-12 rounded-2xl border border-gray-200/80 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-52"
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPageNumber(1);
+              }}
+              className="h-12 rounded-2xl border border-gray-200/80 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-64"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
+      {/* ── Table ── */}
       {loading ? (
-        <div className="flex h-[40vh] flex-col items-center justify-center gap-3">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#D35400] border-t-transparent" />
+        <div className="flex h-[40vh] flex-col items-center justify-center gap-4">
+          <div className="relative">
+            <div className="h-14 w-14 animate-spin rounded-full border-4 border-[#D35400]/20 border-t-[#D35400]" />
+          </div>
           <p className="text-base font-bold text-gray-500">Đang tải danh sách người dùng...</p>
         </div>
       ) : users.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-gray-200/60 bg-white p-16 text-center shadow-xs">
-          <Users className="h-12 w-12 text-gray-300" />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-gray-200/60 bg-white p-16 text-center shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+            <Users className="h-8 w-8 text-gray-300" />
+          </div>
           <p className="text-lg font-bold text-gray-400">Không tìm thấy người dùng phù hợp.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-gray-100/80 bg-white shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead className="border-b border-gray-100 bg-gray-50/70">
@@ -477,11 +561,15 @@ export default function ManagerUsersPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {users.map((user) => (
-                  <tr key={user.id} className="transition-colors hover:bg-orange-50/30">
+              <tbody className="divide-y divide-gray-100/80">
+                {users.map((user, idx) => (
+                  <tr
+                    key={user.id}
+                    className="transition-all duration-200 hover:bg-orange-50/30 animate-fade-in"
+                    style={{ animationDelay: `${idx * 40}ms` } as React.CSSProperties}
+                  >
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3.5">
                         <UserAvatar user={user} />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-black text-gray-900">{user.name}</p>
@@ -489,13 +577,15 @@ export default function ManagerUsersPage() {
                             {user.email}
                           </p>
                           <p className="text-xs font-bold text-gray-400">
-                            {user.studentId || user.phoneNumber || "Chưa có mã sinh viên"}
+                            {user.studentId || user.phoneNumber || "—"}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-700">
-                      {ROLE_LABELS[user.role] || "Không rõ"}
+                    <td className="px-6 py-4">
+                      <span className="inline-flex rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-gray-600">
+                        {ROLE_LABELS[user.role] || "Không rõ"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={user.status} />
@@ -510,7 +600,7 @@ export default function ManagerUsersPage() {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => openDetails(user.id)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition-colors hover:bg-orange-50 hover:text-[#D35400]"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition-all hover:bg-[#D35400]/10 hover:text-[#D35400] hover:shadow-sm"
                           title="Xem chi tiết"
                         >
                           <Eye className="h-4 w-4" />
@@ -518,7 +608,7 @@ export default function ManagerUsersPage() {
                         {user.status === AccountStatus.Suspended ? (
                           <button
                             onClick={() => handleReactivate(user)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors hover:bg-emerald-100"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-all hover:bg-emerald-100 hover:shadow-sm"
                             title="Mở lại tài khoản"
                           >
                             <RotateCcw className="h-4 w-4" />
@@ -527,7 +617,7 @@ export default function ManagerUsersPage() {
                           <button
                             onClick={() => handleLockAction(user, "suspend")}
                             disabled={user.status === AccountStatus.Banned}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition-all hover:bg-orange-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                             title="Tạm khóa tài khoản"
                           >
                             <LockKeyhole className="h-4 w-4" />
@@ -536,7 +626,7 @@ export default function ManagerUsersPage() {
                         <button
                           onClick={() => handleLockAction(user, "ban")}
                           disabled={user.status === AccountStatus.Banned}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-all hover:bg-red-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                           title="Cấm tài khoản"
                         >
                           <Ban className="h-4 w-4" />
@@ -548,6 +638,7 @@ export default function ManagerUsersPage() {
               </tbody>
             </table>
           </div>
+          {/* ── Pagination ── */}
           <div className="flex flex-col gap-4 border-t border-gray-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-semibold text-gray-500">
               Hiển thị{" "}
@@ -562,7 +653,7 @@ export default function ManagerUsersPage() {
               <button
                 onClick={() => setPageNumber((page) => Math.max(1, page - 1))}
                 disabled={!pagination.hasPreviousPage || loading}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-[#D35400] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-all hover:border-[#D35400]/30 hover:bg-[#D35400]/5 hover:text-[#D35400] disabled:cursor-not-allowed disabled:opacity-40"
                 title="Trang trước"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -572,7 +663,7 @@ export default function ManagerUsersPage() {
                 <>
                   <button
                     onClick={() => setPageNumber(1)}
-                    className="hidden h-10 min-w-10 rounded-xl border border-gray-200 px-3 text-sm font-black text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-[#D35400] sm:inline-flex sm:items-center sm:justify-center"
+                    className="hidden h-10 min-w-10 rounded-xl border border-gray-200 px-3 text-sm font-black text-gray-600 transition-all hover:border-[#D35400]/30 hover:bg-[#D35400]/5 hover:text-[#D35400] sm:inline-flex sm:items-center sm:justify-center"
                   >
                     1
                   </button>
@@ -588,10 +679,10 @@ export default function ManagerUsersPage() {
                   onClick={() => setPageNumber(page)}
                   disabled={loading}
                   className={cn(
-                    "inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                    "inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-black transition-all disabled:cursor-not-allowed disabled:opacity-50",
                     page === pageNumber
-                      ? "border-[#D35400] bg-[#D35400] text-white"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50 hover:text-[#D35400]",
+                      ? "border-[#D35400] bg-[#D35400] text-white shadow-md shadow-orange-500/25"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-[#D35400]/30 hover:bg-[#D35400]/5 hover:text-[#D35400]",
                   )}
                 >
                   {page}
@@ -605,7 +696,7 @@ export default function ManagerUsersPage() {
                   </span>
                   <button
                     onClick={() => setPageNumber(pagination.totalPages)}
-                    className="hidden h-10 min-w-10 rounded-xl border border-gray-200 px-3 text-sm font-black text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-[#D35400] sm:inline-flex sm:items-center sm:justify-center"
+                    className="hidden h-10 min-w-10 rounded-xl border border-gray-200 px-3 text-sm font-black text-gray-600 transition-all hover:border-[#D35400]/30 hover:bg-[#D35400]/5 hover:text-[#D35400] sm:inline-flex sm:items-center sm:justify-center"
                   >
                     {pagination.totalPages}
                   </button>
@@ -615,7 +706,7 @@ export default function ManagerUsersPage() {
               <button
                 onClick={() => setPageNumber((page) => Math.min(pagination.totalPages, page + 1))}
                 disabled={!pagination.hasNextPage || loading}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-[#D35400] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-all hover:border-[#D35400]/30 hover:bg-[#D35400]/5 hover:text-[#D35400] disabled:cursor-not-allowed disabled:opacity-40"
                 title="Trang sau"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -625,6 +716,7 @@ export default function ManagerUsersPage() {
         </div>
       )}
 
+      {/* ── Detail Modal ── */}
       <Modal
         isOpen={Boolean(detailsId)}
         onClose={() => {
@@ -636,7 +728,7 @@ export default function ManagerUsersPage() {
       >
         {detailsLoading ? (
           <div className="flex h-56 items-center justify-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D35400] border-t-transparent" />
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D35400]/20 border-t-[#D35400]" />
           </div>
         ) : details ? (
           <div className="space-y-6">
@@ -657,7 +749,7 @@ export default function ManagerUsersPage() {
                 {details.status === AccountStatus.Suspended ? (
                   <button
                     onClick={() => handleReactivate(details)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 transition-colors hover:bg-emerald-100"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 transition-all hover:bg-emerald-100 hover:shadow-sm"
                   >
                     <RotateCcw className="h-4 w-4" />
                     Mở lại
@@ -666,7 +758,7 @@ export default function ManagerUsersPage() {
                   <button
                     onClick={() => handleLockAction(details, "suspend")}
                     disabled={details.status === AccountStatus.Banned}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-black text-orange-700 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-black text-orange-700 transition-all hover:bg-orange-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <LockKeyhole className="h-4 w-4" />
                     Tạm khóa
@@ -675,7 +767,7 @@ export default function ManagerUsersPage() {
                 <button
                   onClick={() => handleLockAction(details, "ban")}
                   disabled={details.status === AccountStatus.Banned}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition-all hover:bg-red-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Ban className="h-4 w-4" />
                   Cấm
@@ -684,11 +776,13 @@ export default function ManagerUsersPage() {
             </div>
 
             {details.statusReason && (
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+              <div className="rounded-2xl border border-orange-200/60 bg-orange-50 p-4">
                 <p className="text-xs font-black uppercase tracking-wider text-orange-500">
-                  Lý do khóa hiện tại
+                  Lý do xử lý
                 </p>
-                <p className="mt-1 text-sm font-semibold text-orange-800">{details.statusReason}</p>
+                <p className="mt-1.5 text-sm font-semibold text-orange-800">
+                  {details.statusReason}
+                </p>
               </div>
             )}
 
@@ -704,16 +798,16 @@ export default function ManagerUsersPage() {
               <InfoItem
                 icon={WalletCards}
                 label="Số dư"
-                value={formatCurrency(details.balanceAmount)}
+                value={`${formatCurrency(details.balanceAmount)}đ`}
               />
               <InfoItem
                 icon={CheckCircle2}
-                label="Email verified"
+                label="Xác thực email"
                 value={details.emailVerified ? "Đã xác thực" : "Chưa xác thực"}
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm font-semibold text-gray-600 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 bg-gray-50/80 p-4 text-sm font-semibold text-gray-600 md:grid-cols-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-gray-400">
                   Ngày tạo
@@ -750,8 +844,8 @@ function InfoItem({
   value: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-gray-500">
+    <div className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 transition-all hover:shadow-sm hover:border-gray-200/80">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#D35400]/5 text-[#D35400]">
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0">

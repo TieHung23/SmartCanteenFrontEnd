@@ -110,6 +110,27 @@ export const API_ENDPOINTS = {
   ROBOT: {
     SERVING_JOBS: "/api/robot/serving-jobs",
   },
+  MANAGER: {
+    ROBOT_ARMS: {
+      LIST: "/api/manager/robot-arms",
+      CREATE: "/api/manager/robot-arms",
+      UPDATE: (id: string) => `/api/manager/robot-arms/${id}`,
+      DELETE: (id: string) => `/api/manager/robot-arms/${id}`,
+      MAINTENANCE: (id: string) => `/api/manager/robot-arms/${id}/maintenance`,
+    },
+    TRAYS: {
+      LIST: "/api/manager/trays",
+      CREATE: "/api/manager/trays",
+      FORCE_RELEASE: (id: string) => `/api/manager/trays/${id}/force-release`,
+      RETIRE: (id: string) => `/api/manager/trays/${id}/retire`,
+    },
+    PICKUP_SLOTS: {
+      LIST: "/api/manager/pickup-slots",
+      CREATE: "/api/manager/pickup-slots",
+      FORCE_CLEAR: (id: string) => `/api/manager/pickup-slots/${id}/force-clear`,
+      RETIRE: (id: string) => `/api/manager/pickup-slots/${id}/retire`,
+    },
+  },
   ADMIN: {
     LOGS: {
       LIST: "/api/admin/logs",

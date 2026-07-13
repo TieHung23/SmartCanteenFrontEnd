@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 import { Plus_Jakarta_Sans } from "next/font/google";
@@ -82,6 +82,8 @@ const MANAGER_MENU_GROUPS: MenuGroup[] = [
     icon: Cpu,
     items: [
       { name: "Robot", path: "/manager/robot", icon: Cpu },
+      { name: "Khay (Trays)", path: "/manager/trays", icon: Package },
+      { name: "Ô Kệ (Slots)", path: "/manager/pickup-slots", icon: Package },
       { name: "Báo Cáo", path: "/manager/reports", icon: TrendingUp },
       { name: "Cài Đặt", path: "/manager/settings", icon: Settings },
     ],
@@ -90,8 +92,16 @@ const MANAGER_MENU_GROUPS: MenuGroup[] = [
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [loading, isAuthenticated, router]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const activeGroup = MANAGER_MENU_GROUPS.find((g) =>
       g.items.some((item) =>
@@ -129,6 +139,23 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   const displayName = user?.name || "Quản Lý";
   const displayEmail = user?.email || "manager@canteen.vn";
   const avatarUrl = user?.imgUrl || null;
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-[#D35400]/20 border-t-[#D35400] rounded-full animate-spin" />
+          </div>
+          <p className="text-base font-bold text-gray-500">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect handled by useEffect above
+  if (!isAuthenticated) return null;
 
   return (
     <div

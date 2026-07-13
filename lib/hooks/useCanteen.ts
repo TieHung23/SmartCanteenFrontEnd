@@ -6,6 +6,7 @@ import { categoryService } from "@/services/category.service";
 import { sessionService, type PaginatedList } from "@/services/session.service";
 import { orderService } from "@/services/order.service";
 import type { OrderListItem, OrderStatus } from "@/types/order.types";
+import { getAccessToken } from "@/lib/auth-token-storage";
 
 const EMPTY_PAGE = <T>(): PaginatedList<T> => ({
   items: [],
@@ -34,6 +35,7 @@ export function useAllDishes() {
   return useQuery({
     queryKey: ["dishes"],
     queryFn: () => dishService.getDishes({ isActive: true, pageSize: 100 }),
+    enabled: !!getAccessToken(),
     staleTime: 2 * 60 * 1000,
     retry: 3,
     retryDelay: RETRY_DELAY,
@@ -44,6 +46,7 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: () => categoryService.getAll(),
+    enabled: !!getAccessToken(),
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: RETRY_DELAY,
@@ -54,6 +57,7 @@ export function useMyOrders(params?: { pageSize?: number; status?: OrderStatus }
   return useQuery({
     queryKey: ["my-orders", params?.pageSize, params?.status],
     queryFn: () => orderService.getMyOrders(params),
+    enabled: !!getAccessToken(),
     staleTime: 10_000,
     retry: 2,
     retryDelay: RETRY_DELAY,
@@ -95,6 +99,7 @@ export function useActiveOrder() {
 
       return ready.items?.[0] ?? preparing.items?.[0] ?? pending.items?.[0] ?? null;
     },
+    enabled: !!getAccessToken(),
     staleTime: 15_000,
     retry: 2,
     retryDelay: RETRY_DELAY,
