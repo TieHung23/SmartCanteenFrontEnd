@@ -839,12 +839,16 @@ export default function ProfilePage() {
                               1: "Sẵn sàng",
                               2: "Hoàn thành",
                               3: "Đã hủy",
+                              4: "Đang chuẩn bị",
+                              7: "Quá hạn",
                             };
                             const orderStatusColors: Record<number, string> = {
                               0: "text-amber-600 bg-amber-50",
                               1: "text-emerald-600 bg-emerald-50",
                               2: "text-indigo-600 bg-indigo-50",
                               3: "text-red-600 bg-red-50",
+                              4: "text-blue-600 bg-blue-50",
+                              7: "text-gray-500 bg-gray-100",
                             };
                             return (
                               <div

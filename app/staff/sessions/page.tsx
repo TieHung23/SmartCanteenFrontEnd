@@ -298,7 +298,11 @@ export default function StaffSessionsPage() {
 
     setIsSubmitting(true);
     try {
-      const preparedDishes = (session.dishes || []).map((d) => ({
+      // Fetch session detail to get the correct dish list
+      const detail = await sessionService.getSessionDetail(activeSessionId);
+      // Use all dishes from the session detail (they are the session's actual dishes)
+      const sessionDishes = detail.dishes || [];
+      const preparedDishes = sessionDishes.map((d) => ({
         dishId: d.dishId ?? "",
         preparedQuantity: preparedQuantities[d.dishId ?? ""] ?? 0,
       }));
@@ -362,29 +366,40 @@ export default function StaffSessionsPage() {
 
   const filteredSessions = useMemo(() => {
     const q = globalQuery.toLowerCase().trim();
-    if (!q) return sessions;
-    return sessions.filter((m) => {
-      const name = (m.name || "").toLowerCase();
-      const desc = (m.description || "").toLowerCase();
-      const dishesText = (m.dishes || [])
-        .map((d: SessionDishItem) => {
-          const dishId = (d.dishId || "").toLowerCase();
-          const dishInfo = dishesMap[dishId];
-          return (dishInfo?.name || "").toLowerCase();
-        })
-        .join(" ");
-      const categoriesText = (m.mealTemplates || [])
-        .flatMap((t: TemplateItem) =>
-          (t.settings || []).map((s: TemplateSetting) => {
-            const cateId = (s.categoryId || "").toLowerCase();
-            const cate = categoriesMap[cateId];
-            return (cate?.name || cate?.Name || "").toLowerCase();
-          }),
-        )
-        .join(" ");
-      return (
-        name.includes(q) || desc.includes(q) || dishesText.includes(q) || categoriesText.includes(q)
-      );
+    const result = !q
+      ? sessions
+      : sessions.filter((m) => {
+          const name = (m.name || "").toLowerCase();
+          const desc = (m.description || "").toLowerCase();
+          const dishesText = (m.dishes || [])
+            .map((d: SessionDishItem) => {
+              const dishId = (d.dishId || "").toLowerCase();
+              const dishInfo = dishesMap[dishId];
+              return (dishInfo?.name || "").toLowerCase();
+            })
+            .join(" ");
+          const categoriesText = (m.mealTemplates || [])
+            .flatMap((t: TemplateItem) =>
+              (t.settings || []).map((s: TemplateSetting) => {
+                const cateId = (s.categoryId || "").toLowerCase();
+                const cate = categoriesMap[cateId];
+                return (cate?.name || cate?.Name || "").toLowerCase();
+              }),
+            )
+            .join(" ");
+          return (
+            name.includes(q) ||
+            desc.includes(q) ||
+            dishesText.includes(q) ||
+            categoriesText.includes(q)
+          );
+        });
+    return [...result].sort((a, b) => {
+      const aLive = isSessionLive(a);
+      const bLive = isSessionLive(b);
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      return 0;
     });
   }, [sessions, globalQuery, categoriesMap, dishesMap]);
 

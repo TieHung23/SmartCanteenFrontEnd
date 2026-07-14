@@ -122,6 +122,7 @@ export const verificationService = {
   adminList: async (params?: {
     pageNumber?: number;
     pageSize?: number;
+    status?: number;
   }): Promise<PaginatedList<AdminVerificationListItem>> => {
     const response = (await apiClient.get<ApiResponse<PaginatedList<AdminVerificationListItem>>>(
       API_ENDPOINTS.VERIFICATION.ADMIN_LIST,

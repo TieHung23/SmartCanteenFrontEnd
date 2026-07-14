@@ -78,4 +78,25 @@ export const orderService = {
     )) as unknown as ApiResponse<{ message: string }>;
     return response.value;
   },
+
+  getManagerOrdersBySession: async (
+    sessionId: string,
+    params?: {
+      pageSize?: number;
+      pageNumber?: number;
+      status?: OrderStatus;
+    },
+  ): Promise<PaginatedList<OrderListItem>> => {
+    const queryParams: Record<string, string | number | undefined> = {};
+    if (params) {
+      if (params.pageSize) queryParams.PageSize = params.pageSize;
+      if (params.pageNumber) queryParams.PageNumber = params.pageNumber;
+      if (params.status !== undefined) queryParams.Status = params.status;
+    }
+    const response = (await apiClient.get<ApiResponse<PaginatedList<OrderListItem>>>(
+      API_ENDPOINTS.ORDER.MANAGER_BY_SESSION(sessionId),
+      { params: queryParams },
+    )) as unknown as ApiResponse<PaginatedList<OrderListItem>>;
+    return response.value;
+  },
 };

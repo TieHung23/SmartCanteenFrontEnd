@@ -118,11 +118,25 @@ export default function SessionPage() {
       return [];
     }
 
-    return items.filter((session: SessionListItem) => {
-      if (!session || !session.availableFrom) return false;
-      const sessionDate = new Date(session.availableFrom);
-      return isSameDay(sessionDate, selectedDate);
-    });
+    return items
+      .filter((session: SessionListItem) => {
+        if (!session || !session.availableFrom) return false;
+        const sessionDate = new Date(session.availableFrom);
+        return isSameDay(sessionDate, selectedDate);
+      })
+      .sort((a, b) => {
+        const aActive =
+          !a.isFinalized &&
+          !isSessionExpired(a.availableTo) &&
+          new Date(a.availableForOrder) <= new Date();
+        const bActive =
+          !b.isFinalized &&
+          !isSessionExpired(b.availableTo) &&
+          new Date(b.availableForOrder) <= new Date();
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        return 0;
+      });
   }, [sessionsData, isSuccess, selectedDate]);
 
   const daysWithSessions = useMemo(() => {

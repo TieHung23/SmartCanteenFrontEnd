@@ -23,10 +23,20 @@ interface BlockedAccountResponse {
   errorCode?: string;
 }
 
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/verification",
+  "/suspended",
+];
+
 function redirectToLogin() {
   if (typeof window === "undefined") return;
   const path = window.location.pathname;
-  if (path === "/login" || path === "/suspended" || path.startsWith("/auth/")) return;
+  if (PUBLIC_PATHS.includes(path)) return;
   window.location.href = "/login";
 }
 
@@ -115,6 +125,12 @@ apiClient.interceptors.response.use(
           clearAuthTokens();
           redirectToLogin();
         }
+        return Promise.reject(error);
+      }
+
+      // Nếu request không có Authorization header nghĩa là user chưa đăng nhập
+      // thì không redirect, chỉ reject để component xử lý lỗi
+      if (!originalRequest.headers?.Authorization) {
         return Promise.reject(error);
       }
 

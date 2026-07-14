@@ -24,6 +24,8 @@ const ORDER_LABEL: Record<number, string> = {
   1: "Đơn hàng - Chờ lấy",
   2: "Đơn hàng - Hoàn thành",
   3: "Đơn hàng - Đã hủy",
+  4: "Đơn hàng - Đang chuẩn bị",
+  7: "Đơn hàng - Quá hạn",
 };
 
 const ORDER_STATUS_COLOR: Record<number, string> = {
@@ -31,6 +33,8 @@ const ORDER_STATUS_COLOR: Record<number, string> = {
   1: "text-emerald-600",
   2: "text-indigo-600",
   3: "text-red-500",
+  4: "text-blue-600",
+  7: "text-gray-500",
 };
 
 const TX_KEY = "sc_topup_records";

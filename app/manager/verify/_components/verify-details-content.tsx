@@ -23,6 +23,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
+  const [actionDone, setActionDone] = useState<"approved" | "rejected" | null>(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -39,6 +40,15 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
     fetchDetail();
   }, [requestId]);
 
+  const refreshDetail = async () => {
+    try {
+      const data = await verificationService.adminGetDetail(requestId);
+      setDetail(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleApprove = async () => {
     const result = await Swal.fire({
       title: "Xác nhận phê duyệt?",
@@ -51,7 +61,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
       cancelButtonText: "Hủy",
       background: "#ffffff",
       customClass: {
-        popup: "rounded-3xl border border-gray-150 shadow-md",
+        popup: "rounded-3xl border border-gray-200 shadow-md",
         title: "text-lg font-bold text-gray-900",
       },
     });
@@ -60,6 +70,8 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
     setActionLoading(true);
     try {
       await verificationService.adminApprove(requestId);
+      await refreshDetail();
+      setActionDone("approved");
       Swal.fire({
         title: "Đã phê duyệt!",
         text: "Hồ sơ sinh viên đã được phê duyệt thành công.",
@@ -70,7 +82,6 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
         timer: 3000,
         timerProgressBar: true,
       });
-      onSuccess();
     } catch (err) {
       console.error(err);
       Swal.fire({
@@ -98,7 +109,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
       cancelButtonText: "Hủy",
       background: "#ffffff",
       customClass: {
-        popup: "rounded-3xl border border-gray-150 shadow-md",
+        popup: "rounded-3xl border border-gray-200 shadow-md",
         title: "text-lg font-bold text-gray-900",
       },
     });
@@ -107,6 +118,8 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
     setActionLoading(true);
     try {
       await verificationService.adminReject(requestId, rejectReason.trim());
+      await refreshDetail();
+      setActionDone("rejected");
       Swal.fire({
         title: "Đã từ chối!",
         text: "Yêu cầu xác thực đã bị từ chối.",
@@ -117,7 +130,6 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
         timer: 3000,
         timerProgressBar: true,
       });
-      onSuccess();
     } catch (err) {
       console.error(err);
       Swal.fire({
@@ -142,18 +154,79 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
 
   if (!detail) {
     return (
-      <div className="bg-red-50 border border-red-200/50 text-red-700 px-5 py-4 rounded-3xl text-sm font-bold shadow-xs">
-        ⚠️ Yêu cầu xác thực không tồn tại.
+      <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-3xl text-sm font-bold shadow-xs">
+        Yêu cầu xác thực không tồn tại.
       </div>
     );
   }
 
+  const isResolved = detail.status === 2 || detail.status === 3 || detail.status === 4;
+  const statusLabel = STATUS_LABEL[detail.status as keyof typeof STATUS_LABEL] || "Unknown";
+
   return (
     <div className="space-y-6">
+      {/* Result Banner after action */}
+      {actionDone && (
+        <div
+          className={cn(
+            "rounded-3xl p-6 border animate-fade-in",
+            actionDone === "approved" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200",
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0",
+                actionDone === "approved"
+                  ? "bg-green-100 text-green-600"
+                  : "bg-red-100 text-red-600",
+              )}
+            >
+              {actionDone === "approved" ? (
+                <CheckCircle2 className="w-7 h-7" />
+              ) : (
+                <XCircle className="w-7 h-7" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h3
+                className={cn(
+                  "text-lg font-black",
+                  actionDone === "approved" ? "text-green-800" : "text-red-800",
+                )}
+              >
+                {actionDone === "approved" ? "Đã phê duyệt thành công!" : "Đã từ chối yêu cầu"}
+              </h3>
+              <p
+                className={cn(
+                  "text-sm font-semibold mt-0.5",
+                  actionDone === "approved" ? "text-green-600" : "text-red-600",
+                )}
+              >
+                Hồ sơ của <strong>{detail.userName}</strong> đã được xử lý.
+                {actionDone === "rejected" && (
+                  <span className="block mt-1 italic text-red-500">
+                    Lý do: &ldquo;{rejectReason}&rdquo;
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={onSuccess}
+              className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              Đóng & Quay lại danh sách
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* User Info Column */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-3xl border border-gray-200/30 p-5 shadow-3xs">
+          <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-xs">
             <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3 mb-4">
               <User className="w-5 h-5 text-[#D35400]" />
               <h2 className="text-lg font-bold text-gray-900">Thông tin cá nhân</h2>
@@ -198,31 +271,43 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
                   {new Date(detail.submittedAt).toLocaleString("vi-VN")}
                 </p>
               </div>
+              {detail.reviewedAt && (
+                <div className="py-3">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Thời gian xử lý
+                  </p>
+                  <p className="font-semibold text-gray-600 mt-1">
+                    {new Date(detail.reviewedAt).toLocaleString("vi-VN")}
+                  </p>
+                </div>
+              )}
               <div className="py-3">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                   Trạng thái hồ sơ
                 </p>
                 <span
                   className={cn(
-                    "inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                    "inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
                     detail.status === 1 || detail.status === 0
-                      ? "bg-amber-50 text-amber-800 border border-amber-200/30"
+                      ? "bg-yellow-50 text-yellow-800 border-yellow-200"
                       : detail.status === 2
-                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200/30"
+                        ? "bg-green-50 text-green-800 border-green-200"
                         : detail.status === 3
-                          ? "bg-red-50 text-red-800 border border-red-200/30"
-                          : "bg-gray-50 text-gray-800 border border-gray-200/30",
+                          ? "bg-red-50 text-red-800 border-red-200"
+                          : "bg-gray-50 text-gray-800 border-gray-200",
                   )}
                 >
-                  {STATUS_LABEL[detail.status as keyof typeof STATUS_LABEL] || "Unknown"}
+                  {statusLabel}
                 </span>
               </div>
               {detail.rejectionReason && (
-                <div className="pt-3">
+                <div className="py-3 pt-4">
                   <p className="text-xs font-bold text-red-500 uppercase tracking-wider">
                     Lý do từ chối
                   </p>
-                  <p className="text-red-650 mt-1 italic">&ldquo;{detail.rejectionReason}&rdquo;</p>
+                  <p className="text-red-600 bg-red-50 border border-red-200 p-3 rounded-2xl mt-2 italic">
+                    &ldquo;{detail.rejectionReason}&rdquo;
+                  </p>
                 </div>
               )}
             </div>
@@ -231,7 +316,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
 
         {/* Uploaded Documents Column */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-3xl border border-gray-200/30 p-5 space-y-3.5 shadow-3xs">
+          <div className="bg-white rounded-3xl border border-gray-200 p-5 space-y-3.5 shadow-xs">
             <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
               <FileText className="w-5 h-5 text-[#D35400]" />
               <h2 className="text-lg font-bold text-gray-900">
@@ -248,10 +333,10 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
                 {detail.documents.map((doc) => (
                   <div
                     key={doc.id}
-                    className="border border-gray-200/20 rounded-2xl p-4 bg-gray-50/50 flex flex-col justify-between"
+                    className="border border-gray-200 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 border-b border-gray-100/40 pb-2 mb-3">
+                      <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2 mb-3">
                         <span className="text-sm font-bold text-gray-800">
                           {DOCUMENT_TYPE_LABEL[
                             doc.documentType as keyof typeof DOCUMENT_TYPE_LABEL
@@ -267,7 +352,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
                       </div>
                       <div
                         onClick={() => setActivePhoto(doc.cloudinaryUrl)}
-                        className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-white border border-gray-200/30 cursor-zoom-in hover:opacity-95 transition-all duration-300"
+                        className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-white border border-gray-200 cursor-zoom-in hover:opacity-95 transition-all duration-300"
                       >
                         <Image
                           src={doc.cloudinaryUrl}
@@ -287,9 +372,9 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
         </div>
       </div>
 
-      {/* Approve/Reject Action box */}
-      {detail.status === 1 && (
-        <div className="bg-white rounded-3xl border border-gray-200/30 p-6 space-y-4 shadow-3xs">
+      {/* Approve/Reject Action box - only show when status is Pending (0 or 1) and no action done yet */}
+      {!actionDone && (detail.status === 0 || detail.status === 1) && (
+        <div className="bg-white rounded-3xl border border-gray-200 p-6 space-y-4 shadow-xs">
           <div className="border-b border-gray-100 pb-2">
             <h2 className="text-base font-bold text-gray-900">Thao tác duyệt hồ sơ</h2>
           </div>
@@ -298,7 +383,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
             <button
               onClick={handleApprove}
               disabled={actionLoading}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-60 shadow-3xs cursor-pointer active:scale-95"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-60 shadow-xs cursor-pointer active:scale-95"
             >
               <CheckCircle2 className="w-4 h-4" />
               {actionLoading ? "Đang xử lý..." : "Phê duyệt hồ sơ"}
@@ -306,7 +391,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
             <button
               onClick={() => setShowReject(!showReject)}
               disabled={actionLoading}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-60 shadow-3xs cursor-pointer active:scale-95"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-60 shadow-xs cursor-pointer active:scale-95"
             >
               <XCircle className="w-4 h-4" />
               Từ chối duyệt
@@ -324,20 +409,48 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="Nhập lý do bác bỏ yêu cầu xác thực (ví dụ: Hình ảnh CMND/Thẻ sinh viên mờ không rõ số)..."
                   rows={3}
-                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200/35 rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-3xs"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-xs"
                 />
               </div>
               <div className="flex justify-end">
                 <button
                   onClick={handleReject}
                   disabled={!rejectReason.trim() || actionLoading}
-                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-60 shadow-3xs cursor-pointer"
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-60 shadow-xs cursor-pointer"
                 >
                   Xác nhận Từ Chối
                 </button>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Already resolved - show a note */}
+      {!actionDone && isResolved && (
+        <div className="bg-gray-50 border border-gray-200 rounded-3xl p-5 shadow-xs">
+          <div className="flex items-center gap-3">
+            {detail.status === 2 ? (
+              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+            ) : (
+              <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+            )}
+            <p className="text-sm font-bold text-gray-600">
+              Yêu cầu này đã được xử lý. Trạng thái:{" "}
+              <span
+                className={cn(
+                  "inline-flex px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ml-1",
+                  detail.status === 2
+                    ? "bg-green-50 text-green-800 border-green-200"
+                    : detail.status === 3
+                      ? "bg-red-50 text-red-800 border-red-200"
+                      : "bg-gray-100 text-gray-800 border-gray-200",
+                )}
+              >
+                {statusLabel}
+              </span>
+            </p>
+          </div>
         </div>
       )}
 

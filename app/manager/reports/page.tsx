@@ -43,6 +43,8 @@ const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   1: "Sẵn sàng",
   2: "Hoàn thành",
   3: "Đã huỷ",
+  4: "Đang chuẩn bị",
+  7: "Quá hạn",
 };
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
@@ -50,6 +52,8 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
   "1": "#10B981",
   "2": "#059669",
   "3": "#EF4444",
+  "4": "#3B82F6",
+  "7": "#6B7280",
 };
 
 // ── Helpers ──

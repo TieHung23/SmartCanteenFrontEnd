@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 
 const AUTH_INPUT_CLASS =
-  "h-16 w-full border-0 border-b-2 border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-4 shadow-none text-lg md:text-xl placeholder:text-gray-400";
+  "h-11 w-full border-0 border-b-2 border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-3 shadow-none text-base md:text-lg placeholder:text-gray-400";
 
 const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   google_domain_invalid: "Không thể đăng nhập, vui lòng thử lại",
@@ -99,8 +99,8 @@ export const LoginForm = () => {
   };
 
   return (
-    <div className="w-full space-y-10">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="w-full space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1">
           <Input {...register("email")} placeholder="Email" className={AUTH_INPUT_CLASS} />
           {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
@@ -116,7 +116,7 @@ export const LoginForm = () => {
         <Button
           type="submit"
           disabled={loginMutation.isPending}
-          className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-lg font-semibold shadow-lg shadow-orange-200 transition-all"
+          className="w-full h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-base font-semibold shadow-lg shadow-orange-200 transition-all"
         >
           {loginMutation.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
         </Button>
@@ -147,7 +147,7 @@ export const LoginForm = () => {
           </button>
         </div>
       </form>
-      <div className="relative py-4">
+      <div className="relative py-3">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-gray-200"></span>
         </div>
@@ -160,7 +160,7 @@ export const LoginForm = () => {
           type="button"
           onClick={handleGoogleLogin}
           variant="outline"
-          className="h-12 w-full rounded-xl border border-gray-200 bg-white/90 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+          className="h-10 w-full rounded-xl border border-gray-200 bg-white/90 text-slate-700 text-sm shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
         >
           <span className="flex items-center gap-3">
             <Image src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
