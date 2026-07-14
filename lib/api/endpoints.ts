@@ -75,6 +75,13 @@ export const API_ENDPOINTS = {
     MANAGER_POLICY_UPDATE: (code: string) => `/api/manager/refund-policies/${code}`,
     MANAGER_POLICY_DELETE: (code: string) => `/api/manager/refund-policies/${code}`,
   },
+  MANAGER_USERS: {
+    LIST: "/api/manager/users",
+    GET: (id: string) => `/api/manager/users/${id}`,
+    SUSPEND: (id: string) => `/api/manager/users/${id}/suspend`,
+    BAN: (id: string) => `/api/manager/users/${id}/ban`,
+    REACTIVATE: (id: string) => `/api/manager/users/${id}/reactivate`,
+  },
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",
     ME: "/api/Verification/me",
