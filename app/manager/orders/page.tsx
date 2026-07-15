@@ -267,18 +267,16 @@ export default function ManagerOrdersPage() {
                   className={cn(
                     "shrink-0 flex items-center gap-2.5 px-5 py-3 rounded-xl font-black text-sm border-2 transition-all duration-300 whitespace-nowrap",
                     isSelected
-                      ? "bg-gray-900 text-white border-gray-900 shadow-lg"
+                      ? "bg-orange-400 text-black border-white shadow-lg"
                       : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-300 border-gray-200 shadow-2xs",
                   )}
                 >
-                  <Coffee
-                    className={cn("w-4 h-4", isSelected ? "text-[#D35400]" : "text-gray-400")}
-                  />
+                  <Coffee className={cn("w-4 h-4", isSelected ? "text-white" : "text-gray-400")} />
                   <span>{s.name}</span>
                   <span
                     className={cn(
                       "text-[10px] font-bold px-1.5 py-0.5 rounded-md",
-                      isSelected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-500",
+                      isSelected ? "bg-white text-black" : "bg-gray-200 text-gray-500",
                     )}
                   >
                     {s.dishes?.length ?? 0}
@@ -295,57 +293,53 @@ export default function ManagerOrdersPage() {
         <>
           {/* KPI */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
-              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-                Tổng đơn
+            <div className="bg-orange-50/60 rounded-2xl border border-orange-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Tổng đơn</p>
+                <p className="text-3xl font-extrabold text-gray-900">{stats.total}</p>
               </div>
-              <div className="flex items-baseline justify-between mt-4">
-                <span className="text-4xl font-extrabold text-gray-900">{stats.total}</span>
-                <span className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-[#D35400]">
-                  <ShoppingBag className="w-6 h-6" />
-                </span>
+              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-[#D35400] shrink-0">
+                <ShoppingBag className="w-6 h-6" />
               </div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
-              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-                Hoàn thành
+            <div className="bg-emerald-50/60 rounded-2xl border border-emerald-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                  Hoàn thành
+                </p>
+                <p className="text-3xl font-extrabold text-gray-900">{stats.completed}</p>
               </div>
-              <div className="flex items-baseline justify-between mt-4">
-                <span className="text-4xl font-extrabold text-gray-900">{stats.completed}</span>
-                <span className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                  <DollarSign className="w-6 h-6" />
-                </span>
-              </div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
-              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Đã hủy</div>
-              <div className="flex items-baseline justify-between mt-4">
-                <span className="text-4xl font-extrabold text-gray-900">{stats.cancelled}</span>
-                <span className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-                  <Ban className="w-6 h-6" />
-                </span>
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                <DollarSign className="w-6 h-6" />
               </div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
-              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-                Doanh thu
+            <div className="bg-red-50/60 rounded-2xl border border-red-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Đã hủy</p>
+                <p className="text-3xl font-extrabold text-gray-900">{stats.cancelled}</p>
               </div>
-              <div className="flex items-baseline justify-between mt-4">
-                <span className="text-4xl font-extrabold text-gray-900">
-                  <span className="inline-flex items-center gap-0.5">
-                    <span>{stats.revenue.toLocaleString()}</span>
-                    <Image
-                      src="/logo_point.png"
-                      alt="P"
-                      width={16}
-                      height={16}
-                      className="align-middle"
-                    />
-                  </span>
-                </span>
-                <span className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-                  <DollarSign className="w-6 h-6" />
-                </span>
+              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                <Ban className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="bg-blue-50/60 rounded-2xl border border-blue-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                  Doanh thu
+                </p>
+                <p className="text-3xl font-extrabold text-gray-900 inline-flex items-center gap-0.5">
+                  <span>{stats.revenue.toLocaleString()}</span>
+                  <Image
+                    src="/logo_point.png"
+                    alt="P"
+                    width={16}
+                    height={16}
+                    className="align-middle"
+                  />
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                <DollarSign className="w-6 h-6" />
               </div>
             </div>
           </div>
