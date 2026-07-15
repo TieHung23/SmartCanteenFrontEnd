@@ -24,7 +24,7 @@ const STATUS_CONFIG: Record<
   { label: string; dot: string; bg: string; text: string; border: string; icon: typeof Package }
 > = {
   Available: {
-    label: "Available",
+    label: "Sẵn sàng",
     dot: "bg-emerald-400",
     bg: "bg-emerald-50",
     text: "text-emerald-700",
@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<
     icon: PackageCheck,
   },
   Reserved: {
-    label: "Reserved",
+    label: "Đang giữ đơn",
     dot: "bg-amber-400",
     bg: "bg-amber-50",
     text: "text-amber-700",
@@ -40,7 +40,7 @@ const STATUS_CONFIG: Record<
     icon: ShieldCheck,
   },
   InUse: {
-    label: "In Use",
+    label: "Đang sử dụng",
     dot: "bg-blue-400",
     bg: "bg-blue-50",
     text: "text-blue-700",
@@ -222,66 +222,67 @@ export default function ManagerTraysPage() {
           {/* Available */}
           <div
             className={cn(
-              "relative rounded-2xl border p-6 transition-all duration-300 hover:shadow-md overflow-hidden card-3d animate-slide-up-3d",
-              lowStock ? "bg-red-50 border-red-200/60" : "bg-emerald-50 border-emerald-200/60",
+              "rounded-2xl border p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between",
+              lowStock ? "bg-red-50/60 border-red-100" : "bg-emerald-50/60 border-emerald-100",
             )}
           >
-            {lowStock && (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-red-100 border border-red-200/60 rounded-lg">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-                <span className="text-[10px] font-black text-red-700 uppercase">Sắp hết</span>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                  Khay sẵn sàng
+                </p>
+                {lowStock && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 border border-red-200/60 rounded-md">
+                    <AlertTriangle className="w-3 h-3 text-red-600" />
+                    <span className="text-[10px] font-black text-red-700 uppercase">Sắp hết</span>
+                  </span>
+                )}
               </div>
-            )}
-            <div className="flex items-center gap-3 mb-4">
-              <div
+              <p
                 className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center border",
-                  lowStock ? "bg-red-100 border-red-200" : "bg-emerald-100 border-emerald-200",
+                  "text-3xl font-extrabold",
+                  lowStock ? "text-red-700" : "text-gray-900",
                 )}
               >
-                <PackageCheck
-                  className={cn("w-6 h-6", lowStock ? "text-red-600" : "text-emerald-600")}
-                />
-              </div>
+                {available}
+              </p>
             </div>
-            <p
-              className={cn("text-4xl font-extrabold", lowStock ? "text-red-700" : "text-gray-900")}
+            <div
+              className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border",
+                lowStock ? "bg-red-100 border-red-200" : "bg-emerald-100 border-emerald-200",
+              )}
             >
-              {available}
-            </p>
-            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">
-              Available
-            </p>
+              <PackageCheck
+                className={cn("w-6 h-6", lowStock ? "text-red-600" : "text-emerald-600")}
+              />
+            </div>
           </div>
 
           {/* Reserved */}
-          <div
-            className="relative rounded-2xl border bg-amber-50 border-amber-200/60 p-6 transition-all duration-300 hover:shadow-md overflow-hidden card-3d animate-slide-up-3d"
-            style={{ animationDelay: "100ms" }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-100 border border-amber-200">
-                <ShieldCheck className="w-6 h-6 text-amber-600" />
-              </div>
+          <div className="bg-amber-50/60 rounded-2xl border border-amber-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                Đang giữ đơn
+              </p>
+              <p className="text-3xl font-extrabold text-gray-900">{pool.reserved}</p>
             </div>
-            <p className="text-4xl font-extrabold text-gray-900">{pool.reserved}</p>
-            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">
-              Reserved
-            </p>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-amber-100 border border-amber-200">
+              <ShieldCheck className="w-6 h-6 text-amber-600" />
+            </div>
           </div>
 
           {/* In Use */}
-          <div
-            className="relative rounded-2xl border bg-blue-50 border-blue-200/60 p-6 transition-all duration-300 hover:shadow-md overflow-hidden card-3d animate-slide-up-3d"
-            style={{ animationDelay: "200ms" }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100 border border-blue-200">
-                <PackageOpen className="w-6 h-6 text-blue-600" />
-              </div>
+          <div className="bg-blue-50/60 rounded-2xl border border-blue-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                Đang sử dụng
+              </p>
+              <p className="text-3xl font-extrabold text-gray-900">{pool.inUse}</p>
             </div>
-            <p className="text-4xl font-extrabold text-gray-900">{pool.inUse}</p>
-            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">In Use</p>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 border border-blue-200">
+              <PackageOpen className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
         </div>
       )}

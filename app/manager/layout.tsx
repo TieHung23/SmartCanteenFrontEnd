@@ -26,6 +26,7 @@ import {
   Menu,
   X,
   Package,
+  Route,
   type LucideIcon,
 } from "lucide-react";
 
@@ -84,6 +85,7 @@ const MANAGER_MENU_GROUPS: MenuGroup[] = [
       { name: "Robot", path: "/manager/robot", icon: Cpu },
       { name: "Khay (Trays)", path: "/manager/trays", icon: Package },
       { name: "Ô Kệ (Slots)", path: "/manager/pickup-slots", icon: Package },
+      { name: "Cấu Hình Lane", path: "/manager/slot-configs", icon: Route },
       { name: "Báo Cáo", path: "/manager/reports", icon: TrendingUp },
       { name: "Cài Đặt", path: "/manager/settings", icon: Settings },
     ],

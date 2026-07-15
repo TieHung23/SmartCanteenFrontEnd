@@ -207,32 +207,27 @@ export default function ManagerPickupSlotsPage() {
       {!loading && summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-xl">
           {/* Empty */}
-          <div className="relative rounded-2xl border bg-emerald-50 border-emerald-200/60 p-6 transition-all duration-300 hover:shadow-md overflow-hidden card-3d animate-slide-up-3d">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-100 border border-emerald-200">
-                <LayoutGrid className="w-6 h-6 text-emerald-600" />
-              </div>
+          <div className="bg-emerald-50/60 rounded-2xl border border-emerald-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Ô trống</p>
+              <p className="text-3xl font-extrabold text-gray-900">{summary.empty}</p>
             </div>
-            <p className="text-4xl font-extrabold text-gray-900">{summary.empty}</p>
-            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">
-              Trống (Empty)
-            </p>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-emerald-100 border border-emerald-200">
+              <LayoutGrid className="w-6 h-6 text-emerald-600" />
+            </div>
           </div>
 
           {/* Occupied */}
-          <div
-            className="relative rounded-2xl border bg-amber-50 border-amber-200/60 p-6 transition-all duration-300 hover:shadow-md overflow-hidden card-3d animate-slide-up-3d"
-            style={{ animationDelay: "100ms" }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-100 border border-amber-200">
-                <Lock className="w-6 h-6 text-amber-600" />
-              </div>
+          <div className="bg-amber-50/60 rounded-2xl border border-amber-100 p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between">
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                Đang giữ đơn
+              </p>
+              <p className="text-3xl font-extrabold text-gray-900">{summary.occupied}</p>
             </div>
-            <p className="text-4xl font-extrabold text-gray-900">{summary.occupied}</p>
-            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">
-              Đang giữ đơn (Occupied)
-            </p>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-amber-100 border border-amber-200">
+              <Lock className="w-6 h-6 text-amber-600" />
+            </div>
           </div>
         </div>
       )}

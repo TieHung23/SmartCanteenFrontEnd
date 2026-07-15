@@ -274,6 +274,8 @@ export default function ManagerUsersPage() {
         hint: "Tài khoản đã xác thực",
         color: "from-emerald-500 to-teal-600",
         shadow: "shadow-emerald-500/25",
+        cardBg: "bg-emerald-50/60",
+        cardBorder: "border-emerald-100",
         icon: Users,
       },
       {
@@ -282,6 +284,8 @@ export default function ManagerUsersPage() {
         hint: "Tài khoản nhân viên",
         color: "from-sky-500 to-blue-600",
         shadow: "shadow-sky-500/25",
+        cardBg: "bg-sky-50/60",
+        cardBorder: "border-sky-100",
         icon: UserCog,
       },
       {
@@ -290,6 +294,8 @@ export default function ManagerUsersPage() {
         hint: "Tạm khóa + bị cấm",
         color: "from-rose-500 to-red-600",
         shadow: "shadow-rose-500/25",
+        cardBg: "bg-rose-50/60",
+        cardBorder: "border-rose-100",
         icon: Ban,
       },
     ];
@@ -411,38 +417,28 @@ export default function ManagerUsersPage() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-        {stats.map((stat, idx) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {stats.map((stat) => (
           <div
             key={stat.label}
-            className={cn(
-              "relative rounded-2xl border border-gray-100/80 bg-white p-6 transition-all duration-300 hover:shadow-lg overflow-hidden card-3d animate-slide-up-3d",
-              `style={{ animationDelay: "${idx * 100}ms" } as React.CSSProperties}`,
-            )}
-            style={{ animationDelay: `${idx * 100}ms` } as React.CSSProperties}
+            className={`${stat.cardBg} rounded-2xl border ${stat.cardBorder} p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br text-white shadow-lg",
-                  stat.color,
-                  stat.shadow,
-                )}
-              >
-                <stat.icon className="w-6 h-6" />
-              </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                {stat.label}
+              </p>
+              <p className="text-3xl font-extrabold text-gray-900">{formatCurrency(stat.value)}</p>
+              <p className="text-xs text-gray-400 font-medium">{stat.hint}</p>
             </div>
-            <p className="text-4xl font-extrabold text-gray-900">{formatCurrency(stat.value)}</p>
-            <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-wider">
-              {stat.label}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5 font-medium">{stat.hint}</p>
             <div
               className={cn(
-                "absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 bg-gradient-to-br -translate-y-8 translate-x-8",
+                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br text-white shadow-lg",
                 stat.color,
+                stat.shadow,
               )}
-            />
+            >
+              <stat.icon className="w-6 h-6" />
+            </div>
           </div>
         ))}
       </div>
