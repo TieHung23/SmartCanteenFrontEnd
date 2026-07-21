@@ -39,7 +39,7 @@ interface LocalTemplate {
 
 interface SessionDetailsContentProps {
   sessionId: string;
-  onClose: () => void;
+  onBack: () => void;
 }
 
 function distributeDishesToTemplates(
@@ -95,7 +95,7 @@ function formatDate(iso: string) {
   });
 }
 
-export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsContentProps) {
+export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsContentProps) {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allDishes, setAllDishes] = useState<Dish[]>([]);
@@ -148,7 +148,7 @@ export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsCont
       setEditAvailableTo(toDatetimeLocal(sessionData.availableTo));
       setEditAvailableForOrder(toDatetimeLocal(sessionData.availableForOrder));
       setEditDeadline(toDatetimeLocal(sessionData.finalizationDeadline));
-      setEditAutoFinalizePolicy(0);
+      setEditAutoFinalizePolicy(sessionData.autoFinalizePolicy ?? 0);
 
       const allDishIds = sessionData.dishes.map((d) => d.dishId);
       const loadedTemplates: LocalTemplate[] =
@@ -236,6 +236,8 @@ export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsCont
       availableFrom: new Date(editAvailableFrom).toISOString(),
       availableTo: new Date(editAvailableTo).toISOString(),
       availableForOrder: new Date(editAvailableForOrder).toISOString(),
+      ...(editDeadline ? { finalizationDeadline: new Date(editDeadline).toISOString() } : {}),
+      autoFinalizePolicy: editAutoFinalizePolicy,
       mealTemplates: editTemplates
         .filter((t) => t.name.trim())
         .map((t) => ({
@@ -246,12 +248,22 @@ export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsCont
     };
 
     try {
-      await sessionService.updateSession(session.id, payload);
+      console.log("[Session Update] Payload:", JSON.stringify(payload, null, 2));
+      const result = await sessionService.updateSession(session.id, payload);
+      console.log("[Session Update] Response:", result);
       toast.success("Cập nhật ca phục vụ thành công!");
       setIsEditing(false);
       await loadSession();
     } catch (err) {
-      console.error("Update error:", err);
+      console.error("[Session Update] Error:", err);
+      if (err && typeof err === "object" && "response" in err) {
+        const axiosErr = err as { response?: { status?: number; data?: unknown } };
+        console.error("[Session Update] Status:", axiosErr.response?.status);
+        console.error(
+          "[Session Update] Server response:",
+          JSON.stringify(axiosErr.response?.data, null, 2),
+        );
+      }
       toast.error("Lỗi khi cập nhật ca phục vụ.");
     } finally {
       setIsSaving(false);
@@ -454,8 +466,8 @@ export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsCont
 
   if (!session) return null;
 
-  const isActive =
-    session.isActive && (!session.availableTo || new Date(session.availableTo) > new Date());
+  const isActive = session.isActive;
+  const canEdit = !session.isFinalized && new Date(session.availableForOrder) > new Date();
 
   return (
     <div className="space-y-8 animate-fade-in pb-6 select-text">
@@ -488,7 +500,7 @@ export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsCont
               Đã chốt
             </span>
           )}
-          {!isEditing && !session.isFinalized && (
+          {!isEditing && canEdit && (
             <button
               onClick={enterEditMode}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D35400] hover:bg-[#b04600] text-white text-sm font-black rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-wider ml-auto"
@@ -1239,10 +1251,11 @@ export function SessionDetailsContent({ sessionId, onClose }: SessionDetailsCont
         ) : (
           <button
             type="button"
-            onClick={onClose}
-            className="px-6 py-3 border border-gray-200 text-gray-600 rounded-2xl text-sm font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-6 py-3 border border-gray-200 text-gray-600 rounded-2xl text-sm font-bold hover:bg-gray-50 hover:text-gray-900 transition-colors"
           >
-            Đóng lại
+            <RotateCcw className="w-4 h-4" />
+            Quay lại danh sách
           </button>
         )}
       </div>

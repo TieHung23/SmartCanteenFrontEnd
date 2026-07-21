@@ -128,23 +128,16 @@ export const LoginForm = () => {
           >
             Quên mật khẩu?
           </button>
-          <button
-            type="button"
-            onClick={() => router.push(ROUTES.VERIFY_EMAIL)}
-            className="hover:text-orange-500 transition-colors"
-          >
-            Xác thực email
-          </button>
-        </div>
-        <div className="flex justify-center gap-1 text-xs text-gray-500 font-medium">
-          <span>Chưa có tài khoản?</span>
-          <button
-            type="button"
-            onClick={() => router.push(ROUTES.REGISTER)}
-            className="text-blue-400 hover:underline"
-          >
-            Đăng ký
-          </button>
+          <div className="flex items-center gap-1">
+            <span>Chưa có tài khoản?</span>
+            <button
+              type="button"
+              onClick={() => router.push(ROUTES.REGISTER)}
+              className="text-blue-400 hover:underline"
+            >
+              Đăng ký
+            </button>
+          </div>
         </div>
       </form>
       <div className="relative py-3">

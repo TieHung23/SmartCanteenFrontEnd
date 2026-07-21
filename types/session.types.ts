@@ -33,6 +33,7 @@ export interface SessionListItem {
   isFinalized?: boolean;
   finalizedAtUtc?: string | null;
   finalizationDeadline?: string | null;
+  autoFinalizePolicy?: number;
 }
 
 export interface SessionDetail extends SessionListItem {
