@@ -10,6 +10,8 @@ export default function ManagerDashboard() {
       color: "text-blue-600",
       icon: Receipt,
       bg: "bg-blue-50",
+      cardBg: "bg-blue-50/60",
+      cardBorder: "border-blue-100",
     },
     {
       title: "Tổng lợi nhuận",
@@ -17,6 +19,8 @@ export default function ManagerDashboard() {
       color: "text-emerald-600",
       icon: DollarSign,
       bg: "bg-emerald-50",
+      cardBg: "bg-emerald-50/60",
+      cardBorder: "border-emerald-100",
     },
     {
       title: "Khiếu nại nhận được",
@@ -24,6 +28,8 @@ export default function ManagerDashboard() {
       color: "text-rose-600",
       icon: BarChart3,
       bg: "bg-rose-50",
+      cardBg: "bg-rose-50/60",
+      cardBorder: "border-rose-100",
     },
     {
       title: "Khách hàng mới",
@@ -31,6 +37,8 @@ export default function ManagerDashboard() {
       color: "text-orange-600",
       icon: Users,
       bg: "bg-orange-50",
+      cardBg: "bg-orange-50/60",
+      cardBorder: "border-orange-100",
     },
   ];
 
@@ -45,20 +53,20 @@ export default function ManagerDashboard() {
       </div>
 
       {/* KPI Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {kpis.map((item, i) => (
           <div
             key={i}
-            className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between"
+            className={`${item.cardBg} rounded-2xl border ${item.cardBorder} p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between`}
           >
-            <div className="space-y-1">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider">
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
                 {item.title}
               </p>
-              <p className={`text-3xl font-black ${item.color} tracking-tight`}>{item.value}</p>
+              <p className="text-3xl font-extrabold text-gray-900">{item.value}</p>
             </div>
             <div
-              className={`w-12 h-12 ${item.bg} ${item.color} rounded-2xl flex items-center justify-center`}
+              className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.bg} ${item.color}`}
             >
               <item.icon className="w-6 h-6" />
             </div>

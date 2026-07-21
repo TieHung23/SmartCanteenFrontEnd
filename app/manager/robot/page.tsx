@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<
   { label: string; dot: string; bg: string; text: string; border: string; icon: typeof Cpu }
 > = {
   Idle: {
-    label: "Idle",
+    label: "Rảnh",
     dot: "bg-emerald-400",
     bg: "bg-emerald-50",
     text: "text-emerald-700",
@@ -40,7 +40,7 @@ const STATUS_CONFIG: Record<
     icon: Zap,
   },
   Busy: {
-    label: "Busy",
+    label: "Đang hoạt động",
     dot: "bg-amber-400",
     bg: "bg-amber-50",
     text: "text-amber-700",
@@ -48,7 +48,7 @@ const STATUS_CONFIG: Record<
     icon: Clock,
   },
   Error: {
-    label: "Error",
+    label: "Lỗi",
     dot: "bg-red-400",
     bg: "bg-red-50",
     text: "text-red-700",
@@ -64,7 +64,7 @@ const STATUS_CONFIG: Record<
     icon: Wrench,
   },
   Offline: {
-    label: "Offline",
+    label: "Mất kết nối",
     dot: "bg-gray-300",
     bg: "bg-gray-50",
     text: "text-gray-500",
@@ -296,8 +296,8 @@ export default function ManagerRobotPage() {
 
       {/* ── Status Overview Cards ── */}
       {!loading && arms.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {STATUS_ORDER.map((status, idx) => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+          {STATUS_ORDER.map((status) => {
             const cfg = STATUS_CONFIG[status];
             const Icon = cfg.icon;
             const count = statusCounts[status];
@@ -305,23 +305,13 @@ export default function ManagerRobotPage() {
               <div
                 key={status}
                 className={cn(
-                  "relative rounded-2xl border p-5 transition-all duration-300 hover:shadow-md group card-3d animate-slide-up-3d",
+                  "rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between",
                   cfg.bg,
                   cfg.border,
+                  "border",
                 )}
-                style={{ animationDelay: `${idx * 80}ms` }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div
-                    className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                      cfg.bg,
-                      "border",
-                      cfg.border,
-                    )}
-                  >
-                    <Icon className={cn("w-5 h-5", cfg.text)} />
-                  </div>
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5">
                     <span
                       className={cn(
@@ -335,13 +325,19 @@ export default function ManagerRobotPage() {
                           : undefined
                       }
                     />
-                    <span className={cn("text-xs font-bold", cfg.text)}>{cfg.label}</span>
+                    <span className={cn("text-sm font-bold", cfg.text)}>{cfg.label}</span>
                   </div>
+                  <p className="text-3xl font-extrabold text-gray-900">{count}</p>
                 </div>
-                <p className="text-3xl font-extrabold text-gray-900">{count}</p>
-                <p className="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wider">
-                  {cfg.label}
-                </p>
+                <div
+                  className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border",
+                    cfg.bg,
+                    cfg.border,
+                  )}
+                >
+                  <Icon className={cn("w-6 h-6", cfg.text)} />
+                </div>
               </div>
             );
           })}

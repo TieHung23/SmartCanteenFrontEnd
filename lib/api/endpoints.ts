@@ -130,6 +130,13 @@ export const API_ENDPOINTS = {
       FORCE_CLEAR: (id: string) => `/api/manager/pickup-slots/${id}/force-clear`,
       RETIRE: (id: string) => `/api/manager/pickup-slots/${id}/retire`,
     },
+    SLOT_CONFIGURATIONS: {
+      LIST_BY_SESSION: (sessionId: string) =>
+        `/api/manager/slot-configurations?sessionId=${sessionId}`,
+      CREATE: "/api/manager/slot-configurations",
+      UPDATE: (id: string) => `/api/manager/slot-configurations/${id}`,
+      DELETE: (id: string) => `/api/manager/slot-configurations/${id}`,
+    },
   },
   ADMIN: {
     LOGS: {

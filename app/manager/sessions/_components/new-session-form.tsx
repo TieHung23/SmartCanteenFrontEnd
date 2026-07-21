@@ -462,6 +462,9 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         const existingIds = new Set(t.settings.map((s) => s.categoryId));
         const missing = [...allSessionCategoryIds].filter((catId) => !existingIds.has(catId));
         if (missing.length === 0) return t;
+        const missingDishIds = dishes
+          .filter((d) => missing.includes(d.categoryId ?? ""))
+          .map((d) => d.id);
         return {
           ...t,
           settings: [
@@ -473,6 +476,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
               isRequired: false,
             })),
           ],
+          dishIds: [...new Set([...t.dishIds, ...missingDishIds])],
         };
       }),
     );
@@ -495,6 +499,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
   const addCategoryToTemplate = (tIdx: number, catId: string) => {
     if (!catId) return;
+    const categoryDishIds = dishes.filter((d) => d.categoryId === catId).map((d) => d.id);
     setTemplates((prev) =>
       prev.map((t, i) => {
         if (i !== tIdx) return t;
@@ -505,6 +510,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
             ...t.settings,
             { categoryId: catId, minQuantity: 0, maxQuantity: 1, isRequired: false },
           ],
+          dishIds: [...new Set([...t.dishIds, ...categoryDishIds])],
         };
       }),
     );

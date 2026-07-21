@@ -105,7 +105,16 @@ export const verificationService = {
       console.log("POST /submit status:", res.status);
       const text = await res.text();
       console.log("POST /submit body:", text);
-      if (!res.ok) throw new Error(text);
+      if (!res.ok) {
+        let errorBody: Record<string, unknown> = {};
+        try {
+          errorBody = JSON.parse(text);
+        } catch {}
+        const message = (errorBody.message as string) || `Request failed (${res.status})`;
+        const err = new Error(message);
+        Object.assign(err, { errorCode: errorBody.errorCode, errorData: errorBody });
+        throw err;
+      }
       const json = JSON.parse(text);
       if (typeof json.value === "string") return { requestId: json.value };
       if (json.value?.requestId) return { requestId: json.value.requestId };

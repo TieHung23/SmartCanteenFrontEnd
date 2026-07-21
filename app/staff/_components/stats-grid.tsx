@@ -11,6 +11,8 @@ interface StatsItem {
   icon: LucideIcon;
   color: string;
   bg: string;
+  cardBg: string;
+  cardBorder: string;
 }
 
 interface OrderItem {
@@ -20,32 +22,40 @@ interface OrderItem {
 
 const DEFAULT_STATS: StatsItem[] = [
   {
-    label: "Tổng Đơn Trong Ngày",
+    label: "Tổng đơn trong ngày",
     value: "—",
     icon: ClipboardList,
     color: "text-blue-600",
-    bg: "bg-blue-50",
+    bg: "bg-blue-100",
+    cardBg: "bg-blue-50/60",
+    cardBorder: "border-blue-100",
   },
   {
-    label: "Đơn Đang Chờ (Pending)",
+    label: "Đơn đang chờ",
     value: "—",
     icon: Clock,
     color: "text-amber-600",
-    bg: "bg-amber-50",
+    bg: "bg-amber-100",
+    cardBg: "bg-amber-50/60",
+    cardBorder: "border-amber-100",
   },
   {
-    label: "Sẵn Sàng Nhận Món",
+    label: "Sẵn sàng nhận món",
     value: "—",
     icon: CheckCircle2,
     color: "text-emerald-600",
-    bg: "bg-emerald-50",
+    bg: "bg-emerald-100",
+    cardBg: "bg-emerald-50/60",
+    cardBorder: "border-emerald-100",
   },
   {
-    label: "Đơn Gặp Sự Cố (Failed)",
+    label: "Đơn gặp sự cố",
     value: "—",
     icon: AlertOctagon,
     color: "text-rose-600",
-    bg: "bg-rose-50",
+    bg: "bg-rose-100",
+    cardBg: "bg-rose-50/60",
+    cardBorder: "border-rose-100",
   },
 ];
 
@@ -65,32 +75,40 @@ export function StatsGrid() {
 
         setStats([
           {
-            label: "Tổng Đơn Trong Ngày",
+            label: "Tổng đơn trong ngày",
             value: String(todayOrders.length),
             icon: ClipboardList,
             color: "text-blue-600",
-            bg: "bg-blue-100/80",
+            bg: "bg-blue-100",
+            cardBg: "bg-blue-50/60",
+            cardBorder: "border-blue-100",
           },
           {
-            label: "Đơn Đang Chờ (Pending)",
+            label: "Đơn đang chờ",
             value: String(todayOrders.filter((o) => o.status === 0).length),
             icon: Clock,
             color: "text-amber-600",
-            bg: "bg-amber-100/80",
+            bg: "bg-amber-100",
+            cardBg: "bg-amber-50/60",
+            cardBorder: "border-amber-100",
           },
           {
-            label: "Sẵn Sàng Nhận Món",
+            label: "Sẵn sàng nhận món",
             value: String(todayOrders.filter((o) => o.status === 1).length),
             icon: CheckCircle2,
             color: "text-emerald-600",
-            bg: "bg-emerald-100/80",
+            bg: "bg-emerald-100",
+            cardBg: "bg-emerald-50/60",
+            cardBorder: "border-emerald-100",
           },
           {
-            label: "Đơn Gặp Sự Cố (Failed)",
+            label: "Đơn gặp sự cố",
             value: String(todayOrders.filter((o) => o.status === 7).length),
             icon: AlertOctagon,
             color: "text-rose-600",
-            bg: "bg-rose-100/80",
+            bg: "bg-rose-100",
+            cardBg: "bg-rose-50/60",
+            cardBorder: "border-rose-100",
           },
         ]);
       })
@@ -98,20 +116,20 @@ export function StatsGrid() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="bg-white border border-gray-200 rounded-2xl p-7 flex items-center gap-6 shadow-sm hover:shadow-md transition-all duration-200"
+          className={`${stat.cardBg} rounded-2xl border ${stat.cardBorder} p-6 shadow-sm hover:shadow-md transition-all duration-200 flex items-start justify-between`}
         >
-          <div
-            className={`w-16 h-16 rounded-2xl ${stat.bg} flex items-center justify-center shrink-0`}
-          >
-            <stat.icon className={`w-8 h-8 ${stat.color}`} />
+          <div className="space-y-1.5">
+            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+            <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
           </div>
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-4xl font-extrabold text-gray-900">{stat.value}</p>
-            <p className="text-base font-medium text-gray-500 leading-tight">{stat.label}</p>
+          <div
+            className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center shrink-0`}
+          >
+            <stat.icon className={`w-6 h-6 ${stat.color}`} />
           </div>
         </div>
       ))}

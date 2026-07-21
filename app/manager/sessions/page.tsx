@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
 import Modal from "../_components/modal";
 import { NewSessionForm } from "./_components/new-session-form";
-import { SessionDetailsContent } from "./_components/session-details-content";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -21,8 +21,8 @@ function formatDate(iso: string) {
 }
 
 export default function ManagerSessionsPage() {
-  const isSessionLive = (s: SessionListItem) =>
-    s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date());
+  const router = useRouter();
+  const isSessionLive = (s: SessionListItem) => s.isActive;
 
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,9 +31,7 @@ export default function ManagerSessionsPage() {
 
   // Modal & Form States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [copySessionId, setCopySessionId] = useState<string | null>(null);
-  const [detailsSessionId, setDetailsSessionId] = useState<string | null>(null);
 
   const fetchSessions = async () => {
     try {
@@ -89,8 +87,7 @@ export default function ManagerSessionsPage() {
   };
 
   const handleOpenDetails = (id: string) => {
-    setDetailsSessionId(id);
-    setIsDetailsOpen(true);
+    router.push(`/manager/sessions/${id}`);
   };
 
   const filtered = sessions
@@ -230,15 +227,18 @@ export default function ManagerSessionsPage() {
                 >
                   <Copy className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenDetails(session.id);
-                  }}
-                  className="px-5 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
-                >
-                  Sửa
-                </button>
+                {!session.isFinalized && new Date(session.availableForOrder) > new Date() && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDetails(session.id);
+                    }}
+                    className="p-3 text-gray-400 hover:text-[#D35400] hover:bg-orange-50 rounded-2xl border border-transparent hover:border-orange-100 transition-all shrink-0"
+                    title="Chỉnh sửa ca phục vụ"
+                  >
+                    <Pencil className="w-5 h-5" />
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -269,21 +269,6 @@ export default function ManagerSessionsPage() {
           }}
           onCancel={() => setIsCreateOpen(false)}
         />
-      </Modal>
-
-      {/* ── SESSION DETAILS MODAL ── */}
-      <Modal
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-        title="Chi tiết Ca phục vụ"
-        size="full"
-      >
-        {detailsSessionId && (
-          <SessionDetailsContent
-            sessionId={detailsSessionId}
-            onClose={() => setIsDetailsOpen(false)}
-          />
-        )}
       </Modal>
     </div>
   );
