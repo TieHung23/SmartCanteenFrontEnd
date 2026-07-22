@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { isAxiosError } from "axios";
@@ -15,6 +15,8 @@ import { ROUTES } from "@/config/routes";
 import type { SessionDetail } from "@/types/session.types";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useSignalr } from "@/lib/hooks/use-signalr";
+import type { NotificationItem } from "@/types/notification.types";
 import {
   ArrowLeft,
   ShoppingBag,
@@ -37,8 +39,8 @@ import {
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
-  { id: 4, name: "Bank Transfer" },
-  { id: 5, name: "Smart Canteen Wallet" },
+  { id: 4, name: "Chuyển khoản ngân hàng" },
+  { id: 5, name: "Ví Smart Canteen" },
 ];
 
 const COMING_SOON_METHODS = ["Momo", "VNPay", "ZaloPay"];
@@ -85,12 +87,35 @@ export default function CheckoutPage() {
     userRemainingBalance: number;
   } | null>(null);
   const [sessionDetails, setSessionDetails] = useState<Map<string, SessionDetail>>(new Map());
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   // Use selectedSessionIds from cart, fall back to all unique session IDs
   const activeSessionIds = useMemo(
     () => (selectedSessionIds.length > 0 ? selectedSessionIds : uniqueSessionIds),
     [selectedSessionIds, uniqueSessionIds],
   );
+
+  const expiredSessions = useMemo(() => {
+    if (isLoadingDetails) return [];
+    const expiredList: { id: string; name: string; isInvalid?: boolean }[] = [];
+    for (const sid of activeSessionIds) {
+      const detail = sessionDetails.get(sid);
+      if (!detail) {
+        const sessionItems = cartItems.filter((i) => i.sessionId === sid);
+        const sessionName = sessionItems[0]?.sessionName || sid.slice(0, 8);
+        expiredList.push({ id: sid, name: sessionName, isInvalid: true });
+      } else {
+        const isExpired =
+          new Date(detail.availableTo) < new Date() ||
+          !detail.isActive ||
+          detail.isFinalized === true;
+        if (isExpired) {
+          expiredList.push({ id: sid, name: detail.name });
+        }
+      }
+    }
+    return expiredList;
+  }, [activeSessionIds, sessionDetails, isLoadingDetails, cartItems]);
 
   useEffect(() => {
     if (!orderResult && cartItems.length === 0) {
@@ -109,7 +134,12 @@ export default function CheckoutPage() {
   }, [cartItems, router, orderResult]);
 
   useEffect(() => {
-    if (activeSessionIds.length === 0) return;
+    if (activeSessionIds.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsLoadingDetails(false);
+      return;
+    }
+    setIsLoadingDetails(true);
     Promise.allSettled(
       activeSessionIds.map((sid) =>
         sessionService.getSessionDetail(sid).then((d) => [sid, d] as const),
@@ -120,6 +150,7 @@ export default function CheckoutPage() {
         if (r.status === "fulfilled") map.set(r.value[0], r.value[1]);
       }
       setSessionDetails(map);
+      setIsLoadingDetails(false);
     });
   }, [activeSessionIds]);
 
@@ -188,7 +219,7 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
     try {
       // Ensure cart is synced to server and get current version
-      const version = await ensureSynced();
+      const version = await ensureSynced(true);
       if (version === null) {
         toast.error("Không thể đồng bộ giỏ hàng. Vui lòng thử lại.");
         setIsSubmitting(false);
@@ -227,7 +258,7 @@ export default function CheckoutPage() {
 
   const handleTopUp = useCallback(async () => {
     if (topUpAmount <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error("Vui lòng nhập số tiền hợp lệ");
       return;
     }
     setIsTopUpping(true);
@@ -235,7 +266,7 @@ export default function CheckoutPage() {
       const data: TopUpRequest = { amountVnd: topUpAmount, method: topUpMethod };
       const result = await paymentService.topUpWallet(data);
       setTopUpResult(result);
-      toast.success("Top-up request created!");
+      toast.success("Tạo yêu cầu nạp tiền thành công!");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
       toast.error(err?.response?.data?.message || err?.message || "Top-up failed");
@@ -253,14 +284,57 @@ export default function CheckoutPage() {
       } else {
         toast.error(
           res
-            ? `Insufficient balance. You have ${res.balanceAmount} pts, need ${totalPoints} pts.`
-            : "Unable to check balance. Please try again.",
+            ? `Số dư không đủ. Bạn có ${res.balanceAmount} điểm, cần ${totalPoints} điểm.`
+            : "Không thể kiểm tra số dư. Vui lòng thử lại.",
         );
       }
     } catch {
-      toast.error("Unable to check balance. Please try again.");
+      toast.error("Không thể kiểm tra số dư. Vui lòng thử lại.");
     }
   };
+
+  const retryCheckoutRef = useRef(handleRetryCheckout);
+
+  const totalPointsRef = useRef(totalPoints);
+
+  useEffect(() => {
+    retryCheckoutRef.current = handleRetryCheckout;
+  });
+
+  useEffect(() => {
+    totalPointsRef.current = totalPoints;
+  });
+
+  const { connect: connectSignalr, disconnect: disconnectSignalr } = useSignalr(
+    useCallback((notification: NotificationItem) => {
+      if (notification.type === "Payment.Completed") {
+        toast.success("Nạp tiền thành công! Đang kiểm tra số dư...");
+        setTopUpResult(null);
+        setIsTopUpOpen(false);
+        userService
+          .getProfile()
+          .then((res) => {
+            setProfile(res);
+            if (res && res.balanceAmount >= totalPointsRef.current) {
+              toast.success("Đủ số dư! Tiến hành đặt hàng...");
+              setTimeout(() => retryCheckoutRef.current(), 500);
+            }
+          })
+          .catch(() => toast.error("Không thể kiểm tra số dư"));
+      }
+    }, []),
+  );
+
+  useEffect(() => {
+    if (isTopUpOpen) {
+      connectSignalr();
+    } else {
+      disconnectSignalr();
+    }
+    return () => {
+      disconnectSignalr();
+    };
+  }, [isTopUpOpen, connectSignalr, disconnectSignalr]);
 
   const [fireworkParticles] = useState(() => {
     const COLORS = [
@@ -344,7 +418,7 @@ export default function CheckoutPage() {
                   <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                 </div>
               </div>
-              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Order Confirmed!</h1>
+              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt hàng thành công!</h1>
               <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
 
               <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
@@ -352,37 +426,37 @@ export default function CheckoutPage() {
                   <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
                     <Receipt className="w-4 h-4 text-[#D35400]" />
                   </div>
-                  <span className="text-sm font-bold text-gray-700">Order Receipt</span>
+                  <span className="text-sm font-bold text-gray-700">Hóa đơn đơn hàng</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Order ID</span>
+                  <span className="text-gray-500">Mã đơn hàng</span>
                   <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
                     {orderResult.id.slice(0, 12)}...
                   </span>
                 </div>
                 {orderResult.transactionId && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Transaction ID</span>
+                    <span className="text-gray-500">Mã giao dịch</span>
                     <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
                       {orderResult.transactionId.slice(0, 12)}...
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Payment Method</span>
+                  <span className="text-gray-500">Phương thức thanh toán</span>
                   <span className="font-bold text-gray-700 flex items-center gap-1.5">
-                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Wallet Points
+                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Điểm ví
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
-                  <span className="text-base font-bold text-gray-800">Total Paid</span>
+                  <span className="text-base font-bold text-gray-800">Tổng đã thanh toán</span>
                   <PtsDisplay
                     amount={orderResult.totalPrice}
                     className="text-lg font-black text-[#D35400]"
                   />
                 </div>
                 <div className="flex justify-between text-sm pt-2">
-                  <span className="text-gray-500">Remaining Balance</span>
+                  <span className="text-gray-500">Số dư còn lại</span>
                   <PtsDisplay
                     amount={orderResult.userRemainingBalance}
                     className="font-bold text-[#D35400]"
@@ -398,7 +472,7 @@ export default function CheckoutPage() {
                   }}
                   className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
                 >
-                  View My Orders
+                  Xem đơn hàng
                 </button>
                 <button
                   onClick={() => {
@@ -407,7 +481,7 @@ export default function CheckoutPage() {
                   }}
                   className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
                 >
-                  Browse Sessions
+                  Chọn phiên ăn
                 </button>
               </div>
             </div>
@@ -434,12 +508,12 @@ export default function CheckoutPage() {
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-10 px-4 sm:px-8">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-orange-100/30 to-transparent pointer-events-none" />
-        <div className="max-w-5xl mx-auto relative z-10">
+        <div className="max-w-7xl mx-auto relative z-10">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            <ArrowLeft className="w-4 h-4" /> Quay lại
           </button>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-gray-100 pb-6">
@@ -448,7 +522,7 @@ export default function CheckoutPage() {
                 <ShoppingBag className="w-5 h-5 text-[#D35400]" />
               </div>
               <div>
-                <h1 className="text-3xl font-extrabold text-gray-800">Checkout</h1>
+                <h1 className="text-3xl font-extrabold text-gray-800">Thanh toán</h1>
                 {sessionLabels.length > 0 && (
                   <p
                     suppressHydrationWarning
@@ -486,10 +560,30 @@ export default function CheckoutPage() {
                 const detail = sessionDetails.get(sid);
                 const sessionItems = cartItems.filter((i) => i.sessionId === sid);
                 const sessionName = sessionItems[0]?.sessionName || sid.slice(0, 8);
-                if (!detail?.mealTemplates?.length) {
+                if (isLoadingDetails) {
                   return (
                     <div key={sid} className="text-xs text-gray-400 italic">
                       Đang tải cấu hình cho &ldquo;{sessionName}&rdquo;...
+                    </div>
+                  );
+                }
+                if (!detail?.mealTemplates?.length) {
+                  return (
+                    <div
+                      key={sid}
+                      className="text-xs text-red-500 font-semibold p-4 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between"
+                    >
+                      <span>Phiên ăn &ldquo;{sessionName}&rdquo; không hợp lệ hoặc đã bị xóa.</span>
+                      <button
+                        onClick={() => {
+                          const itemsToRemove = cartItems.filter((i) => i.sessionId === sid);
+                          itemsToRemove.forEach((i) => removeFromCart(i.dishId, sid));
+                          toast.success("Đã xóa phiên ăn không hợp lệ.");
+                        }}
+                        className="text-xs font-bold text-red-700 underline hover:text-red-900 ml-2"
+                      >
+                        Xóa
+                      </button>
                     </div>
                   );
                 }
@@ -570,17 +664,37 @@ export default function CheckoutPage() {
                   : detail?.mealTemplates?.[0];
                 const templateName = template?.name || "";
                 const sessionTotal = sessionItems.reduce((s, i) => s + i.price * i.quantity, 0);
+                const isExpired = detail
+                  ? new Date(detail.availableTo) < new Date() ||
+                    !detail.isActive ||
+                    detail.isFinalized === true
+                  : !isLoadingDetails;
 
                 return (
                   <div
                     key={sid}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                    className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+                      isExpired ? "border-red-200" : "border-gray-100"
+                    }`}
                   >
                     {/* Session Header */}
-                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-4 border-b border-orange-100">
+                    <div
+                      className={`px-5 py-4 border-b transition-colors ${
+                        isExpired
+                          ? "bg-red-50/80 border-red-100"
+                          : "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-100"
+                      }`}
+                    >
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-bold text-gray-800">{sessionName}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-800">{sessionName}</h3>
+                            {isExpired && (
+                              <span className="text-[10px] font-extrabold text-red-600 bg-red-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                {detail?.isFinalized ? "Đã chốt đơn" : "Hết hạn đặt"}
+                              </span>
+                            )}
+                          </div>
                           {templateName && (
                             <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                               <Calendar className="w-3 h-3" /> {templateName}
@@ -730,30 +844,32 @@ export default function CheckoutPage() {
                     <Wallet className="w-4 h-4 text-[#D35400]" />
                   </div>
                   <h2 className="text-base font-bold text-gray-700 uppercase tracking-wide">
-                    Payment Summary
+                    Tổng kết thanh toán
                   </h2>
                 </div>
 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400 font-medium">
-                      Items ({activeCartItems.length})
+                      Món ăn ({activeCartItems.length})
                     </span>
                     <PtsDisplay amount={totalPoints} className="font-bold text-gray-800" />
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400 font-medium">Your Balance</span>
+                    <span className="text-gray-400 font-medium">Số dư của bạn</span>
                     <PtsDisplay amount={balance} className="font-bold text-[#D35400]" />
                   </div>
                   <div className="border-t border-gray-100 pt-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-gray-800">Payment Method</span>
+                      <span className="text-sm font-bold text-gray-800">
+                        Phương thức thanh toán
+                      </span>
                       <span className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-orange-50/60 px-3 py-1.5 rounded-xl border border-orange-100/40">
-                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Digital Wallet
+                        <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Ví điện tử
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
-                      <span className="font-bold text-gray-800">Total Price</span>
+                      <span className="font-bold text-gray-800">Tổng tiền</span>
                       <PtsDisplay
                         amount={totalPoints}
                         className="font-black text-[#D35400] text-xl"
@@ -761,6 +877,36 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
+                {expiredSessions.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6 flex flex-col gap-2">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5 animate-bounce" />
+                      <div>
+                        <p className="text-sm font-bold text-red-800">
+                          Giỏ hàng có phiên ăn hết hạn
+                        </p>
+                        <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                          Phiên ăn <strong>{expiredSessions.map((s) => s.name).join(", ")}</strong>{" "}
+                          đã quá hạn đặt hàng hoặc không còn hoạt động. Vui lòng loại bỏ để tiếp tục
+                          thanh toán.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        expiredSessions.forEach((es) => {
+                          const itemsToRemove = cartItems.filter((i) => i.sessionId === es.id);
+                          itemsToRemove.forEach((i) => removeFromCart(i.dishId, es.id));
+                        });
+                        toast.success("Đã xóa các phiên ăn hết hạn khỏi giỏ hàng.");
+                      }}
+                      className="self-start text-xs font-bold text-red-700 underline hover:text-red-900 mt-1"
+                    >
+                      Xóa nhanh các món hết hạn
+                    </button>
+                  </div>
+                )}
+
                 {isBlocked ? (
                   <div className="space-y-4">
                     <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
@@ -800,21 +946,21 @@ export default function CheckoutPage() {
                     disabled
                     className="w-full py-4 bg-gray-300 text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2"
                   >
-                    <Loader2 className="w-4 h-4 animate-spin" /> Checking...
+                    <Loader2 className="w-4 h-4 animate-spin" /> Đang kiểm tra...
                   </button>
                 ) : hasEnoughPoints ? (
                   <button
                     onClick={handleCreateOrder}
-                    disabled={isSubmitting || isSyncing}
-                    className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 flex items-center justify-center gap-2"
+                    disabled={isSubmitting || isSyncing || expiredSessions.length > 0}
+                    className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSubmitting || isSyncing ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                        <Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...
                       </>
                     ) : (
                       <>
-                        <Wallet className="w-4 h-4" /> Pay{" "}
+                        <Wallet className="w-4 h-4" /> Thanh toán{" "}
                         <PtsDisplay amount={totalPoints} className="text-white" />
                       </>
                     )}
@@ -824,10 +970,11 @@ export default function CheckoutPage() {
                     <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-bold text-[#B34700]">Insufficient Balance</p>
-                        <p className="text-xs text-orange-500 mt-1">
-                          You need <strong>{formatPts(neededPoints)}</strong> more points. Please
-                          top up.
+                        <p className="text-sm font-bold text-[#B34700]">Số dư không đủ</p>
+                        <p className="text-xs text-orange-500 mt-1 flex items-center gap-1 flex-wrap">
+                          Bạn cần thêm{" "}
+                          <PtsDisplay amount={neededPoints} className="font-bold text-[#D35400]" />{" "}
+                          để hoàn tất đơn hàng. Vui lòng nạp thêm.
                         </p>
                       </div>
                     </div>
@@ -838,14 +985,15 @@ export default function CheckoutPage() {
                           setTopUpAmount(Math.max(50000, neededPoints * 1000));
                           setIsTopUpOpen(true);
                         }}
-                        className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                        disabled={expiredSessions.length > 0}
+                        className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-extrabold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        <ArrowUpRight className="w-4 h-4" /> Top Up &amp; Pay
+                        <ArrowUpRight className="w-4 h-4" /> Nạp tiền &amp; Thanh toán
                       </button>
                     ) : (
                       <div className="space-y-4 bg-gray-50/50 rounded-2xl p-4 border border-gray-100 animate-fadeIn">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
-                          Top Up Your Wallet
+                          Nạp tiền vào ví
                         </h3>
 
                         {topUpResult ? (
@@ -853,7 +1001,7 @@ export default function CheckoutPage() {
                             <div className="bg-white border border-gray-100 rounded-xl p-4 text-center shadow-xs">
                               <CheckCircle2 className="w-8 h-8 text-[#D35400] mx-auto mb-2" />
                               <p className="text-sm font-bold text-gray-800">
-                                Top-up request created!
+                                Tạo yêu cầu nạp tiền thành công!
                               </p>
                               <p className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
                                 {formatPts(topUpResult.amountVnd)} VND {" → "}
@@ -882,7 +1030,7 @@ export default function CheckoutPage() {
                                   rel="noopener noreferrer"
                                   className="flex items-center gap-1.5 text-xs font-bold text-[#D35400] hover:underline"
                                 >
-                                  <ExternalLink className="w-3.5 h-3.5" /> Open payment gateway
+                                  <ExternalLink className="w-3.5 h-3.5" /> Mở cổng thanh toán
                                 </a>
                               </div>
                             )}
@@ -895,7 +1043,7 @@ export default function CheckoutPage() {
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(topUpResult.paymentContent || "");
-                                    toast.success("Copied to clipboard!");
+                                    toast.success("Đã sao chép vào bộ nhớ tạm!");
                                   }}
                                   className="text-xs font-black text-[#D35400] tracking-wider bg-gray-50 py-2 px-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full truncate"
                                 >
@@ -908,7 +1056,7 @@ export default function CheckoutPage() {
                               onClick={handleRetryCheckout}
                               className="w-full py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
                             >
-                              <RotateCcw className="w-4 h-4" /> Check Balance &amp; Place Order
+                              <RotateCcw className="w-4 h-4" /> Kiểm tra số dư &amp; Đặt hàng
                             </button>
                             <button
                               onClick={() => {
@@ -917,14 +1065,14 @@ export default function CheckoutPage() {
                               }}
                               className="w-full py-1.5 text-gray-400 font-bold text-xs hover:text-gray-600 transition-colors text-center"
                             >
-                              Cancel
+                              Hủy
                             </button>
                           </div>
                         ) : (
                           <>
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                Amount (VND)
+                                Số tiền (VND)
                               </label>
                               <div className="grid grid-cols-3 gap-1.5">
                                 {[50000, 100000, 200000].map((amt) => (
@@ -953,7 +1101,7 @@ export default function CheckoutPage() {
 
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                Payment Method
+                                Phương thức thanh toán
                               </label>
                               <div className="grid grid-cols-2 gap-1.5">
                                 {PAYMENT_METHODS.filter((m) => m.id === 4).map((pm) => (
@@ -973,7 +1121,7 @@ export default function CheckoutPage() {
                                   >
                                     {name}
                                     <span className="absolute -top-1 -right-3 bg-gray-200 text-gray-400 text-[6px] font-black uppercase px-2 py-0.5 -rotate-[16deg]">
-                                      Soon
+                                      Sắp có
                                     </span>
                                   </button>
                                 ))}
@@ -987,13 +1135,13 @@ export default function CheckoutPage() {
                                 className="flex-1 py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/10"
                               >
                                 {isTopUpping && <Loader2 className="w-4 h-4 animate-spin" />}
-                                {isTopUpping ? "Processing..." : "Get QR Code"}
+                                {isTopUpping ? "Đang xử lý..." : "Lấy mã QR"}
                               </button>
                               <button
                                 onClick={() => setIsTopUpOpen(false)}
                                 className="py-3 px-4 bg-white text-gray-500 font-bold text-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
                               >
-                                Cancel
+                                Hủy
                               </button>
                             </div>
                           </>

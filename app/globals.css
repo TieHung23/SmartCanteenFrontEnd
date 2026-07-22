@@ -146,12 +146,15 @@
 .card-3d {
   perspective: 1000px;
   transform-style: preserve-3d;
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease, border-color 0.5s ease;
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.5s ease,
+    border-color 0.5s ease;
 }
 
 .card-3d:hover {
   transform: translateY(-6px) rotateX(1.5deg) rotateY(-1.5deg);
-  box-shadow: 
+  box-shadow:
     0 20px 30px -5px rgba(211, 84, 0, 0.12),
     0 8px 16px -5px rgba(0, 0, 0, 0.06),
     0 4px 6px -1px rgba(211, 84, 0, 0.04);
@@ -160,7 +163,7 @@
 
 .card-3d:active {
   transform: translateY(2px) rotateX(0deg) rotateY(0deg);
-  box-shadow: 
+  box-shadow:
     0 5px 10px -2px rgba(211, 84, 0, 0.08),
     0 2px 4px -1px rgba(0, 0, 0, 0.04);
 }
@@ -168,7 +171,10 @@
 .image-3d {
   perspective: 1000px;
   transform-style: preserve-3d;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease, border-color 0.4s ease;
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s ease,
+    border-color 0.4s ease;
 }
 
 .image-3d:hover {
@@ -181,9 +187,10 @@
 .drag-item {
   cursor: grab;
   user-select: none;
-  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-              opacity 0.25s ease,
-              box-shadow 0.25s ease;
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .drag-item:active {
@@ -197,7 +204,8 @@
 }
 
 @keyframes dropZonePulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: rgba(211, 84, 0, 0.25);
     background-color: rgba(211, 84, 0, 0.02);
   }
@@ -230,12 +238,16 @@
 }
 
 @keyframes shimmerBorder {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
 }
 
 .drop-zone-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(211,84,0,0.08) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(211, 84, 0, 0.08) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmerBorder 2s ease-in-out infinite;
 }
@@ -254,3 +266,183 @@
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* ── Modern 3D Entrance Animations ── */
+
+@keyframes slideUp3d {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) rotateX(-4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+}
+
+.animate-slide-up-3d {
+  animation: slideUp3d 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(0.5deg);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 8px 2px currentColor;
+    opacity: 0.7;
+  }
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes shimmerLine {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer-line {
+  background: linear-gradient(90deg, transparent 25%, rgba(211, 84, 0, 0.06) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmerLine 3s ease-in-out infinite;
+}
+
+@keyframes iconSpin3d {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+.animate-icon-spin-3d {
+  animation: iconSpin3d 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+/* Stagger delay utilities */
+.delay-75 {
+  animation-delay: 75ms;
+}
+.delay-150 {
+  animation-delay: 150ms;
+}
+.delay-225 {
+  animation-delay: 225ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
+.delay-375 {
+  animation-delay: 375ms;
+}
+.delay-450 {
+  animation-delay: 450ms;
+}
+
+/* 3D Card tilt on hover (subtle) */
+.card-tilt {
+  transition:
+    transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.card-tilt:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    0 20px 40px -12px rgba(0, 0, 0, 0.1),
+    0 8px 20px -8px rgba(211, 84, 0, 0.08);
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Gradient border animation */
+@keyframes gradientBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-border {
+  background: linear-gradient(135deg, #d35400, #e86a33, #f59e0b, #d35400);
+  background-size: 300% 300%;
+  animation: gradientBorder 4s ease infinite;
+}
+
+/* === Sidebar nav (no scrollbar — auto-scroll on hover) === */
+.sidebar-nav {
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+}
+.sidebar-nav:hover {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

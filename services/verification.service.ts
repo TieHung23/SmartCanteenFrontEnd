@@ -3,10 +3,43 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { ApiResponse, PaginatedList } from "./session.service";
 import type {
   VerificationMeResponse,
+  VerificationStatusType,
   VerificationDocumentType,
   AdminVerificationListItem,
   AdminVerificationDetail,
 } from "@/types/verification.types";
+import { getAccessToken } from "@/lib/auth-token-storage";
+
+function normalizeVerificationStatus(status: unknown): VerificationStatusType | null {
+  if (typeof status === "number") {
+    return status >= 0 && status <= 4 ? (status as VerificationStatusType) : null;
+  }
+  if (typeof status !== "string") return null;
+  const normalized = status.toLowerCase().replace(/[\s_-]/g, "");
+  if (
+    normalized === "pending" ||
+    normalized === "submitted" ||
+    normalized === "inreview" ||
+    normalized === "underreview" ||
+    normalized === "waitingforreview" ||
+    normalized === "pendingreview"
+  ) {
+    return 1;
+  }
+  if (normalized === "approved" || normalized === "verified") return 2;
+  if (normalized === "rejected") return 3;
+  if (normalized === "expired") return 4;
+  const numeric = Number(status);
+  return Number.isFinite(numeric) && numeric >= 0 && numeric <= 4
+    ? (numeric as VerificationStatusType)
+    : null;
+}
+
+function isPendingVerificationStatus(status: VerificationStatusType): boolean {
+  return status === 0 || status === 1;
+}
+
+export { isPendingVerificationStatus };
 
 export const verificationService = {
   getMyVerification: async (): Promise<VerificationMeResponse | null> => {
@@ -15,10 +48,25 @@ export const verificationService = {
       console.log("GET /me raw response:", response);
       const data = response as unknown as Record<string, unknown>;
       if (data.value && typeof data.value === "object") {
-        return data.value as unknown as VerificationMeResponse;
+        const value = data.value as Record<string, unknown>;
+        const status = normalizeVerificationStatus(value.status);
+        return {
+          ...(value as unknown as VerificationMeResponse),
+          status: status ?? 0,
+          rejectReason:
+            (value.rejectReason as string | undefined) ||
+            (value.rejectionReason as string | undefined),
+        };
       }
       if (data.requestId || data.status !== undefined) {
-        return data as unknown as VerificationMeResponse;
+        const status = normalizeVerificationStatus(data.status);
+        return {
+          ...(data as unknown as VerificationMeResponse),
+          status: status ?? 0,
+          rejectReason:
+            (data.rejectReason as string | undefined) ||
+            (data.rejectionReason as string | undefined),
+        };
       }
       return null;
     } catch (error) {
@@ -36,7 +84,18 @@ export const verificationService = {
     documentTypes.forEach((dt) => formData.append("documentTypes", String(dt)));
 
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+      const profile = await import("./user.service").then((m) =>
+        m.userService.getProfile().catch(() => null),
+      );
+      if (profile) {
+        if (profile.majorOrClass) formData.append("MajorOrClass", profile.majorOrClass);
+        if (profile.dateOfBirth) formData.append("DateOfBirth", profile.dateOfBirth.split("T")[0]);
+        if (profile.studentId) formData.append("StudentId", profile.studentId);
+      }
+    } catch {}
+
+    try {
+      const token = getAccessToken();
       const baseURL = apiClient.defaults.baseURL || "";
       const res = await fetch(`${baseURL}${API_ENDPOINTS.VERIFICATION.SUBMIT}`, {
         method: "POST",
@@ -46,7 +105,16 @@ export const verificationService = {
       console.log("POST /submit status:", res.status);
       const text = await res.text();
       console.log("POST /submit body:", text);
-      if (!res.ok) throw new Error(text);
+      if (!res.ok) {
+        let errorBody: Record<string, unknown> = {};
+        try {
+          errorBody = JSON.parse(text);
+        } catch {}
+        const message = (errorBody.message as string) || `Request failed (${res.status})`;
+        const err = new Error(message);
+        Object.assign(err, { errorCode: errorBody.errorCode, errorData: errorBody });
+        throw err;
+      }
       const json = JSON.parse(text);
       if (typeof json.value === "string") return { requestId: json.value };
       if (json.value?.requestId) return { requestId: json.value.requestId };
@@ -63,6 +131,7 @@ export const verificationService = {
   adminList: async (params?: {
     pageNumber?: number;
     pageSize?: number;
+    status?: number;
   }): Promise<PaginatedList<AdminVerificationListItem>> => {
     const response = (await apiClient.get<ApiResponse<PaginatedList<AdminVerificationListItem>>>(
       API_ENDPOINTS.VERIFICATION.ADMIN_LIST,

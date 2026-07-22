@@ -12,10 +12,12 @@ import React, {
 import { usePathname } from "next/navigation";
 import { isAxiosError } from "axios";
 import type { CreateOrderItem } from "@/types/order.types";
-import type { SessionTemplate } from "@/types/session.types";
+import type { SessionTemplate, SessionDetail } from "@/types/session.types";
 import type { CartSessionData } from "@/types/cart.types";
 import { cartService } from "@/services/cart.service";
 import { useAuth } from "@/context/auth-context";
+import { sessionService } from "@/services/session.service";
+import { toast } from "sonner";
 
 export interface CartItem extends CreateOrderItem {
   name: string;
@@ -82,7 +84,7 @@ interface CartContextType {
   cartVersion: number;
   isSyncing: boolean;
   isCartLoaded: boolean;
-  ensureSynced: () => Promise<number | null>;
+  ensureSynced: (throwOnError?: boolean) => Promise<number | null>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -96,6 +98,11 @@ function formatTimeRange(t?: string) {
   return `${fmt(parts[0])} - ${fmt(parts[1])}`;
 }
 
+function getCartStorage() {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage;
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const pathname = usePathname();
@@ -104,16 +111,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     : true;
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("smart_canteen_session");
-    return null;
+    return getCartStorage()?.getItem("smart_canteen_session") || null;
   });
 
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("smart_canteen_cart");
+    const storage = getCartStorage();
+    if (storage) {
+      const saved = storage.getItem("smart_canteen_cart");
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved) as CartItem[];
+          return parsed.filter((item) => Boolean(item.sessionId));
         } catch {
           return [];
         }
@@ -123,14 +131,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    localStorage.setItem("smart_canteen_cart", JSON.stringify(cartItems));
+    getCartStorage()?.setItem("smart_canteen_cart", JSON.stringify(cartItems));
   }, [cartItems]);
 
   useEffect(() => {
+    const storage = getCartStorage();
     if (sessionId) {
-      localStorage.setItem("smart_canteen_session", sessionId);
+      storage?.setItem("smart_canteen_session", sessionId);
     } else {
-      localStorage.removeItem("smart_canteen_session");
+      storage?.removeItem("smart_canteen_session");
     }
   }, [sessionId]);
 
@@ -138,8 +147,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const closeCart = () => setIsCartOpen(false);
 
   const [cartVersion, setCartVersion] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("smart_canteen_cart_version");
+    const storage = getCartStorage();
+    if (storage) {
+      const saved = storage.getItem("smart_canteen_cart_version");
       if (saved) {
         try {
           return Number(saved);
@@ -153,7 +163,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartLoaded, setIsCartLoaded] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("smart_canteen_cart_version", String(cartVersion));
+    getCartStorage()?.setItem("smart_canteen_cart_version", String(cartVersion));
   }, [cartVersion]);
 
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -198,74 +208,177 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     cartService
       .getCart()
-      .then((serverCart) => {
+      .then(async (serverCart) => {
         setCartVersion(serverCart.version);
-        if (serverCart.data?.sessions?.length) {
-          setCartItems((prev) => {
-            const merged = [...prev];
-            for (const s of serverCart.data.sessions) {
-              for (const item of s.items) {
-                const exists = prev.some(
-                  (ci) => ci.dishId === item.dishId && ci.sessionId === s.sessionId,
-                );
-                if (!exists) {
-                  merged.push({
-                    dishId: item.dishId,
-                    quantity: item.quantity,
-                    name: `Dish ${item.dishId.slice(0, 8)}`,
-                    price: 0,
-                    sessionId: s.sessionId,
-                    sessionTemplateId: s.mealTemplateId,
-                  });
-                }
+
+        // Get all unique session IDs from both server cart and initial local cart
+        const serverSessionIds = serverCart.data?.sessions?.map((s) => s.sessionId) || [];
+        const localSessionIds = cartItems.map((i) => i.sessionId).filter(Boolean) as string[];
+        const allSessionIds = [...new Set([...serverSessionIds, ...localSessionIds])];
+
+        if (allSessionIds.length === 0) {
+          setIsCartLoaded(true);
+          return;
+        }
+
+        const fetchedItems: CartItem[] = [];
+        const expiredSessionIds = new Set<string>();
+        const validSessions = new Map<string, SessionDetail>();
+
+        await Promise.all(
+          allSessionIds.map(async (sid) => {
+            try {
+              const session = await sessionService.getSessionDetail(sid);
+              const now = new Date();
+              const isExpired =
+                new Date(session.availableTo) < now ||
+                !session.isActive ||
+                session.isFinalized === true;
+
+              if (isExpired) {
+                expiredSessionIds.add(sid);
+              } else {
+                validSessions.set(sid, session);
+              }
+            } catch (error) {
+              if (isAxiosError(error) && error.response?.status === 404) {
+                expiredSessionIds.add(sid);
+              } else {
+                console.error(`Failed to fetch session detail for ${sid} during cart sync:`, error);
               }
             }
-            return merged;
-          });
+          }),
+        );
+
+        if (serverCart.data?.sessions?.length) {
+          for (const s of serverCart.data.sessions) {
+            const session = validSessions.get(s.sessionId);
+            if (!session) continue;
+
+            for (const item of s.items) {
+              const dish = session.dishes.find((d) => d.dishId === item.dishId);
+              fetchedItems.push({
+                dishId: item.dishId,
+                quantity: item.quantity,
+                name: dish?.dishName || `Dish ${item.dishId.slice(0, 8)}`,
+                price: dish?.priceAmount || 0,
+                imgUrl: dish?.imgUrl || undefined,
+                categoryId: dish?.categoryId || undefined,
+                categoryName: undefined,
+                sessionId: s.sessionId,
+                sessionTemplateId: s.mealTemplateId,
+                sessionName: session.name,
+                sessionTime: `${session.availableFrom} - ${session.availableTo}`,
+              });
+            }
+          }
         }
+
+        if (expiredSessionIds.size > 0) {
+          toast.warning(
+            "Một số món ăn trong giỏ hàng đã được tự động dọn dẹp do ca ăn tương ứng đã kết thúc, hết hạn đặt hàng hoặc đã chốt đơn.",
+            { duration: 5000 },
+          );
+        }
+
+        setCartItems((prev) => {
+          const filteredPrev = prev.filter(
+            (item) => !item.sessionId || !expiredSessionIds.has(item.sessionId),
+          );
+          const merged = [...filteredPrev];
+          for (const fi of fetchedItems) {
+            const idx = merged.findIndex(
+              (ci) => ci.dishId === fi.dishId && ci.sessionId === fi.sessionId,
+            );
+            if (idx > -1) {
+              merged[idx] = {
+                ...merged[idx],
+                ...fi,
+                quantity: fi.quantity,
+              };
+            } else {
+              merged.push(fi);
+            }
+          }
+
+          const activeSessionsLeft = merged.map((i) => i.sessionId).filter(Boolean);
+          if (activeSessionsLeft.length === 0) {
+            setSessionId(null);
+          }
+
+          return merged;
+        });
       })
       .catch(() => {})
       .finally(() => setIsCartLoaded(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isCustomerRoute]);
 
-  const pushToServer = useCallback(async (): Promise<number | null> => {
-    if (!isAuthenticated || !isCustomerRoute) return null;
+  const pushToServer = useCallback(
+    async (throwOnError = false): Promise<number | null> => {
+      if (!isAuthenticated || !isCustomerRoute) return null;
 
-    const items = cartItemsRef.current;
-    const version = cartVersionRef.current;
+      setIsSyncing(true);
+      try {
+        let items = cartItemsRef.current;
+        let version = cartVersionRef.current;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 3;
 
-    setIsSyncing(true);
-    try {
-      if (items.length === 0) {
-        await cartService.deleteCart(version).catch(() => {});
-        return version;
-      }
-      const sessions = buildSessions(items);
-      const result = await cartService.updateCart({ sessions }, version);
-      cartVersionRef.current = result.version;
-      setCartVersion(result.version);
-      return result.version;
-    } catch (error: unknown) {
-      if (isAxiosError(error) && error.response?.status === 409) {
-        try {
-          const serverCart = await cartService.getCart();
-          cartVersionRef.current = serverCart.version;
-          setCartVersion(serverCart.version);
-          const items2 = cartItemsRef.current;
-          const sessions = buildSessions(items2);
-          const result = await cartService.updateCart({ sessions }, serverCart.version);
-          cartVersionRef.current = result.version;
-          setCartVersion(result.version);
-          return result.version;
-        } catch {
-          return null;
+        while (attempts < MAX_ATTEMPTS) {
+          attempts++;
+          if (items.length === 0) {
+            try {
+              const deleteResult = await cartService.deleteCart(version);
+              if (deleteResult && typeof deleteResult.version === "number") {
+                cartVersionRef.current = deleteResult.version;
+                setCartVersion(deleteResult.version);
+                return deleteResult.version;
+              }
+              return version;
+            } catch (error: unknown) {
+              if (isAxiosError(error) && error.response?.status === 409) {
+                const serverCart = await cartService.getCart();
+                version = serverCart.version;
+                cartVersionRef.current = version;
+                setCartVersion(version);
+                items = cartItemsRef.current;
+                continue;
+              }
+              if (throwOnError) throw error;
+              return null;
+            }
+          }
+
+          const sessions = buildSessions(items);
+          try {
+            const result = await cartService.updateCart({ sessions }, version);
+            cartVersionRef.current = result.version;
+            setCartVersion(result.version);
+            return result.version;
+          } catch (error: unknown) {
+            if (isAxiosError(error) && error.response?.status === 409) {
+              const serverCart = await cartService.getCart();
+              version = serverCart.version;
+              cartVersionRef.current = version;
+              setCartVersion(version);
+              items = cartItemsRef.current;
+              continue;
+            }
+            if (throwOnError) throw error;
+            return null;
+          }
         }
+
+        if (throwOnError)
+          throw new Error("Cart sync failed after multiple retries due to conflicts.");
+        return null;
+      } finally {
+        setIsSyncing(false);
       }
-      return null;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isAuthenticated, isCustomerRoute]);
+    },
+    [isAuthenticated, isCustomerRoute],
+  );
 
   const pushToServerRef = useRef(pushToServer);
   useEffect(() => {
@@ -282,17 +395,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
   }, [cartItems, isCartLoaded, isAuthenticated, isCustomerRoute]);
 
-  const ensureSynced = useCallback(async (): Promise<number | null> => {
+  const ensureSynced = useCallback(async (throwOnError = false): Promise<number | null> => {
     if (syncTimerRef.current) {
       clearTimeout(syncTimerRef.current);
       syncTimerRef.current = undefined;
     }
-    return await pushToServerRef.current();
+    return await pushToServerRef.current(throwOnError);
   }, []);
 
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("smart_canteen_selected_sessions");
+    const storage = getCartStorage();
+    if (storage) {
+      const saved = storage.getItem("smart_canteen_selected_sessions");
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -319,7 +433,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [uniqueSessionIds]);
 
   useEffect(() => {
-    localStorage.setItem("smart_canteen_selected_sessions", JSON.stringify(selectedSessionIds));
+    getCartStorage()?.setItem(
+      "smart_canteen_selected_sessions",
+      JSON.stringify(selectedSessionIds),
+    );
   }, [selectedSessionIds]);
 
   const toggleSessionSelection = useCallback((sid: string) => {
@@ -383,7 +500,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const getSessionLimitInfo = useCallback(
     (targetSessionId: string, mealTemplates: SessionTemplate[]) => {
-      const sessionItems = cartItems.filter((i) => i.sessionId !== targetSessionId);
+      const sessionItems = cartItems.filter((i) => i.sessionId === targetSessionId);
       if (sessionItems.length === 0) return null;
 
       const firstItem = sessionItems[0];
@@ -430,15 +547,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
 
       setCartItems((prev) => {
-        const existing = prev.find((i) => i.dishId === item.dishId && i.sessionId === newSessionId);
+        const scoped = prev.filter((i) => Boolean(i.sessionId));
+        const existing = scoped.find(
+          (i) => i.dishId === item.dishId && i.sessionId === newSessionId,
+        );
         if (existing) {
-          return prev.map((i) =>
+          return scoped.map((i) =>
             i.dishId === item.dishId && i.sessionId === newSessionId
               ? { ...i, quantity: i.quantity + qty }
               : i,
           );
         }
-        return [...prev, { ...item, quantity: qty }];
+        return [...scoped, { ...item, quantity: qty, sessionId: newSessionId }];
       });
 
       return { success: true };
@@ -447,16 +567,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateQuantity = useCallback(
-    (dishId: string, quantity: number, sessionId?: string): ValidationResult => {
+    (dishId: string, quantity: number, targetSessionId?: string): ValidationResult => {
+      if (!targetSessionId) {
+        return { success: false, error: "Thiếu thông tin suất ăn" };
+      }
       if (quantity <= 0) {
         setCartItems((prev) =>
-          prev.filter((i) => !(i.dishId === dishId && (!sessionId || i.sessionId === sessionId))),
+          prev.filter((i) => !(i.dishId === dishId && i.sessionId === targetSessionId)),
         );
         return { success: true };
       }
       setCartItems((prev) =>
         prev.map((i) =>
-          i.dishId === dishId && (!sessionId || i.sessionId === sessionId) ? { ...i, quantity } : i,
+          i.dishId === dishId && i.sessionId === targetSessionId ? { ...i, quantity } : i,
         ),
       );
       return { success: true };
@@ -465,11 +588,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeFromCart = useCallback(
-    (dishId: string, sessionId?: string) => {
+    (dishId: string, targetSessionId?: string) => {
       setCartItems((prev) => {
-        const next = prev.filter(
-          (i) => !(i.dishId === dishId && (!sessionId || i.sessionId === sessionId)),
-        );
+        const next = targetSessionId
+          ? prev.filter((i) => !(i.dishId === dishId && i.sessionId === targetSessionId))
+          : prev.filter((i) => i.dishId !== dishId);
         if (next.length === 0) setSessionId(null);
         return next;
       });

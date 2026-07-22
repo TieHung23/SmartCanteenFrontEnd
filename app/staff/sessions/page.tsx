@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, startTransition } from "react";
+import Image from "next/image";
 import {
   Loader2,
   AlertTriangle,
@@ -12,10 +13,13 @@ import {
   LayoutGrid,
   Clock,
   Calendar,
+  UtensilsCrossed,
+  AlertCircle,
 } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import { categoryService } from "@/services/category.service";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 
 interface SessionItem {
@@ -63,8 +67,13 @@ interface DishInfo {
 }
 
 interface SessionDishItem {
+  id?: string;
   dishId?: string;
+  dishName?: string;
+  imgUrl?: string;
+  priceAmount?: number;
   quantity?: number;
+  preparedQuantity?: number | null;
 }
 
 export default function StaffSessionsPage() {
@@ -75,6 +84,8 @@ export default function StaffSessionsPage() {
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [preparedQuantities, setPreparedQuantities] = useState<Record<string, number>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── REFS ĐIỀU KHIỂN CUỘN TỰ ĐỘNG VÀ KÉO RÊ ──
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -237,6 +248,78 @@ export default function StaffSessionsPage() {
     isHoveredOrDragging.current = false; // Trả lại quyền cuộn tự động
   };
 
+  const activeSessionRef = useRef<string | undefined>(undefined);
+
+  // ── KHỞI TẠO SỐ LƯỢNG CHUẨN BỊ KHI ĐỔI CA ĂN ──
+  useEffect(() => {
+    if (!activeSessionId) return;
+    if (activeSessionRef.current === activeSessionId) return;
+    activeSessionRef.current = activeSessionId;
+    const session = sessions.find((m) => m.id === activeSessionId);
+    if (!session?.dishes) return;
+    const initialQs: Record<string, number> = {};
+    session.dishes.forEach((d) => {
+      initialQs[d.dishId ?? ""] = d.preparedQuantity ?? 0;
+    });
+    startTransition(() => {
+      setPreparedQuantities(initialQs);
+    });
+  }, [activeSessionId, sessions]);
+
+  const handleQuantityChange = (dishId: string, val: string) => {
+    const num = val === "" ? 0 : parseInt(val, 10);
+    setPreparedQuantities((prev) => ({
+      ...prev,
+      [dishId]: isNaN(num) ? 0 : Math.max(0, num),
+    }));
+  };
+
+  const handleFinalize = async () => {
+    if (!activeSessionId) return;
+    const session = sessions.find((m) => m.id === activeSessionId);
+    if (!session) return;
+
+    const result = await Swal.fire({
+      title: "Chốt ca phục vụ?",
+      text: "Bạn có chắc chắn muốn chốt số lượng cho ca phục vụ này? Hành động này sẽ khóa ca bán và tự động tạo đề xuất đổi món/hoàn tiền cho các đơn hàng bị thiếu.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#D35400",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Chốt ca ăn",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-150 shadow-md",
+        title: "text-lg font-bold text-gray-900",
+      },
+    });
+    if (!result.isConfirmed) return;
+
+    setIsSubmitting(true);
+    try {
+      // Fetch session detail to get the correct dish list
+      const detail = await sessionService.getSessionDetail(activeSessionId);
+      // Use all dishes from the session detail (they are the session's actual dishes)
+      const sessionDishes = detail.dishes || [];
+      const preparedDishes = sessionDishes.map((d) => ({
+        dishId: d.dishId ?? "",
+        preparedQuantity: preparedQuantities[d.dishId ?? ""] ?? 0,
+      }));
+
+      await sessionService.finalizeSession(activeSessionId, preparedDishes);
+      toast.success("Chốt số lượng món ăn phục vụ thành công!");
+
+      // Refresh sessions
+      const sessionData = await sessionService.getSessions({ pageSize: 100 });
+      setSessions((sessionData?.items || []) as SessionItem[]);
+    } catch {
+      toast.error("Lỗi khi thực hiện chốt đơn ca phục vụ.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // ── ĐỊNH DẠNG TIME / DATE ──
   const formatTime = (dateStr: string) => {
     try {
@@ -276,33 +359,47 @@ export default function StaffSessionsPage() {
     return cleanUrl !== "" && cleanUrl !== "string" && !cleanUrl.includes(" ");
   };
 
+  const isSessionLive = (session: SessionItem) =>
+    !!session.isActive && (!session.availableTo || new Date(session.availableTo) > new Date());
+
   const globalQuery = useGlobalSearch((s) => s.query);
 
   const filteredSessions = useMemo(() => {
     const q = globalQuery.toLowerCase().trim();
-    if (!q) return sessions;
-    return sessions.filter((m) => {
-      const name = (m.name || "").toLowerCase();
-      const desc = (m.description || "").toLowerCase();
-      const dishesText = (m.dishes || [])
-        .map((d: SessionDishItem) => {
-          const dishId = (d.dishId || "").toLowerCase();
-          const dishInfo = dishesMap[dishId];
-          return (dishInfo?.name || "").toLowerCase();
-        })
-        .join(" ");
-      const categoriesText = (m.mealTemplates || [])
-        .flatMap((t: TemplateItem) =>
-          (t.settings || []).map((s: TemplateSetting) => {
-            const cateId = (s.categoryId || "").toLowerCase();
-            const cate = categoriesMap[cateId];
-            return (cate?.name || cate?.Name || "").toLowerCase();
-          }),
-        )
-        .join(" ");
-      return (
-        name.includes(q) || desc.includes(q) || dishesText.includes(q) || categoriesText.includes(q)
-      );
+    const result = !q
+      ? sessions
+      : sessions.filter((m) => {
+          const name = (m.name || "").toLowerCase();
+          const desc = (m.description || "").toLowerCase();
+          const dishesText = (m.dishes || [])
+            .map((d: SessionDishItem) => {
+              const dishId = (d.dishId || "").toLowerCase();
+              const dishInfo = dishesMap[dishId];
+              return (dishInfo?.name || "").toLowerCase();
+            })
+            .join(" ");
+          const categoriesText = (m.mealTemplates || [])
+            .flatMap((t: TemplateItem) =>
+              (t.settings || []).map((s: TemplateSetting) => {
+                const cateId = (s.categoryId || "").toLowerCase();
+                const cate = categoriesMap[cateId];
+                return (cate?.name || cate?.Name || "").toLowerCase();
+              }),
+            )
+            .join(" ");
+          return (
+            name.includes(q) ||
+            desc.includes(q) ||
+            dishesText.includes(q) ||
+            categoriesText.includes(q)
+          );
+        });
+    return [...result].sort((a, b) => {
+      const aLive = isSessionLive(a);
+      const bLive = isSessionLive(b);
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      return 0;
     });
   }, [sessions, globalQuery, categoriesMap, dishesMap]);
 
@@ -373,7 +470,7 @@ export default function StaffSessionsPage() {
                     className={`w-5 h-5 ${isSelected ? "text-[#FF4C24]" : "text-gray-400"}`}
                   />
                   <span className="whitespace-nowrap">{session.name}</span>
-                  {session.isActive && (
+                  {isSessionLive(session) && (
                     <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
                   )}
                 </button>
@@ -418,12 +515,12 @@ export default function StaffSessionsPage() {
                 <div className="flex justify-start md:justify-end">
                   <span
                     className={`inline-flex text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border-2 ${
-                      currentSelectedSession.isActive
+                      isSessionLive(currentSelectedSession)
                         ? "bg-green-100 text-green-800 border-green-200"
                         : "bg-gray-200 text-gray-500 border-gray-300"
                     }`}
                   >
-                    {currentSelectedSession.isActive ? "● Đang Mở Bán" : "○ Ca Đã Khóa"}
+                    {isSessionLive(currentSelectedSession) ? "● Đang Mở Bán" : "○ Ca Đã Khóa"}
                   </span>
                 </div>
               </div>
@@ -551,8 +648,15 @@ export default function StaffSessionsPage() {
                                           <p className="text-base font-black text-gray-800 truncate">
                                             {dishInfo?.name || "Món ăn ẩn"}
                                           </p>
-                                          <p className="text-sm text-gray-500 font-bold">
-                                            {(dishInfo?.price || 0).toLocaleString()} Point
+                                          <p className="text-sm text-gray-500 font-bold flex items-center gap-1">
+                                            <span>{(dishInfo?.price || 0).toLocaleString()}</span>
+                                            <Image
+                                              src="/logo_point.png"
+                                              alt="coin"
+                                              width={14}
+                                              height={14}
+                                              className="object-contain inline-block"
+                                            />
                                           </p>
                                         </div>
                                       </div>
@@ -581,6 +685,104 @@ export default function StaffSessionsPage() {
                   </div>
                 </div>
               ))}
+
+              {/* ── CHỐT CA ── */}
+              {isSessionLive(currentSelectedSession) && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                    <UtensilsCrossed className="w-4 h-4 text-[#D35400]" />
+                    <h2 className="text-lg font-black text-gray-900 uppercase tracking-wide">
+                      Chốt ca phục vụ
+                    </h2>
+                  </div>
+
+                  <div className="flex flex-col gap-2 max-h-[30rem] overflow-y-auto pr-1">
+                    {(currentSelectedSession.dishes || []).map((d) => {
+                      const dishIdClean = (d.dishId ?? "").toLowerCase();
+                      const dishInfo = dishesMap[dishIdClean];
+                      return (
+                        <div
+                          key={`${d.dishId ?? ""}-${d.id ?? ""}`}
+                          className="bg-white rounded-xl border border-gray-150 hover:border-orange-200 transition-all flex items-center gap-3 px-3 py-2.5"
+                        >
+                          <div className="relative w-10 h-10 shrink-0 rounded-lg bg-gray-50 overflow-hidden">
+                            {isValidImageUrl(d.imgUrl || dishInfo?.imgUrl || dishInfo?.ImgUrl) ? (
+                              <Image
+                                src={d.imgUrl || dishInfo?.imgUrl || dishInfo?.ImgUrl || ""}
+                                alt=""
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                                🍽️
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-gray-900 truncate">
+                              {d.dishName || dishInfo?.name || "Món ăn"}
+                            </p>
+                            {(d.priceAmount ?? dishInfo?.price) !== undefined && (
+                              <span className="text-[10px] font-bold text-[#D35400] flex items-center gap-0.5">
+                                {d.priceAmount ?? (dishInfo?.price || 0)}
+                                <div className="relative w-3 h-3">
+                                  <Image
+                                    src="/logo_point.png"
+                                    alt="pts"
+                                    fill
+                                    sizes="12px"
+                                    className="object-contain"
+                                  />
+                                </div>
+                              </span>
+                            )}
+                          </div>
+
+                          {d.preparedQuantity !== null && d.preparedQuantity !== undefined ? (
+                            <span className="text-xs font-bold text-emerald-600 bg-green-50 border border-green-150 px-2.5 py-1 rounded-lg shrink-0">
+                              Đã CB: {d.preparedQuantity}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] font-bold text-gray-400">CB:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={preparedQuantities[d.dishId ?? ""] ?? 0}
+                                onChange={(e) =>
+                                  handleQuantityChange(d.dishId ?? "", e.target.value)
+                                }
+                                disabled={isSubmitting}
+                                className="w-16 px-2 py-1.5 text-center border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-[#D35400] focus:border-[#D35400] text-sm font-bold"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
+                      <p className="text-sm font-semibold text-gray-600">
+                        Sau khi chốt, ca ăn sẽ bị khóa và hệ thống tự động tạo đề xuất đổi món/hoàn
+                        tiền cho đơn hàng bị thiếu.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleFinalize}
+                      disabled={isSubmitting}
+                      className="shrink-0 px-6 py-3 bg-[#D35400] hover:bg-[#b84a00] disabled:bg-gray-300 text-white font-black rounded-xl text-sm uppercase tracking-wider transition-all"
+                    >
+                      {isSubmitting ? "Đang chốt..." : "Chốt ca ăn"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

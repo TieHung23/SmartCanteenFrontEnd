@@ -96,7 +96,7 @@ export default function AdminLogsPage() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to fetch logs");
+        setError(err instanceof Error ? err.message : "Không thể tải nhật ký");
         setLoading(false);
       });
 
@@ -213,9 +213,9 @@ export default function AdminLogsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">API Logs</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Nhật Ký API</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {totalCount > 0 ? `${totalCount} logs recorded` : "Monitor API requests and errors"}
+            {totalCount > 0 ? `${totalCount} bản ghi` : "Theo dõi các yêu cầu và lỗi API"}
           </p>
         </div>
 
@@ -226,14 +226,14 @@ export default function AdminLogsPage() {
             onChange={(e) => setIsAutoRefresh(e.target.checked)}
             className="accent-[#D35400] w-4 h-4 rounded border-gray-300"
           />
-          Auto-refresh (30s)
+          Tự động làm mới (30s)
         </label>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
           <input
-            placeholder="🔍 Search URL..."
+            placeholder="🔍 Tìm URL..."
             value={urlSearch}
             onChange={(e) => setUrlSearch(e.target.value)}
             className="h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all"
@@ -247,7 +247,7 @@ export default function AdminLogsPage() {
             }}
             className="h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all bg-white"
           >
-            <option value="">Level: All</option>
+            <option value="">Mức: Tất cả</option>
             {LOG_LEVEL_OPTIONS.map((l) => (
               <option key={l} value={l}>
                 {l}
@@ -263,7 +263,7 @@ export default function AdminLogsPage() {
             }}
             className="h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all bg-white"
           >
-            <option value="">Method: All</option>
+            <option value="">Phương thức: Tất cả</option>
             {METHOD_OPTIONS.map((m) => (
               <option key={m} value={m}>
                 {m}
@@ -273,7 +273,7 @@ export default function AdminLogsPage() {
 
           <input
             type="number"
-            placeholder="Status ≥"
+            placeholder="Mã trạng thái ≥"
             value={statusCodeMin}
             onChange={(e) => {
               setStatusCodeMin(e.target.value);
@@ -308,7 +308,7 @@ export default function AdminLogsPage() {
             onClick={clearFilters}
             className="h-10 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all"
           >
-            Clear Filters
+            Xóa bộ lọc
           </button>
         </div>
       </div>
@@ -321,22 +321,22 @@ export default function AdminLogsPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Time
+                  Thời gian
                 </th>
                 <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Level
+                  Mức
                 </th>
                 <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   URL
                 </th>
                 <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Method
+                  Phương thức
                 </th>
                 <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Status
+                  Trạng thái
                 </th>
                 <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Duration
+                  Thời lượng
                 </th>
               </tr>
             </thead>
@@ -346,7 +346,7 @@ export default function AdminLogsPage() {
                   <td colSpan={6} className="px-4 py-16 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-5 h-5 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm text-gray-400">Loading logs...</span>
+                      <span className="text-sm text-gray-400">Đang tải...</span>
                     </div>
                   </td>
                 </tr>
@@ -355,7 +355,7 @@ export default function AdminLogsPage() {
               {!loading && logs.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center text-sm text-gray-400">
-                    No logs found matching your filters.
+                    Không tìm thấy nhật ký phù hợp.
                   </td>
                 </tr>
               )}

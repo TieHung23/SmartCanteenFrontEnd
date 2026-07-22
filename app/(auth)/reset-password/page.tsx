@@ -15,7 +15,7 @@ export default function ResetPasswordPage() {
       </div>
 
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-16 bg-white">
-        <div className="w-full max-w-sm flex flex-col items-center -mt-40">
+        <div className="w-full max-w-xl flex flex-col items-center">
           <div className="mb-6 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -26,13 +26,13 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="w-full mb-6">
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Reset Password</h1>
-            <p className="text-sm text-gray-400">Enter your new password.</p>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt lại mật khẩu</h1>
+            <p className="text-sm text-gray-400">Nhập mật khẩu mới của bạn.</p>
           </div>
 
           <Suspense
             fallback={
-              <div className="w-full py-8 text-center text-sm text-gray-500">Loading...</div>
+              <div className="w-full py-8 text-center text-sm text-gray-500">Đang tải...</div>
             }
           >
             <ResetPasswordForm />

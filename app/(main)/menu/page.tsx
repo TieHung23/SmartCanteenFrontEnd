@@ -20,7 +20,8 @@ import { useCart } from "@/context/cart-context";
 import { toast } from "sonner";
 import { animate, stagger, spring } from "animejs";
 import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
-import { isSessionExpired, isSessionUpcoming } from "@/lib/utils";
+import { isSessionExpired } from "@/lib/utils";
+import { useCurrency } from "@/lib/hooks/use-currency";
 
 const getSafeImageUrl = (
   url: string | null | undefined,
@@ -75,22 +76,29 @@ function MenuContent() {
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
   const { data: sessionDetail, isLoading: loadingMeal } = useSessionDetail(sessionId);
+  const { formatPoints } = useCurrency();
 
   const {
     addToCart: contextAddToCart,
     setSessionId,
     cartItems,
-    getCartCount,
     openCart,
     removeBySessionId,
     removeFromCart,
     updateQuantity,
   } = useCart();
 
+  const sessionCartCount = useMemo(() => {
+    if (!sessionId) return 0;
+    return cartItems
+      .filter((item) => item.sessionId === sessionId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+  }, [cartItems, sessionId]);
+
   const isLoading = loadingCats || loadingDishes || loadingMeal;
 
   // mealDetail alias for backward compatibility in JSX
-  const mealDetail = sessionDetail;
+  const mealDetail = sessionDetail ?? null;
 
   const [selectedTemplateIdx, setSelectedTemplateIdx] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -189,7 +197,7 @@ function MenuContent() {
 
   // Trigger tray & FAB badge animation when cart count increases
   useEffect(() => {
-    const currentCount = getCartCount();
+    const currentCount = sessionCartCount;
     if (currentCount > prevCartCount.current) {
       setTimeout(() => {
         animateTrayDropBounce();
@@ -197,7 +205,7 @@ function MenuContent() {
       }, 55);
     }
     prevCartCount.current = currentCount;
-  }, [cartItems, getCartCount, animateTrayDropBounce, animateFabCounter]);
+  }, [cartItems, sessionCartCount, animateTrayDropBounce, animateFabCounter]);
 
   // Staggered card entrance animation when category or loading state changes
   useEffect(() => {
@@ -218,6 +226,7 @@ function MenuContent() {
 
   const [isDragOverTray, setIsDragOverTray] = useState(false);
   const [isDragOverRightPanel, setIsDragOverRightPanel] = useState(false);
+  const [isDishDragging, setIsDishDragging] = useState(false);
 
   const heroImages = useMemo(
     () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img6.png"],
@@ -234,8 +243,12 @@ function MenuContent() {
 
   const noTemplateChosen = selectedTemplateIdx === null;
 
-  const expired = mealDetail ? isSessionExpired(mealDetail.availableTo) : false;
-  const upcoming = mealDetail ? isSessionUpcoming(mealDetail.availableFrom) : false;
+  const expired = mealDetail
+    ? isSessionExpired(mealDetail.availableTo) ||
+      !mealDetail.isActive ||
+      mealDetail.isFinalized === true
+    : false;
+  const upcoming = mealDetail ? new Date(mealDetail.availableForOrder) > new Date() : false;
   const canOrder = !expired && !upcoming;
 
   useEffect(() => {
@@ -265,6 +278,7 @@ function MenuContent() {
   const handleMouseUp = () => setIsDragging(false);
 
   const handleDragStart = (e: React.DragEvent, dishData: Record<string, unknown>) => {
+    setIsDishDragging(true);
     e.dataTransfer.setData("application/json", JSON.stringify(dishData));
     e.dataTransfer.effectAllowed = "move";
 
@@ -302,6 +316,7 @@ function MenuContent() {
   const handleDropOnTray = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOverTray(false);
+    setIsDishDragging(false);
     try {
       const dataStr = e.dataTransfer.getData("application/json");
       if (!dataStr) return;
@@ -348,7 +363,9 @@ function MenuContent() {
           sessionName: mealDetail?.name || undefined,
           categoryId,
           categoryName,
-          sessionTime: mealDetail?.availableForOrder || undefined,
+          sessionTime: mealDetail
+            ? `${mealDetail.availableFrom} - ${mealDetail.availableTo}`
+            : undefined,
         },
         1,
       );
@@ -358,29 +375,34 @@ function MenuContent() {
     }
   };
 
-  const handleDropFromTray = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    try {
-      const source = e.dataTransfer.getData("source");
-      if (source !== "tray") return;
-      
-      const dishId = e.dataTransfer.getData("text/plain");
-      if (!dishId) return;
+  const handleDropFromTray = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      try {
+        const source = e.dataTransfer.getData("source");
+        if (source !== "tray") return;
 
-      const existingItem = cartItems.find((item) => item.dishId === dishId && item.sessionId === (sessionId || undefined));
-      if (!existingItem) return;
+        const dishId = e.dataTransfer.getData("text/plain");
+        if (!dishId) return;
 
-      if (existingItem.quantity > 1) {
-        updateQuantity(dishId, existingItem.quantity - 1, sessionId || undefined);
-        toast.success(`Đã giảm số lượng món ${existingItem.name}`);
-      } else {
-        removeFromCart(dishId, sessionId || undefined);
-        toast.success(`Đã xóa món ${existingItem.name} khỏi khay`);
+        const existingItem = cartItems.find(
+          (item) => item.dishId === dishId && item.sessionId === (sessionId || undefined),
+        );
+        if (!existingItem) return;
+
+        if (existingItem.quantity > 1) {
+          updateQuantity(dishId, existingItem.quantity - 1, sessionId || undefined);
+          toast.success(`Đã giảm số lượng món ${existingItem.name}`);
+        } else {
+          removeFromCart(dishId, sessionId || undefined);
+          toast.success(`Đã xóa món ${existingItem.name} khỏi khay`);
+        }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [cartItems, sessionId, updateQuantity, removeFromCart]);
+    },
+    [cartItems, sessionId, updateQuantity, removeFromCart],
+  );
 
   const handleDragOverRightPanel = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -433,9 +455,17 @@ function MenuContent() {
     selectedTemplate?.settings.find((s) => s.categoryId === categoryId) || null;
 
   const getCartCountForCategory = (categoryId: string) => {
+    if (!sessionId) return 0;
     const catDishIds = new Set(dishes.filter((d) => d.categoryId === categoryId).map((d) => d.id));
     return cartItems
-      .filter((item) => catDishIds.has(item.dishId))
+      .filter((item) => item.sessionId === sessionId && catDishIds.has(item.dishId))
+      .reduce((sum, item) => sum + item.quantity, 0);
+  };
+
+  const getDishQuantityInSession = (dishId: string) => {
+    if (!sessionId) return 0;
+    return cartItems
+      .filter((item) => item.sessionId === sessionId && item.dishId === dishId)
       .reduce((sum, item) => sum + item.quantity, 0);
   };
 
@@ -506,11 +536,13 @@ function MenuContent() {
             <div className="relative z-10 px-10 md:px-16 py-12 md:py-16 text-white">
               <div className="flex flex-wrap items-center gap-2 text-white/80 text-xs font-medium mb-3">
                 <span className="bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm font-bold">
-                  #{mealDetail?.availableForOrder || "dang chon"}
+                  {mealDetail?.availableForOrder
+                    ? `Mở đặt ${new Date(mealDetail.availableForOrder).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+                    : "dang chon"}
                 </span>
                 {expired && (
                   <span className="bg-red-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-red-100 font-bold">
-                    ĐÃ HẾT PHIÊN
+                    {mealDetail?.isFinalized ? "ĐÃ CHỐT ĐƠN" : "ĐÃ HẾT PHIÊN"}
                   </span>
                 )}
                 {upcoming && (
@@ -542,13 +574,13 @@ function MenuContent() {
 
         {/* ── TEMPLATE CAROUSEL ── */}
         {templates.length > 0 && (
-          <div className="w-full pt-6">
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-[2.5rem] p-6 border border-orange-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-full pt-4">
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-[2rem] p-4 border border-orange-100 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-3 px-1">
                 <div
-                  className={`w-3 h-3 rounded-full ${noTemplateChosen ? "bg-[#FF4C24] animate-pulse" : "bg-green-500"}`}
+                  className={`w-2.5 h-2.5 rounded-full ${noTemplateChosen ? "bg-[#FF4C24] animate-pulse" : "bg-green-500"}`}
                 />
-                <span className="text-sm font-black text-gray-700 uppercase tracking-wider">
+                <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
                   {noTemplateChosen ? "Chọn Template để bắt đầu đặt món" : "Đang đặt món theo:"}
                 </span>
               </div>
@@ -558,7 +590,7 @@ function MenuContent() {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                className="flex gap-5 overflow-x-auto scrollbar-none pb-1 select-none active:cursor-grabbing cursor-grab items-center"
+                className="flex gap-3 overflow-x-auto scrollbar-none pb-1 select-none active:cursor-grabbing cursor-grab items-center"
               >
                 {templates.map((t, idx) => {
                   const isActive = selectedTemplateIdx === idx;
@@ -575,14 +607,14 @@ function MenuContent() {
                           setSelectedTemplateIdx(idx);
                         }
                       }}
-                      className={`shrink-0 px-10 py-5 rounded-2xl text-lg font-black transition-all duration-200 whitespace-nowrap shadow-xs ${
+                      className={`shrink-0 px-6 py-3 rounded-xl text-sm font-black transition-all duration-200 whitespace-nowrap shadow-xs ${
                         isActive
-                          ? "bg-[#FF4C24] text-white shadow-xl shadow-orange-500/30 scale-105 border-2 border-[#FF4C24]"
+                          ? "bg-[#FF4C24] text-white shadow-lg shadow-orange-500/30 scale-105 border-2 border-[#FF4C24]"
                           : "bg-white text-gray-700 border-2 border-gray-100 hover:border-[#FF4C24] hover:text-[#FF4C24] hover:shadow-md"
                       }`}
                     >
-                      <span className="flex items-center gap-2.5">
-                        {isActive && <span className="w-2.5 h-2.5 rounded-full bg-white" />}
+                      <span className="flex items-center gap-2">
+                        {isActive && <span className="w-2 h-2 rounded-full bg-white" />}
                         {t.name}
                       </span>
                     </button>
@@ -594,11 +626,11 @@ function MenuContent() {
         )}
 
         {/* ── MAIN TWO-COLUMN LAYOUT ── */}
-        <div className="w-full flex flex-col lg:flex-row mt-8 gap-10">
-          {/* ═══════ LEFT COLUMN: ẢNH MÂM TO KHỔNG LỒ ── */}
+        <div className="w-full flex flex-col lg:flex-row mt-8 gap-8">
+          {/* ═══════ LEFT COLUMN: MÂM ── */}
           <div
             ref={trayRef}
-            className="w-full lg:w-[500px] xl:w-[680px] shrink-0 lg:sticky lg:top-24 self-start bg-gray-50 rounded-[3.5rem] p-6 border border-gray-100/70 shadow-xs"
+            className="w-full lg:w-[420px] xl:w-[500px] shrink-0 lg:sticky lg:top-24 self-start bg-gray-50 rounded-[3.5rem] p-6 border border-gray-100/70 shadow-xs"
           >
             <div
               onDragOver={handleDragOver}
@@ -618,95 +650,99 @@ function MenuContent() {
                 sizes="(max-width: 1024px) 100vw, 680px"
               />
 
-              {mounted && cartItems.length > 0 && (
+              {mounted && cartItems.filter((i) => i.sessionId === sessionId).length > 0 && (
                 <div className="absolute inset-0" suppressHydrationWarning>
-                  {cartItems.map((item, idx) => {
-                    const positions = [
-                      { top: "22%", left: "22%", w: "17%", h: "19%" },
-                      { top: "22%", left: "54%", w: "17%", h: "19%" },
-                      { top: "56%", left: "18%", w: "17%", h: "19%" },
-                      { top: "56%", left: "50%", w: "17%", h: "19%" },
-                      { top: "38%", left: "7%", w: "14%", h: "16%" },
-                      { top: "14%", left: "40%", w: "14%", h: "16%" },
-                      { top: "60%", left: "70%", w: "14%", h: "16%" },
-                      { top: "38%", left: "38%", w: "17%", h: "19%" },
-                    ];
-                    const p = positions[Math.min(idx, positions.length - 1)];
-                    const tilt = idx % 2 === 0 ? "rotate(-3deg)" : "rotate(4deg)";
-                    return (
-                      <div
-                        key={`${item.dishId}-${item.sessionId}`}
-                        draggable={true}
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("text/plain", item.dishId);
-                          e.dataTransfer.setData("source", "tray");
-                          e.dataTransfer.effectAllowed = "move";
+                  {cartItems
+                    .filter((i) => i.sessionId === sessionId)
+                    .map((item, idx) => {
+                      const positions = [
+                        { top: "24%", left: "24%", w: "16%", h: "16%" },
+                        { top: "24%", left: "54%", w: "16%", h: "16%" },
+                        { top: "56%", left: "22%", w: "16%", h: "16%" },
+                        { top: "56%", left: "52%", w: "16%", h: "16%" },
+                        { top: "40%", left: "8%", w: "13%", h: "13%" },
+                        { top: "16%", left: "42%", w: "13%", h: "13%" },
+                        { top: "60%", left: "72%", w: "13%", h: "13%" },
+                        { top: "40%", left: "39%", w: "16%", h: "16%" },
+                      ];
+                      const p = positions[Math.min(idx, positions.length - 1)];
+                      const tilt = idx % 2 === 0 ? "rotate(-3deg)" : "rotate(4deg)";
+                      return (
+                        <div
+                          key={`${item.dishId}-${item.sessionId}`}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/plain", item.dishId);
+                            e.dataTransfer.setData("source", "tray");
+                            e.dataTransfer.effectAllowed = "move";
 
-                          const dragImg = document.createElement("div");
-                          dragImg.style.cssText = `
-                            position:fixed;top:-1000px;left:-1000px;
-                            width:80px;height:80px;border-radius:50%;
-                            background:white;border:3px solid #FF4C24;
-                            box-shadow:0 8px 25px rgba(0,0,0,0.2);
-                          `;
-                          const img = document.createElement("img");
-                          img.src = item.imgUrl || "/placeholder-food.png";
-                          img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%;";
-                          dragImg.appendChild(img);
-                          document.body.appendChild(dragImg);
-                          e.dataTransfer.setDragImage(dragImg, 40, 40);
-                          setTimeout(() => {
-                            if (document.body.contains(dragImg)) document.body.removeChild(dragImg);
-                          }, 0);
-                        }}
-                        className="absolute transition-all duration-300 hover:z-10 cursor-grab active:cursor-grabbing"
-                        style={{
-                          top: p.top,
-                          left: p.left,
-                          width: p.w,
-                          height: p.h,
-                          transform: tilt,
-                        }}
-                      >
-                        {/* 🌟 ĐÃ SỬA: Đảm bảo class rounded-full và overflow-hidden bọc chặt bo tròn ảnh trên mâm */}
-                        <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-2xl tray-food-item">
-                          <Image
-                            src={item.imgUrl || "/placeholder-food.png"}
-                            alt={item.name}
-                            fill
-                            className="object-cover rounded-full"
-                            sizes="180px"
-                          />
+                            const dragImg = document.createElement("div");
+                            dragImg.style.cssText = `
+                              position:fixed;top:-1000px;left:-1000px;
+                              width:80px;height:80px;border-radius:50%;
+                              background:white;border:3px solid #FF4C24;
+                              box-shadow:0 8px 25px rgba(0,0,0,0.2);
+                            `;
+                            const img = document.createElement("img");
+                            img.src = item.imgUrl || "/placeholder-food.png";
+                            img.style.cssText =
+                              "width:100%;height:100%;object-fit:cover;border-radius:50%;";
+                            dragImg.appendChild(img);
+                            document.body.appendChild(dragImg);
+                            e.dataTransfer.setDragImage(dragImg, 40, 40);
+                            setTimeout(() => {
+                              if (document.body.contains(dragImg))
+                                document.body.removeChild(dragImg);
+                            }, 0);
+                          }}
+                          className="absolute transition-all duration-300 hover:z-10 cursor-grab active:cursor-grabbing"
+                          style={{
+                            top: p.top,
+                            left: p.left,
+                            width: p.w,
+                            height: p.h,
+                            transform: tilt,
+                          }}
+                        >
+                          <div className="relative w-full aspect-square rounded-full overflow-hidden border-[3px] border-white shadow-lg tray-food-item">
+                            <Image
+                              src={item.imgUrl || "/placeholder-food.png"}
+                              alt={item.name}
+                              fill
+                              className="object-cover rounded-full"
+                              sizes="160px"
+                            />
+                          </div>
+                          {item.quantity > 1 && (
+                            <span className="absolute -top-1 -right-1.5 bg-[#FF4C24] text-white text-[9px] font-black min-w-[20px] h-5 rounded-full flex items-center justify-center px-1 shadow-md border-2 border-white">
+                              x{item.quantity}
+                            </span>
+                          )}
                         </div>
-                        {item.quantity > 1 && (
-                          <span className="absolute -top-1.5 -right-2 bg-[#FF4C24] text-white text-[10px] font-black min-w-[22px] h-5.5 rounded-full flex items-center justify-center px-1.5 shadow-md border-2 border-white">
-                            x{item.quantity}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
 
               {isDragOverTray && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/5 rounded-full backdrop-blur-xs">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/5 rounded-full backdrop-blur-xs pointer-events-none">
                   <span className="bg-[#FF4C24] text-white text-base font-black px-8 py-4 rounded-full shadow-2xl animate-bounce z-20 tracking-wider">
                     Thả vào đây!
                   </span>
                 </div>
               )}
 
-              {(!mounted || cartItems.length === 0) && !isDragOverTray && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  suppressHydrationWarning
-                >
-                  <p className="text-gray-400 text-sm font-black bg-white px-5 py-3 rounded-full shadow-md border border-gray-150">
-                    Kéo thả món ăn vào đây
-                  </p>
-                </div>
-              )}
+              {(!mounted || cartItems.filter((i) => i.sessionId === sessionId).length === 0) &&
+                !isDragOverTray && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                    suppressHydrationWarning
+                  >
+                    <p className="text-gray-400 text-sm font-black bg-white px-5 py-3 rounded-full shadow-md border border-gray-150">
+                      Kéo thả món ăn vào đây
+                    </p>
+                  </div>
+                )}
             </div>
           </div>
 
@@ -719,7 +755,7 @@ function MenuContent() {
               setIsDragOverRightPanel(false);
               handleDropFromTray(e);
             }}
-            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-4 ${
+            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-6 lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] ${
               isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
             }`}
           >
@@ -730,24 +766,24 @@ function MenuContent() {
               </div>
             ) : (
               <>
-                <div className="w-full bg-gray-50 p-5 rounded-[2.5rem] border border-gray-150/50 shadow-inner">
-                  <div className="flex gap-8 items-center overflow-x-auto scrollbar-none">
+                <div className="w-full bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-[2rem] border border-orange-100/60 shadow-sm">
+                  <div className="flex gap-5 items-center overflow-x-auto scrollbar-none">
                     {/* All Category Button */}
                     <button
                       onClick={() => setSelectedCategoryId(null)}
-                      className="flex flex-col items-center gap-3 shrink-0 group"
+                      className="flex flex-col items-center gap-2 shrink-0 group"
                     >
                       <div
-                        className={`relative w-14 h-14 md:w-18 md:h-18 ml-2 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center ${
+                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center ${
                           selectedCategoryId === null
-                            ? "ring-4 ring-[#FF4C24] ring-offset-2 scale-105 shadow-xl shadow-orange-500/20 bg-[#FF4C24] text-white animate-bounce-subtle"
-                            : "ring-1 ring-gray-200 bg-white text-gray-500 hover:ring-[#FF4C24]/50 hover:scale-105"
+                            ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 bg-[#FF4C24] text-white animate-bounce-subtle"
+                            : "ring-1 ring-gray-200 bg-white text-gray-500 hover:ring-[#FF4C24]/50"
                         }`}
                       >
-                        <ShoppingCart className="w-8 h-8" />
+                        <ShoppingCart className="w-6 h-6" />
                       </div>
                       <span
-                        className={`text-sm font-black whitespace-nowrap transition-colors duration-200 ${
+                        className={`text-xs font-black whitespace-nowrap transition-colors duration-200 ${
                           selectedCategoryId === null
                             ? "text-[#FF4C24]"
                             : "text-gray-500 group-hover:text-gray-800"
@@ -766,13 +802,13 @@ function MenuContent() {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategoryId(category.id)}
-                          className="flex flex-col items-center gap-3 shrink-0 group"
+                          className="flex flex-col items-center gap-2 shrink-0 group"
                         >
                           <div
-                            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden transition-all duration-300 ${
+                            className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden transition-all duration-300 ${
                               isActive
-                                ? "ring-4 ring-[#FF4C24] ring-offset-2 scale-105 shadow-xl shadow-orange-500/20 animate-bounce-subtle"
-                                : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50 hover:scale-105"
+                                ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 animate-bounce-subtle"
+                                : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50"
                             }`}
                           >
                             <Image
@@ -780,16 +816,16 @@ function MenuContent() {
                               alt={category.name}
                               fill
                               className="object-cover rounded-full"
-                              sizes="100px"
+                              sizes="80px"
                             />
                             {cartCount > 0 && (
-                              <span className="absolute -top-0.5 -right-0.5 bg-[#FF4C24] text-white text-xs font-black min-w-[22px] h-5.5 rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
+                              <span className="absolute -top-0.5 -right-0.5 bg-[#FF4C24] text-white text-[10px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
                                 {cartCount}
                               </span>
                             )}
                           </div>
                           <span
-                            className={`text-sm font-black whitespace-nowrap transition-colors duration-200 ${
+                            className={`text-xs font-black whitespace-nowrap transition-colors duration-200 ${
                               isActive
                                 ? "text-[#FF4C24]"
                                 : "text-gray-500 group-hover:text-gray-800"
@@ -805,7 +841,7 @@ function MenuContent() {
 
                 {/* Grid Món ăn */}
                 {selectedCategoryId === null ? (
-                  <div className="space-y-10">
+                  <div className="space-y-6">
                     {categories.map((cat) => {
                       const catDishes = dishes.filter((d) => d.categoryId === cat.id);
                       if (catDishes.length === 0) return null;
@@ -817,9 +853,9 @@ function MenuContent() {
                       return (
                         <div
                           key={cat.id}
-                          className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 md:p-8 space-y-6"
+                          className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 space-y-5"
                         >
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <div className="flex items-center gap-3.5">
                               <div className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-100">
                                 <Image
@@ -835,8 +871,17 @@ function MenuContent() {
                               </span>
                             </div>
                             {setting && (
-                              <span className="text-xs md:text-sm text-orange-600 font-extrabold bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
+                              <span
+                                className={`text-xs md:text-sm font-extrabold px-4 py-2 rounded-xl border ${
+                                  setting.isRequired && cartCount < setting.minQuantity
+                                    ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
+                                    : "bg-orange-50 text-orange-600 border-orange-100"
+                                }`}
+                              >
                                 Đã chọn: {cartCount}/{setting.maxQuantity} món
+                                {setting.isRequired
+                                  ? ` (Bắt buộc từ ${setting.minQuantity} món)`
+                                  : " (Tùy chọn)"}
                               </span>
                             )}
                           </div>
@@ -857,6 +902,9 @@ function MenuContent() {
                             onDragStart={handleDragStart}
                             getSafeImageUrl={getSafeImageUrl}
                             onRipple={createRipple}
+                            onDragEnd={() => setIsDishDragging(false)}
+                            formatPoints={formatPoints}
+                            getDishQuantity={getDishQuantityInSession}
                           />
                         </div>
                       );
@@ -875,8 +923,8 @@ function MenuContent() {
                     const notInTemplate = setting === null && selectedTemplate !== null;
 
                     return (
-                      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 md:p-8 space-y-6">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm p-6 space-y-5">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                           <div className="flex items-center gap-3.5">
                             <div className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-100">
                               <Image
@@ -892,8 +940,17 @@ function MenuContent() {
                             </span>
                           </div>
                           {setting && (
-                            <span className="text-xs md:text-sm text-orange-600 font-extrabold bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
+                            <span
+                              className={`text-xs md:text-sm font-extrabold px-4 py-2 rounded-xl border ${
+                                setting.isRequired && cartCount < setting.minQuantity
+                                  ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
+                                  : "bg-orange-50 text-orange-600 border-orange-100"
+                              }`}
+                            >
                               Đã chọn: {cartCount}/{setting.maxQuantity} món
+                              {setting.isRequired
+                                ? ` (Bắt buộc từ ${setting.minQuantity} món)`
+                                : " (Tùy chọn)"}
                             </span>
                           )}
                         </div>
@@ -921,6 +978,9 @@ function MenuContent() {
                           onDragStart={handleDragStart}
                           getSafeImageUrl={getSafeImageUrl}
                           onRipple={createRipple}
+                          onDragEnd={() => setIsDishDragging(false)}
+                          formatPoints={formatPoints}
+                          getDishQuantity={getDishQuantityInSession}
                         />
                       </div>
                     );
@@ -937,12 +997,33 @@ function MenuContent() {
           className="fixed bottom-8 right-8 z-40 w-16 h-16 bg-[#FF4C24] text-white rounded-full shadow-[0_8px_25px_rgba(255,76,36,0.4)] flex items-center justify-center hover:bg-[#E03A12] transition-transform active:scale-95 hover:scale-105"
         >
           <ShoppingCart className="w-7 h-7" />
-          {mounted && getCartCount() > 0 && (
-            <span ref={fabCounterRef} className="absolute -top-1.5 -right-1 bg-white text-[#FF4C24] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#FF4C24] shadow-md">
-              {getCartCount()}
+          {mounted && sessionCartCount > 0 && (
+            <span
+              ref={fabCounterRef}
+              className="absolute -top-1.5 -right-1 bg-white text-[#FF4C24] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#FF4C24] shadow-md"
+            >
+              {sessionCartCount}
             </span>
           )}
         </button>
+
+        {isDishDragging && (
+          <>
+            <div
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropOnTray}
+              className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-dashed border-[#FF4C24] bg-white/95 px-6 py-5 text-center shadow-[0_-12px_40px_rgba(255,76,36,0.15)] backdrop-blur-md lg:hidden"
+            >
+              <ShoppingCart className="w-7 h-7 text-[#FF4C24] mx-auto mb-2" />
+              <p className="text-base font-black text-gray-800">Thả món vào khay đặt hàng</p>
+              <p className="text-xs font-semibold text-gray-400 mt-1">
+                Kéo lên đây — không cần kéo về mâm
+              </p>
+            </div>
+          </>
+        )}
       </main>
 
       <style
@@ -978,8 +1059,11 @@ function DishCard({
   dragPayload,
   onAddToCart,
   onDragStart,
+  onDragEnd,
   getUrl,
   onRipple,
+  formatPoints,
+  dishQuantity,
 }: {
   dish: Dish;
   disabled: boolean;
@@ -992,12 +1076,20 @@ function DishCard({
   categoryName: string;
   categoryId: string;
   sessionId: string | null;
-  mealDetail: { name?: string; availableForOrder?: string } | null;
+  mealDetail: {
+    name?: string;
+    availableFrom?: string;
+    availableTo?: string;
+    isFinalized?: boolean;
+  } | null;
   dragPayload: Record<string, unknown>;
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
+  onDragEnd: () => void;
   getUrl: (url: string | null | undefined, fallback?: string) => string;
   onRipple: (e: React.MouseEvent<HTMLDivElement>) => void;
+  formatPoints: (points: number) => string;
+  dishQuantity: number;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -1025,13 +1117,22 @@ function DishCard({
       onDragStart={(e) => {
         if (!disabled) onDragStart(e, dragPayload);
       }}
+      onDragEnd={onDragEnd}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={(e) => {
         if (disabled) {
           if (notInTemplate) toast.error("Danh mục này không có trong template");
           else if (noTemplateChosen) toast.error("Chọn template để đặt món");
-          else if (expired) toast.error("Phiên ăn đã kết thúc");
+          else if (expired) {
+            toast.error(
+              mealDetail?.isFinalized ? "Phiên ăn đã được chốt đơn" : "Phiên ăn đã kết thúc",
+            );
+          }
+          return;
+        }
+        if (!canOrder) {
+          toast.error("Phiên ăn chưa mở đặt — vui lòng chờ đến giờ mở bán");
           return;
         }
         onRipple(e);
@@ -1045,12 +1146,14 @@ function DishCard({
             name: dish.name,
             price: dishPrice,
             imgUrl: finalImageUrl,
-            description: dish.description || "Fresh select item.",
+            description: dish.description || "Món tươi ngon.",
             sessionId: sessionId || undefined,
             sessionName: mealDetail?.name || undefined,
             categoryId,
             categoryName,
-            sessionTime: mealDetail?.availableForOrder || undefined,
+            sessionTime: mealDetail
+              ? `${mealDetail.availableFrom} - ${mealDetail.availableTo}`
+              : undefined,
           },
           1,
         );
@@ -1059,17 +1162,19 @@ function DishCard({
       style={{
         transform: `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1,1,1)`,
         transition: tilt.x === 0 && tilt.y === 0 ? "all 0.5s ease" : "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
       }}
-      className={`dish-card-customer group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[260px] justify-between shadow-xs ${
+      className={`dish-card-customer group bg-white rounded-[2rem] border p-5 flex flex-col items-center text-center transition-all duration-300 min-h-[250px] justify-between shadow-xs ${
         disabled
           ? notInTemplate
             ? "border-gray-50 opacity-40 grayscale-[0.4]"
             : "pointer-events-none opacity-45"
-          : "cursor-pointer hover:shadow-2xl hover:scale-[1.01] active:scale-[0.98] hover:border-orange-300 border-gray-100"
+          : "cursor-pointer hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] hover:border-orange-300 border-gray-100"
       }`}
     >
       <div
-        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-md group-hover:scale-105 transition-transform duration-300"
+        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-lg group-hover:scale-105 transition-transform duration-300"
         style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
       >
         <Image
@@ -1079,6 +1184,11 @@ function DishCard({
           sizes="160px"
           className="object-cover rounded-full"
         />
+        {dishQuantity > 0 && (
+          <span className="absolute top-1 right-1 bg-[#FF4C24] text-white text-xs font-black min-w-[24px] h-6 rounded-full flex items-center justify-center px-1.5 border-2 border-white shadow-md z-10">
+            x{dishQuantity}
+          </span>
+        )}
         {!disabled && (
           <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
             <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">
@@ -1092,14 +1202,18 @@ function DishCard({
           {dish.name}
         </h4>
         {dish.description && (
-          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed h-8">
-            {dish.description}
-          </p>
+          <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">{dish.description}</p>
         )}
-        <p className="font-black text-[#FF4C24] text-base sm:text-lg mt-1 inline-flex items-center gap-2 bg-orange-50 px-3.5 py-1 rounded-xl">
-          {dishPrice}
-          <Image src="/logo_point.png" alt="" width={16} height={16} className="object-contain" />
-        </p>
+        <div className="font-black text-[#FF4C24] text-base sm:text-lg mt-1 bg-orange-50 px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5">
+          <span>{formatPoints(dishPrice)}</span>
+          <Image
+            src="/logo_point.png"
+            alt="coin"
+            width={18}
+            height={18}
+            className="object-contain"
+          />
+        </div>
       </div>
     </div>
   );
@@ -1122,6 +1236,9 @@ function DishGrid({
   onDragStart,
   getSafeImageUrl: getUrl,
   onRipple,
+  onDragEnd,
+  formatPoints,
+  getDishQuantity,
 }: {
   dishes: Dish[];
   categoryName: string;
@@ -1134,16 +1251,24 @@ function DishGrid({
   noTemplateChosen: boolean;
   expired: boolean;
   sessionId: string | null;
-  mealDetail: { name?: string; availableForOrder?: string } | null;
+  mealDetail: {
+    name?: string;
+    availableFrom?: string;
+    availableTo?: string;
+    isFinalized?: boolean;
+  } | null;
   onAddToCart: (item: Omit<CartItem, "quantity">, qty: number) => void;
   onDragStart: (e: React.DragEvent, data: Record<string, unknown>) => void;
   getSafeImageUrl: (url: string | null | undefined, fallback?: string) => string;
   onRipple: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+  formatPoints: (points: number) => string;
+  getDishQuantity: (dishId: string) => number;
 }) {
   const canAddMore = !setting || cartCount < setting.maxQuantity;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-3 2xl:grid-cols-4 gap-5 md:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
       {categoryDishes.map((dish) => {
         const finalImageUrl = getUrl(dish.imgUrl);
         const finalDishGuid = (dish as { dishId?: string }).dishId || dish.id;
@@ -1182,8 +1307,11 @@ function DishGrid({
             dragPayload={dragPayload}
             onAddToCart={onAddToCart}
             onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
             getUrl={getUrl}
             onRipple={onRipple}
+            formatPoints={formatPoints}
+            dishQuantity={getDishQuantity(finalDishGuid)}
           />
         );
       })}

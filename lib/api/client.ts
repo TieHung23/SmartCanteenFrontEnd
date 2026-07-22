@@ -1,6 +1,13 @@
 import axios from "axios";
 import { env } from "@/config/env";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import {
+  clearAuthTokens,
+  getAccessToken,
+  getRefreshToken,
+  setBlockedAccountInfo,
+  setAuthTokens,
+} from "@/lib/auth-token-storage";
 
 interface FailedRequest {
   resolve: (token: string | null) => void;
@@ -10,11 +17,47 @@ interface FailedRequest {
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
+interface BlockedAccountResponse {
+  message?: string;
+  reason?: string;
+  errorCode?: string;
+}
+
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/verification",
+  "/suspended",
+];
+
 function redirectToLogin() {
   if (typeof window === "undefined") return;
   const path = window.location.pathname;
-  if (path === "/login" || path.startsWith("/auth/")) return;
+  if (PUBLIC_PATHS.includes(path)) return;
   window.location.href = "/login";
+}
+
+function isBlockedAccountResponse(data: unknown): data is BlockedAccountResponse {
+  if (!data || typeof data !== "object") return false;
+  const errorCode = (data as BlockedAccountResponse).errorCode;
+  return errorCode === "AccountSuspended" || errorCode === "AccountBanned";
+}
+
+function handleBlockedAccount(data: BlockedAccountResponse) {
+  if (typeof window === "undefined") return;
+  setBlockedAccountInfo({
+    status: data.errorCode === "AccountBanned" ? 5 : 4,
+    message: data.message,
+    reason: data.reason,
+    errorCode: data.errorCode,
+  });
+  clearAuthTokens();
+  if (window.location.pathname !== "/suspended") {
+    window.location.href = "/suspended";
+  }
 }
 
 const processQueue = (error: unknown, token: string | null = null) => {
@@ -38,10 +81,13 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+    const token = getAccessToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
     }
     config.headers["X-Api-Version"] = "1.0";
     return config;
@@ -58,6 +104,15 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+    const responseData = error.response?.data;
+
+    if (
+      isBlockedAccountResponse(responseData) &&
+      !originalRequest?.url?.includes(API_ENDPOINTS.AUTH.LOGIN)
+    ) {
+      handleBlockedAccount(responseData);
+      return Promise.reject(error);
+    }
 
     // 🔍 XỬ LÝ RIÊNG ĐẦU LỖI 401 UNAUTHORIZED
     if (status === 401 && !originalRequest._retry) {
@@ -67,10 +122,15 @@ apiClient.interceptors.response.use(
         originalRequest.url?.includes(API_ENDPOINTS.AUTH.LOGIN)
       ) {
         if (typeof window !== "undefined") {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          clearAuthTokens();
           redirectToLogin();
         }
+        return Promise.reject(error);
+      }
+
+      // Nếu request không có Authorization header nghĩa là user chưa đăng nhập
+      // thì không redirect, chỉ reject để component xử lý lỗi
+      if (!originalRequest.headers?.Authorization) {
         return Promise.reject(error);
       }
 
@@ -89,8 +149,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const storedRefreshToken =
-        typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
+      const storedRefreshToken = getRefreshToken();
 
       if (!storedRefreshToken) {
         if (typeof window !== "undefined") {
@@ -109,10 +168,7 @@ apiClient.interceptors.response.use(
 
         const newTokens = refreshResponse.data?.value;
         if (newTokens?.accessToken) {
-          localStorage.setItem("accessToken", newTokens.accessToken);
-          if (newTokens.refreshToken) {
-            localStorage.setItem("refreshToken", newTokens.refreshToken);
-          }
+          setAuthTokens(newTokens.accessToken, newTokens.refreshToken);
 
           processQueue(null, newTokens.accessToken);
 
@@ -120,10 +176,15 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
+        const refreshData = (refreshError as { response?: { data?: unknown } }).response?.data;
+        if (isBlockedAccountResponse(refreshData)) {
+          handleBlockedAccount(refreshData);
+          processQueue(refreshError, null);
+          return Promise.reject(refreshError);
+        }
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          clearAuthTokens();
           redirectToLogin();
         }
         return Promise.reject(refreshError);

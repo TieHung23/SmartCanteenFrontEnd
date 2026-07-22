@@ -20,7 +20,7 @@ export const GoogleCompleteClient = () => {
     processed.current = true;
 
     if (error) {
-      toast.error(`Login error: ${error}`);
+      toast.error(`Lỗi đăng nhập: ${error}`);
       router.push("/login");
       return;
     }
@@ -32,13 +32,13 @@ export const GoogleCompleteClient = () => {
       return;
     }
 
-    toast.error("Token not found");
+    toast.error("Không tìm thấy mã đăng nhập");
     router.push("/login");
   }, [token, refreshToken, error, router, login]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <p className="text-lg">Processing sign-in...</p>
+      <p className="text-lg">Đang xử lý đăng nhập...</p>
     </div>
   );
 };

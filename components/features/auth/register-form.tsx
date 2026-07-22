@@ -33,8 +33,7 @@ export const RegisterForm = () => {
     mutationFn: (data: RegisterBodyType) => authService.register(data),
     onSuccess: (data, variables) => {
       toast.success(
-        data.message ||
-          "Registration successful. Please check your email and enter the verification code.",
+        data.message || "Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.",
       );
       router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
     },
@@ -47,39 +46,39 @@ export const RegisterForm = () => {
         );
         toast.error(msgs.join("\n"));
       } else {
-        toast.error(serverMsg || "Registration failed. Please check all fields.");
+        toast.error(serverMsg || "Đăng ký thất bại. Vui lòng kiểm tra lại tất cả các trường.");
       }
     },
   });
 
   const onSubmit = (data: RegisterBodyType) => {
     if (!data.name || data.name.trim() === "") {
-      toast.error("Please enter your Full Name.");
+      toast.error("Vui lòng nhập Họ và tên.");
       return;
     }
 
     if (!data.studentId || data.studentId.trim() === "") {
-      toast.error("Please enter your Student ID.");
+      toast.error("Vui lòng nhập Mã số sinh viên.");
       return;
     }
 
     if (!data.phoneNumber || data.phoneNumber.trim() === "") {
-      toast.error("Please enter your Phone Number.");
+      toast.error("Vui lòng nhập Số điện thoại.");
       return;
     }
 
     if (!data.dateOfBirth || data.dateOfBirth.trim() === "") {
-      toast.error("Please select your Birthday.");
+      toast.error("Vui lòng chọn Ngày sinh.");
       return;
     }
 
     if (!data.majorOrClass || data.majorOrClass.trim() === "") {
-      toast.error("Please enter your Major / Class.");
+      toast.error("Vui lòng nhập Chuyên ngành / Lớp.");
       return;
     }
 
     if (!data.address || data.address.trim() === "") {
-      toast.error("Please enter your Address.");
+      toast.error("Vui lòng nhập Địa chỉ.");
       return;
     }
 
@@ -106,7 +105,7 @@ export const RegisterForm = () => {
           <div>
             <Input
               {...register("name")}
-              placeholder="Name"
+              placeholder="Họ và tên"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("name") && <p className="text-xs text-red-500 mt-1">{getError("name")}</p>}
@@ -115,7 +114,7 @@ export const RegisterForm = () => {
           <div>
             <Input
               {...register("studentId")}
-              placeholder="Student ID"
+              placeholder="Mã số sinh viên"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("studentId") && (
@@ -135,7 +134,7 @@ export const RegisterForm = () => {
           <div>
             <Input
               {...register("phoneNumber")}
-              placeholder="Phone number"
+              placeholder="Số điện thoại"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("phoneNumber") && (
@@ -146,7 +145,7 @@ export const RegisterForm = () => {
           <div>
             <PasswordInput
               {...register("password")}
-              placeholder="Password"
+              placeholder="Mật khẩu"
               inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("password") && (
@@ -157,7 +156,7 @@ export const RegisterForm = () => {
           <div>
             <PasswordInput
               {...register("confirmPassword")}
-              placeholder="Confirm password"
+              placeholder="Xác nhận mật khẩu"
               inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("confirmPassword") && (
@@ -170,9 +169,9 @@ export const RegisterForm = () => {
               {...register("gender", { valueAsNumber: true })}
               className="w-full border-0 border-b border-gray-200 rounded-none bg-transparent px-2 text-base text-slate-700 py-2.5 focus:outline-none focus:border-orange-500"
             >
-              <option value={1}>Male</option>
-              <option value={2}>Female</option>
-              <option value={3}>Other</option>
+              <option value={1}>Nam</option>
+              <option value={2}>Nữ</option>
+              <option value={3}>Khác</option>
             </select>
             {getError("gender") && (
               <p className="text-xs text-red-500 mt-1">{getError("gender")}</p>
@@ -181,7 +180,7 @@ export const RegisterForm = () => {
 
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-              Birthday
+              Ngày sinh
             </p>
             <Input
               type="date"
@@ -196,7 +195,7 @@ export const RegisterForm = () => {
           <div className="md:col-span-2">
             <Input
               {...register("majorOrClass")}
-              placeholder="Major / Class"
+              placeholder="Chuyên ngành / Lớp"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("majorOrClass") && (
@@ -207,7 +206,7 @@ export const RegisterForm = () => {
           <div className="md:col-span-2">
             <Input
               {...register("address")}
-              placeholder="Address"
+              placeholder="Địa chỉ"
               className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
             />
             {getError("address") && (
@@ -221,19 +220,19 @@ export const RegisterForm = () => {
               disabled={registerMutation.isPending}
               className="w-full h-12 rounded-xl bg-orange-500 text-white text-base font-semibold shadow-lg shadow-orange-200 transition-all hover:bg-orange-600"
             >
-              {registerMutation.isPending ? "Creating..." : "Create Account"}
+              {registerMutation.isPending ? "Đang tạo..." : "Tạo tài khoản"}
             </Button>
           </div>
         </div>
 
         <div className="flex items-center justify-center gap-1 text-sm text-slate-500 pt-1">
-          <span>Already have an account?</span>
+          <span>Đã có tài khoản?</span>
           <button
             type="button"
             onClick={() => router.push(ROUTES.LOGIN)}
             className="font-semibold text-blue-400 hover:underline"
           >
-            Login
+            Đăng nhập
           </button>
         </div>
       </form>
@@ -242,7 +241,7 @@ export const RegisterForm = () => {
           <span className="w-full border-t border-gray-200"></span>
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-400 font-medium">OR</span>
+          <span className="bg-white px-2 text-gray-400 font-medium">HOẶC</span>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3">
@@ -254,7 +253,7 @@ export const RegisterForm = () => {
         >
           <span className="flex items-center gap-3 pt-0.5">
             <Image src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
-            <span className="text-sm font-semibold">Continue with Google</span>
+            <span className="text-sm font-semibold">Tiếp tục với Google</span>
           </span>
         </Button>
       </div>

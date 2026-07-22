@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { notificationService } from "@/services/notification.service";
 import { NotificationItem } from "@/types/notification.types";
-import { Bell, CheckCheck, X, Clock } from "lucide-react";
+import { Bell, CheckCheck, X, Clock, ExternalLink } from "lucide-react";
 
 function timeAgo(utc: string): string {
   const diff = Date.now() - new Date(utc).getTime();
@@ -61,7 +62,7 @@ export default function NotificationDropdown({ onClose }: Props) {
       <div className="flex items-center justify-between p-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <Bell className="w-5 h-5 text-[#E86A33]" />
-          <h3 className="text-base font-bold text-gray-800">Notifications</h3>
+          <h3 className="text-base font-bold text-gray-800">Thông báo</h3>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -70,7 +71,7 @@ export default function NotificationDropdown({ onClose }: Props) {
             title="Đánh dấu đã đọc"
           >
             <CheckCheck className="w-4 h-4" />
-            Mark all as read
+            Đánh dấu đã đọc
           </button>
           <button
             onClick={onClose}
@@ -81,15 +82,25 @@ export default function NotificationDropdown({ onClose }: Props) {
         </div>
       </div>
 
+      {/* View All */}
+      <Link
+        href="/notifications"
+        onClick={onClose}
+        className="flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium text-[#E86A33] hover:bg-orange-50 border-b border-gray-100 transition-all"
+      >
+        <ExternalLink className="w-4 h-4" />
+        Xem tất cả thông báo
+      </Link>
+
       {/* List */}
       <div className="overflow-y-auto flex-1">
         {loading ? (
           <div className="py-16 text-center">
             <div className="inline-block w-8 h-8 border-4 border-orange-200 border-t-[#E86A33] rounded-full animate-spin mb-3" />
-            <p className="text-sm text-gray-400">Loading...</p>
+            <p className="text-sm text-gray-400">Đang tải...</p>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="py-16 text-center text-sm text-gray-400">No notifications</div>
+          <div className="py-16 text-center text-sm text-gray-400">Không có thông báo</div>
         ) : (
           <div>
             {notifications.map((n) => (

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee } from "lucide-react";
+import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
+import Modal from "../_components/modal";
+import { NewSessionForm } from "./_components/new-session-form";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -20,10 +22,28 @@ function formatDate(iso: string) {
 
 export default function ManagerSessionsPage() {
   const router = useRouter();
+  const isSessionLive = (s: SessionListItem) => s.isActive;
+
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showActive, setShowActive] = useState<boolean | null>(null);
+
+  // Modal & Form States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [copySessionId, setCopySessionId] = useState<string | null>(null);
+
+  const fetchSessions = async () => {
+    try {
+      const result = await sessionService.getSessions({
+        pageSize: 100,
+        ...(showActive !== null && { isActive: showActive }),
+      });
+      setSessions(result.items);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +67,7 @@ export default function ManagerSessionsPage() {
   }, [showActive]);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete session "${name}"?`)) return;
+    if (!confirm(`Xóa ca phục vụ "${name}"?`)) return;
     try {
       await sessionService.deleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -56,24 +76,50 @@ export default function ManagerSessionsPage() {
     }
   };
 
-  const filtered = search
-    ? sessions.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
-    : sessions;
+  const handleOpenCreateNew = () => {
+    setCopySessionId(null);
+    setIsCreateOpen(true);
+  };
+
+  const handleOpenCopy = (id: string) => {
+    setCopySessionId(id);
+    setIsCreateOpen(true);
+  };
+
+  const handleOpenDetails = (id: string) => {
+    router.push(`/manager/sessions/${id}`);
+  };
+
+  const filtered = sessions
+    .filter((s) => {
+      const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
+      const matchesActive = showActive === null || isSessionLive(s) === showActive;
+      return matchesSearch && matchesActive;
+    })
+    .sort((a, b) => {
+      const aLive = isSessionLive(a);
+      const bLive = isSessionLive(b);
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      return 0;
+    });
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Header Block */}
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900">Serving Sessions</h1>
-          <p className="text-lg text-gray-500 mt-1.5">Quản lý và điều phối các phiên/ca ăn phục vụ.</p>
+          <h1 className="text-4xl font-extrabold text-gray-900">Ca phục vụ</h1>
+          <p className="text-lg text-gray-500 mt-1.5">
+            Quản lý và điều phối các phiên/ca ăn phục vụ.
+          </p>
         </div>
         <button
-          onClick={() => router.push("/manager/sessions/new")}
+          onClick={handleOpenCreateNew}
           className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
         >
           <Plus className="w-5 h-5" />
-          New Session
+          Ca phục vụ mới
         </button>
       </div>
 
@@ -85,7 +131,7 @@ export default function ManagerSessionsPage() {
             placeholder="Tìm kiếm ca ăn..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
+            className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
           />
         </div>
 
@@ -118,7 +164,7 @@ export default function ManagerSessionsPage() {
           <p className="text-base font-bold text-gray-500">Đang tải danh sách ca bán...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-gray-100 p-16 text-center shadow-xs">
+        <div className="bg-white rounded-3xl border border-gray-200 p-16 text-center shadow-xs">
           <p className="text-gray-400 font-bold text-lg">Không tìm thấy ca phục vụ nào.</p>
         </div>
       ) : (
@@ -126,12 +172,12 @@ export default function ManagerSessionsPage() {
           {filtered.map((session) => (
             <div
               key={session.id}
-              onClick={() => router.push(`/manager/sessions/${session.id}`)}
-              className="bg-white rounded-3xl border border-gray-100 p-6 hover:shadow-md hover:border-orange-200 transition-all duration-300 cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-2xs"
+              onClick={() => handleOpenDetails(session.id)}
+              className="bg-white rounded-3xl border border-gray-200 p-6 hover:shadow-lg hover:border-orange-300 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-xs"
             >
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-[#D35400] border border-orange-100/50 shadow-3xs shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-[#D35400] border border-orange-100 shadow-xs shrink-0">
                     <Coffee className="w-5 h-5" />
                   </div>
                   <h3 className="text-xl font-black text-gray-900 truncate tracking-wide">
@@ -140,15 +186,15 @@ export default function ManagerSessionsPage() {
                   <span
                     className={cn(
                       "shrink-0 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider",
-                      session.isActive
+                      isSessionLive(session)
                         ? "bg-green-100 text-green-800"
                         : "bg-gray-100 text-gray-500",
                     )}
                   >
-                    {session.isActive ? "Active" : "Inactive"}
+                    {isSessionLive(session) ? "Hoạt động" : "Ngừng hoạt động"}
                   </span>
                 </div>
-                
+
                 {session.description && (
                   <p className="text-sm text-gray-500 line-clamp-1 italic px-1">
                     📝 {session.description}
@@ -165,7 +211,7 @@ export default function ManagerSessionsPage() {
                     Kết thúc: {formatDate(session.availableTo)}
                   </span>
                   <span className="font-bold text-[#D35400] bg-orange-50 border border-orange-100/40 rounded-xl px-2 py-0.5 text-xs">
-                    {session.dishes?.length ?? 0} dishes
+                    {session.dishes?.length ?? 0} món
                   </span>
                 </div>
               </div>
@@ -174,22 +220,25 @@ export default function ManagerSessionsPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/manager/sessions/new?copyFrom=${session.id}`);
+                    handleOpenCopy(session.id);
                   }}
                   className="p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all shrink-0"
-                  title="Copy session template"
+                  title="Sao chép mẫu ca phục vụ"
                 >
                   <Copy className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(`/manager/sessions/${session.id}`);
-                  }}
-                  className="px-5 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
-                >
-                  Edit
-                </button>
+                {!session.isFinalized && new Date(session.availableForOrder) > new Date() && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDetails(session.id);
+                    }}
+                    className="p-3 text-gray-400 hover:text-[#D35400] hover:bg-orange-50 rounded-2xl border border-transparent hover:border-orange-100 transition-all shrink-0"
+                    title="Chỉnh sửa ca phục vụ"
+                  >
+                    <Pencil className="w-5 h-5" />
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -204,6 +253,23 @@ export default function ManagerSessionsPage() {
           ))}
         </div>
       )}
+
+      {/* ── CREATE SESSION MODAL ── */}
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title={copySessionId ? "Sao chép Ca phục vụ" : "Tạo Ca phục vụ mới"}
+        size="full"
+      >
+        <NewSessionForm
+          copyFromId={copySessionId}
+          onSuccess={() => {
+            setIsCreateOpen(false);
+            fetchSessions();
+          }}
+          onCancel={() => setIsCreateOpen(false)}
+        />
+      </Modal>
     </div>
   );
 }

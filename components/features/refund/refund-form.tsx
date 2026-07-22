@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { refundService } from "@/services/refund.service";
-import { REFUND_POLICIES } from "@/types/refund.types";
+import type { RefundPolicy } from "@/types/refund.types";
 import { ROUTES } from "@/config/routes";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -22,6 +22,17 @@ import {
   MessageSquare,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
+
+const FALLBACK_POLICIES: { code: string; label: string; description: string }[] = [
+  { code: "wrong_item", label: "Sai món", description: "Món nhận không đúng với món đã đặt" },
+  { code: "missing_item", label: "Thiếu món", description: "Đơn hàng thiếu món so với đã đặt" },
+  {
+    code: "quality_issue",
+    label: "Vấn đề chất lượng",
+    description: "Món ăn không đảm bảo chất lượng",
+  },
+  { code: "other", label: "Lý do khác", description: "Vui lòng mô tả chi tiết trong phần ghi chú" },
+];
 
 const POLICY_ICONS: Record<string, typeof AlertTriangle> = {
   wrong_item: ShoppingBag,
@@ -41,7 +52,28 @@ export default function RefundForm() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [apiPolicies, setApiPolicies] = useState<RefundPolicy[] | null>(null);
+  const [policiesLoading, setPoliciesLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    refundService
+      .getPolicies()
+      .then(setApiPolicies)
+      .catch(() => {})
+      .finally(() => setPoliciesLoading(false));
+  }, []);
+
+  const policies = useMemo(() => {
+    if (apiPolicies && apiPolicies.length > 0) {
+      return apiPolicies.map((p) => ({
+        code: p.code,
+        label: p.name,
+        description: p.description,
+      }));
+    }
+    return FALLBACK_POLICIES;
+  }, [apiPolicies]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -177,44 +209,53 @@ export default function RefundForm() {
                 Lý do hoàn tiền <span className="text-red-400">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {REFUND_POLICIES.map((policy) => {
-                  const Icon = POLICY_ICONS[policy.code] || AlertTriangle;
-                  const selected = policyCode === policy.code;
-                  return (
-                    <label
-                      key={policy.code}
-                      className={`flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                        selected
-                          ? "border-[#D35400] bg-orange-50 shadow-[0_2px_12px_rgba(211,84,0,0.1)]"
-                          : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="policyCode"
-                        value={policy.code}
-                        checked={selected}
-                        onChange={(e) => setPolicyCode(e.target.value)}
-                        className="mt-1 accent-[#D35400] w-5 h-5 shrink-0"
-                      />
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                            selected ? "bg-[#D35400] text-white" : "bg-gray-100 text-gray-400"
-                          }`}
-                        >
-                          <Icon className="w-5 h-5" />
+                {policiesLoading ? (
+                  <div className="col-span-full flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#D35400]" />
+                    <span className="ml-3 text-gray-400">Đang tải lý do hoàn tiền...</span>
+                  </div>
+                ) : (
+                  policies.map((policy) => {
+                    const Icon = POLICY_ICONS[policy.code] || AlertTriangle;
+                    const selected = policyCode === policy.code;
+                    return (
+                      <label
+                        key={policy.code}
+                        className={`flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                          selected
+                            ? "border-[#D35400] bg-orange-50 shadow-[0_2px_12px_rgba(211,84,0,0.1)]"
+                            : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="policyCode"
+                          value={policy.code}
+                          checked={selected}
+                          onChange={(e) => setPolicyCode(e.target.value)}
+                          className="mt-1 accent-[#D35400] w-5 h-5 shrink-0"
+                        />
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                              selected ? "bg-[#D35400] text-white" : "bg-gray-100 text-gray-400"
+                            }`}
+                          >
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-base font-bold text-gray-800">
+                              {policy.label}
+                            </span>
+                            <p className="text-sm text-gray-400 mt-1 leading-relaxed">
+                              {policy.description}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-base font-bold text-gray-800">{policy.label}</span>
-                          <p className="text-sm text-gray-400 mt-1 leading-relaxed">
-                            {policy.description}
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
+                      </label>
+                    );
+                  })
+                )}
               </div>
             </div>
 

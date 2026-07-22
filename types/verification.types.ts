@@ -1,6 +1,6 @@
 export type VerificationDocumentType = 1 | 2 | 3;
 
-export type VerificationStatusType = 0 | 1 | 2 | 3;
+export type VerificationStatusType = 0 | 1 | 2 | 3 | 4;
 
 export const DOCUMENT_TYPE_LABEL: Record<VerificationDocumentType, string> = {
   1: "Student Card",
@@ -10,17 +10,22 @@ export const DOCUMENT_TYPE_LABEL: Record<VerificationDocumentType, string> = {
 
 export const STATUS_LABEL: Record<VerificationStatusType, string> = {
   0: "Pending",
-  1: "Approved",
-  2: "Rejected",
-  3: "Expired",
+  1: "Pending",
+  2: "Approved",
+  3: "Rejected",
+  4: "Expired",
 };
 
 export interface VerificationMeResponse {
   requestId: string;
   status: VerificationStatusType;
   rejectReason?: string;
+  rejectionReason?: string | null;
   createdAt: string;
+  submittedAt?: string | null;
   updatedAt: string;
+  reviewedAt?: string | null;
+  hasOpenRequest?: boolean;
 }
 
 export interface VerificationSubmitResponse {
@@ -35,6 +40,7 @@ export interface AdminVerificationListItem {
   userName: string;
   submittedAt: string;
   documentCount: number;
+  status?: number;
 }
 
 export interface VerificationDocument {

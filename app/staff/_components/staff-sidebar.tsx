@@ -14,17 +14,20 @@ import {
   ChefHat,
   Package,
   X,
+  ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/stores/use-user";
+import { clearAuthTokens } from "@/lib/auth-token-storage";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/staff", icon: LayoutDashboard },
-  { label: "Serving Orders", href: "/staff/live-orders", icon: ChefHat },
-  { label: "Sessions", href: "/staff/sessions", icon: CalendarDays },
-  { label: "Orders", href: "/staff/orders", icon: ClipboardList },
-  { label: "Stock", href: "/staff/stock", icon: Package },
-  { label: "Profile", href: "/staff/profile", icon: User },
+  { label: "Bảng Điều Khiển", href: "/staff", icon: LayoutDashboard },
+  { label: "Đơn Phục Vụ", href: "/staff/live-orders", icon: ChefHat },
+  { label: "Phiên Ăn", href: "/staff/sessions", icon: CalendarDays },
+  { label: "Đơn Hàng", href: "/staff/orders", icon: ClipboardList },
+  { label: "Đổi Món", href: "/staff/change-proposals", icon: ArrowLeftRight },
+  { label: "Tồn Kho", href: "/staff/stock", icon: Package },
+  { label: "Hồ Sơ", href: "/staff/profile", icon: User },
 ];
 
 interface StaffSidebarProps {
@@ -42,12 +45,11 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
   }, [fetchProfile]);
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    clearAuthTokens();
     router.push("/login");
   };
 
-  const displayName = profile?.name || "Staff Admin";
+  const displayName = profile?.name || "Nhân Viên";
   const displayEmail = profile?.email || "staff@canteen.vn";
   const avatarUrl = profile?.imgUrl || null;
 
@@ -55,7 +57,7 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
     <aside
       className={cn(
         "fixed inset-y-0 left-0 w-[300px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 lg:sticky lg:h-screen lg:w-[350px] lg:translate-x-0 p-6 shadow-sm justify-between",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
       <div className="space-y-8 flex flex-col flex-1 overflow-hidden relative">
@@ -77,7 +79,7 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
               Smart <span className="text-[#D35400]">Canteen</span>
             </h2>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-[0.15em] mt-0.5">
-              Staff Portal
+              Cổng Nhân Viên
             </p>
           </div>
         </div>
@@ -85,7 +87,7 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
         {/* ── NAVIGATION MENU ── */}
         <nav className="space-y-1">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em] px-4 mb-4">
-            Menu
+            Danh Mục
           </p>
           <ul className="space-y-1.5">
             {NAV_ITEMS.map((item) => {

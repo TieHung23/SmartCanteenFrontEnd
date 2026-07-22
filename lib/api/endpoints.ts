@@ -39,6 +39,7 @@ export const API_ENDPOINTS = {
     CREATE: "/api/Orders",
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
+    MANAGER_BY_SESSION: (sessionId: string) => `/api/manager/orders/session/${sessionId}`,
   },
   CART: {
     GET: "/api/Cart",
@@ -46,12 +47,20 @@ export const API_ENDPOINTS = {
     DELETE: "/api/Cart",
   },
   PAYMENT: {
-    TOP_UP: "/api/payments/top-up",
-    GET: (id: string) => `/api/payments/${id}`,
+    TOP_UP: "/api/Payments/top-up",
+    TOP_UP_POLICY: "/api/Payments/top-up-policy",
+    GET: (id: string) => `/api/Payments/${id}`,
   },
   WALLET: {
     TRANSACTIONS: "/api/Wallet/transactions",
     GET: (id: string) => `/api/Wallet/transactions/${id}`,
+  },
+  SETTINGS: {
+    LIST: "/api/Settings",
+    CREATE: "/api/Settings",
+    GET: (id: string) => `/api/Settings/${id}`,
+    UPDATE: (id: string) => `/api/Settings/${id}`,
+    DELETE: (id: string) => `/api/Settings/${id}`,
   },
   REFUND: {
     LIST: "/api/refunds",
@@ -61,6 +70,18 @@ export const API_ENDPOINTS = {
     MANAGER_GET: (id: string) => `/api/manager/refunds/${id}`,
     MANAGER_APPROVE: (id: string) => `/api/manager/refunds/${id}/approve`,
     MANAGER_REJECT: (id: string) => `/api/manager/refunds/${id}/reject`,
+    POLICIES: "/api/refund-policies",
+    MANAGER_POLICIES: "/api/manager/refund-policies",
+    MANAGER_POLICY_CREATE: "/api/manager/refund-policies",
+    MANAGER_POLICY_UPDATE: (code: string) => `/api/manager/refund-policies/${code}`,
+    MANAGER_POLICY_DELETE: (code: string) => `/api/manager/refund-policies/${code}`,
+  },
+  MANAGER_USERS: {
+    LIST: "/api/manager/users",
+    GET: (id: string) => `/api/manager/users/${id}`,
+    SUSPEND: (id: string) => `/api/manager/users/${id}/suspend`,
+    BAN: (id: string) => `/api/manager/users/${id}/ban`,
+    REACTIVATE: (id: string) => `/api/manager/users/${id}/reactivate`,
   },
   VERIFICATION: {
     SUBMIT: "/api/Verification/submit",
@@ -76,6 +97,46 @@ export const API_ENDPOINTS = {
     READ: (id: string) => `/api/notifications/${id}/read`,
     READ_ALL: "/api/notifications/read-all",
     DELETE: (id: string) => `/api/notifications/${id}`,
+  },
+  CHANGE_PROPOSAL: {
+    LIST: "/api/ChangeProposals",
+    ACCEPT: (id: string) => `/api/ChangeProposals/${id}/accept`,
+    REQUEST_REFUND: (id: string) => `/api/ChangeProposals/${id}/request-refund`,
+  },
+  PICKUP: {
+    ASSIGN: "/api/pickup/assign",
+    COLLECT: "/api/pickup/collect",
+  },
+  ROBOT: {
+    SERVING_JOBS: "/api/robot/serving-jobs",
+  },
+  MANAGER: {
+    ROBOT_ARMS: {
+      LIST: "/api/manager/robot-arms",
+      CREATE: "/api/manager/robot-arms",
+      UPDATE: (id: string) => `/api/manager/robot-arms/${id}`,
+      DELETE: (id: string) => `/api/manager/robot-arms/${id}`,
+      MAINTENANCE: (id: string) => `/api/manager/robot-arms/${id}/maintenance`,
+    },
+    TRAYS: {
+      LIST: "/api/manager/trays",
+      CREATE: "/api/manager/trays",
+      FORCE_RELEASE: (id: string) => `/api/manager/trays/${id}/force-release`,
+      RETIRE: (id: string) => `/api/manager/trays/${id}/retire`,
+    },
+    PICKUP_SLOTS: {
+      LIST: "/api/manager/pickup-slots",
+      CREATE: "/api/manager/pickup-slots",
+      FORCE_CLEAR: (id: string) => `/api/manager/pickup-slots/${id}/force-clear`,
+      RETIRE: (id: string) => `/api/manager/pickup-slots/${id}/retire`,
+    },
+    SLOT_CONFIGURATIONS: {
+      LIST_BY_SESSION: (sessionId: string) =>
+        `/api/manager/slot-configurations?sessionId=${sessionId}`,
+      CREATE: "/api/manager/slot-configurations",
+      UPDATE: (id: string) => `/api/manager/slot-configurations/${id}`,
+      DELETE: (id: string) => `/api/manager/slot-configurations/${id}`,
+    },
   },
   ADMIN: {
     LOGS: {

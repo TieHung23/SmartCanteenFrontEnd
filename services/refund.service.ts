@@ -5,9 +5,17 @@ import type {
   RefundRequest,
   ManagerRefundListItem,
   ManagerRefundDetail,
+  RefundPolicy,
 } from "@/types/refund.types";
 
 export const refundService = {
+  getPolicies: async (): Promise<RefundPolicy[]> => {
+    const response = await apiClient.get<ApiResponse<RefundPolicy[]>>(
+      API_ENDPOINTS.REFUND.POLICIES,
+    );
+    return (response as unknown as ApiResponse<RefundPolicy[]>).value;
+  },
+
   getMyRefunds: async (params?: { status?: number; pageNumber?: number; pageSize?: number }) => {
     const response = await apiClient.get<ApiResponse<PaginatedList<RefundRequest>>>(
       API_ENDPOINTS.REFUND.LIST,
