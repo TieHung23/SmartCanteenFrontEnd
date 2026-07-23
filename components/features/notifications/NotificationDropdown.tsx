@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { notificationService } from "@/services/notification.service";
 import { NotificationItem } from "@/types/notification.types";
 import { Bell, CheckCheck, X, Clock, ExternalLink } from "lucide-react";
@@ -18,9 +19,11 @@ function timeAgo(utc: string): string {
 
 interface Props {
   onClose: () => void;
+  onRegisterListener?: (cb: (n: NotificationItem) => void) => () => void;
 }
 
-export default function NotificationDropdown({ onClose }: Props) {
+export default function NotificationDropdown({ onClose, onRegisterListener }: Props) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
@@ -43,6 +46,16 @@ export default function NotificationDropdown({ onClose }: Props) {
       .catch(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!onRegisterListener) return;
+    return onRegisterListener((n: NotificationItem) => {
+      setNotifications((prev) => {
+        if (prev.some((x) => x.id === n.id)) return prev;
+        return [n, ...prev];
+      });
+    });
+  }, [onRegisterListener]);
+
   const handleMarkRead = async (id: string) => {
     await notificationService.markAsRead(id);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
@@ -51,6 +64,19 @@ export default function NotificationDropdown({ onClose }: Props) {
   const handleMarkAllRead = async () => {
     await notificationService.markAllAsRead();
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const handleNotificationClick = (n: NotificationItem) => {
+    if (!n.isRead) handleMarkRead(n.id);
+    if (!n.referenceId) return;
+    onClose();
+    if (
+      n.referenceType === "Order" ||
+      n.referenceType === "ChangeProposal" ||
+      n.referenceType === "Refund"
+    ) {
+      router.push(`/orders/${n.referenceId}`);
+    }
   };
 
   return (
@@ -106,7 +132,7 @@ export default function NotificationDropdown({ onClose }: Props) {
             {notifications.map((n) => (
               <button
                 key={n.id}
-                onClick={() => !n.isRead && handleMarkRead(n.id)}
+                onClick={() => handleNotificationClick(n)}
                 className={`w-full text-left p-5 border-b border-gray-100 hover:bg-gray-50 transition-all ${
                   !n.isRead
                     ? "bg-orange-50/40 border-l-[3px] border-l-[#E86A33]"

@@ -61,14 +61,28 @@ export const orderService = {
   },
 
   confirmReceived: async (orderId: string) => {
-    const response = (await apiClient.put<
-      ApiResponse<{ id: string; status: number; message: string }>
-    >(
-      API_ENDPOINTS.ORDER.UPDATE(orderId),
-      { id: orderId, status: 2 }, // 2 = Completed
-    )) as unknown as ApiResponse<{ id: string; status: number; message: string }>;
-
-    return response.value;
+    try {
+      const response = (await apiClient.post<ApiResponse<{ message: string }>>(
+        API_ENDPOINTS.PICKUP.COLLECT,
+        { orderId },
+      )) as unknown as ApiResponse<{ message: string }>;
+      return response?.value;
+    } catch {
+      try {
+        const response = (await apiClient.post<ApiResponse<{ message: string }>>(
+          `/api/Orders/${orderId}/confirm`,
+        )) as unknown as ApiResponse<{ message: string }>;
+        return response?.value;
+      } catch {
+        const response = (await apiClient.put<
+          ApiResponse<{ id: string; status: number; message: string }>
+        >(API_ENDPOINTS.ORDER.UPDATE(orderId), {
+          id: orderId,
+          status: 2,
+        })) as unknown as ApiResponse<{ id: string; status: number; message: string }>;
+        return response?.value;
+      }
+    }
   },
 
   updateOrderStatus: async (orderId: string, status: number, note?: string) => {

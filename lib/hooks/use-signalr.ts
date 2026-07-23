@@ -12,12 +12,14 @@ import { getAccessToken } from "@/lib/auth-token-storage";
 import type { NotificationItem } from "@/types/notification.types";
 
 const HUB_URL = `${env.NEXT_PUBLIC_API_URL}/hubs/notifications`;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 type EventHandler = (data: NotificationItem) => void;
 
 let globalConnection: HubConnection | null = null;
 let eventHandlers: EventHandler[] = [];
 let isStarting = false;
+let reconnectAttempts = 0;
 
 function notifyHandlers(notification: NotificationItem) {
   eventHandlers.forEach((handler) => handler(notification));
@@ -48,7 +50,7 @@ async function startConnection() {
         accessTokenFactory: () => getAccessToken() ?? "",
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-      .configureLogging(LogLevel.Warning)
+      .configureLogging(LogLevel.Error)
       .build();
 
     globalConnection.on("NotificationReceived", (notification: NotificationItem) => {
@@ -56,21 +58,36 @@ async function startConnection() {
     });
 
     globalConnection.onreconnecting(() => {
-      console.warn("[SignalR] Reconnecting...");
+      reconnectAttempts++;
+      if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+        console.warn(`[SignalR] Reconnecting... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+      }
     });
 
     globalConnection.onreconnected(() => {
+      reconnectAttempts = 0;
       console.info("[SignalR] Reconnected");
     });
 
-    globalConnection.onclose(() => {
-      console.warn("[SignalR] Connection closed");
+    globalConnection.onclose((error) => {
+      if (error?.message?.includes("401")) {
+        console.warn("[SignalR] Closed due to auth error, not retrying");
+        return;
+      }
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.warn("[SignalR] Max reconnect attempts reached, stopped retrying");
+        return;
+      }
     });
 
     await globalConnection.start();
+    reconnectAttempts = 0;
     console.info("[SignalR] Connected");
-  } catch (error) {
-    console.error("[SignalR] Connection failed:", error);
+  } catch {
+    reconnectAttempts++;
+    if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+      console.warn(`[SignalR] Connection failed (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+    }
   } finally {
     isStarting = false;
   }
@@ -87,6 +104,7 @@ async function stopConnection() {
 }
 
 async function restartConnection() {
+  reconnectAttempts = 0;
   await stopConnection();
   await startConnection();
 }

@@ -36,10 +36,6 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
       } catch (err) {
         console.error(err);
       } finally {
-        setDetail(null);
-        setLoading(true);
-        const data2 = await refundService.managerGetDetail(requestId);
-        setDetail(data2);
         setLoading(false);
       }
     };
@@ -125,6 +121,16 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
                 </p>
                 <p className="font-mono font-bold text-gray-800 mt-1 truncate">{detail.orderId}</p>
               </div>
+              {detail.changeProposalId && (
+                <div className="py-3">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Mã đề xuất đổi món
+                  </p>
+                  <p className="font-mono font-bold text-[#D35400] mt-1 truncate">
+                    {detail.changeProposalId}
+                  </p>
+                </div>
+              )}
               <div className="py-3">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Chính sách áp dụng

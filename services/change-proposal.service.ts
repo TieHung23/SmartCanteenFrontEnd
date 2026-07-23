@@ -1,50 +1,61 @@
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { ApiResponse } from "./session.service";
-import type { OrderItemStatus } from "@/types/order.types";
+import type { ChangeProposalDetail } from "@/types/order.types";
 
 export interface AcceptProposalResponse {
   message: string;
 }
 
 export interface RequestRefundResponse {
+  refundRequestId: string;
+  orderId: string;
+  orderItemId: number | null;
+  dishId: string;
+  policyCode: string;
+  refundAmount: number;
+  status: string;
   message: string;
 }
 
-export interface ChangeProposalItem {
-  id: string;
+export interface RequestOrderRefundResponse {
+  refundRequestId: string;
   orderId: string;
-  orderCode?: string;
-  userName?: string;
-  dishName: string;
-  quantity: number;
-  unitPrice: number;
-  imgUrl?: string | null;
-  status: OrderItemStatus;
-  proposalStatus?: string;
-  createdAtUtc: string;
-  sessionId: string;
-  sessionName?: string;
+  policyCode: string;
+  refundAmount: number;
+  status: string;
+  message: string;
 }
 
 export const changeProposalService = {
   getAll: async (params?: {
     pageSize?: number;
     pageNumber?: number;
-    status?: string;
-  }): Promise<{ items: ChangeProposalItem[] }> => {
+  }): Promise<ChangeProposalDetail[]> => {
     try {
-      const queryParams: Record<string, string | number | undefined> = {};
-      if (params?.pageSize) queryParams.PageSize = params.pageSize;
-      if (params?.pageNumber) queryParams.PageNumber = params.pageNumber;
-      if (params?.status) queryParams.Status = params.status;
-      const response = (await apiClient.get<ApiResponse<unknown>>(
+      const response = (await apiClient.get<ApiResponse<ChangeProposalDetail[]>>(
         API_ENDPOINTS.CHANGE_PROPOSAL.LIST,
-        { params: queryParams },
-      )) as unknown as ApiResponse<{ items: ChangeProposalItem[] }>;
-      return response.value || { items: [] };
+        {
+          params: {
+            PageSize: params?.pageSize,
+            PageNumber: params?.pageNumber,
+          },
+        },
+      )) as unknown as ApiResponse<ChangeProposalDetail[]>;
+      return response.value || [];
     } catch {
-      return { items: [] };
+      return [];
+    }
+  },
+
+  getById: async (proposalId: string): Promise<ChangeProposalDetail | null> => {
+    try {
+      const response = (await apiClient.get<ApiResponse<ChangeProposalDetail>>(
+        API_ENDPOINTS.CHANGE_PROPOSAL.GET(proposalId),
+      )) as unknown as ApiResponse<ChangeProposalDetail>;
+      return response.value || null;
+    } catch {
+      return null;
     }
   },
 
@@ -72,6 +83,27 @@ export const changeProposalService = {
       return response as unknown as ApiResponse<RequestRefundResponse>;
     } catch (error) {
       console.error(`Error requesting refund for proposal ${proposalId}:`, error);
+      throw error;
+    }
+  },
+
+  requestOrderRefund: async (
+    proposalId: string,
+  ): Promise<ApiResponse<RequestOrderRefundResponse>> => {
+    try {
+      const response = await apiClient.post<ApiResponse<RequestOrderRefundResponse>>(
+        API_ENDPOINTS.CHANGE_PROPOSAL.REQUEST_ORDER_REFUND(proposalId),
+      );
+      return response as unknown as ApiResponse<RequestOrderRefundResponse>;
+    } catch (error) {
+      const axiosErr = error as {
+        response?: { status?: number; data?: unknown };
+        message?: string;
+      };
+      console.error(
+        `[requestOrderRefund] ${axiosErr.response?.status ?? "NETWORK"} for proposal ${proposalId}:`,
+        axiosErr.response?.data ?? axiosErr.message,
+      );
       throw error;
     }
   },

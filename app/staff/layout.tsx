@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { StaffSidebar } from "./_components/staff-sidebar";
@@ -18,13 +18,10 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   // Auto-close sidebar on route changes on mobile
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname);
-    if (sidebarOpen) {
-      setSidebarOpen(false);
-    }
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => setSidebarOpen(false), 0);
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
   return (
     <div

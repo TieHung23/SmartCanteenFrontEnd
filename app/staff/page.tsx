@@ -3,47 +3,33 @@
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { StatsGrid } from "./_components/stats-grid";
-import { AlertTriangle, Cpu, RefreshCw } from "lucide-react";
-import { useToast } from "@/lib/hooks/use-toast";
+import { Cpu, RefreshCw } from "lucide-react";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 import { orderService } from "@/services/order.service";
+import { robotArmService } from "@/services/robot-arm.service";
 import type { OrderListItem } from "@/types/order.types";
-
-interface Robot {
-  id: string;
-  code: string;
-  status: string;
-  currentOrderId?: string;
-}
+import type { RobotArm } from "@/types/robot-arm.types";
 
 export default function StaffDashboardPage() {
-  const { toast } = useToast();
   const [liveOrders, setLiveOrders] = useState<OrderListItem[]>([]);
-  const [robots, setRobots] = useState<Robot[]>([]);
+  const [robotArms, setRobotArms] = useState<RobotArm[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchOperationData = () => {
-    orderService
-      .getMyOrders({ status: 0, pageSize: 5 })
-      .then((data) => {
-        setLiveOrders(data?.items || []);
-      })
-      .catch(() => {
-        setLiveOrders([]);
-      });
-
-    fetch("/api/staff/robots")
-      .then((r) => r.json())
-      .then((data: { value?: Robot[] }) => {
-        setRobots(data?.value || []);
-      })
-      .catch(() => {
-        setRobots([]);
+    setLoading(true);
+    Promise.all([
+      orderService.getAll({ status: 0, pageSize: 10 }).catch(() => null),
+      robotArmService.getList().catch(() => []),
+    ])
+      .then(([ordersRes, armsRes]) => {
+        setLiveOrders(ordersRes?.items || []);
+        setRobotArms(armsRes || []);
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOperationData();
     const interval = setInterval(fetchOperationData, 10000);
     return () => clearInterval(interval);
@@ -61,37 +47,16 @@ export default function StaffDashboardPage() {
     });
   }, [liveOrders, globalQuery]);
 
-  const filteredRobots = useMemo(() => {
+  const filteredRobotArms = useMemo(() => {
     const q = globalQuery.toLowerCase().trim();
-    if (!q) return robots;
-    return robots.filter((r) => {
+    if (!q) return robotArms;
+    return robotArms.filter((r) => {
       const code = (r.code || "").toLowerCase();
-      const orderId = (r.currentOrderId || "").toLowerCase();
+      const name = (r.name || "").toLowerCase();
       const status = (r.status || "").toLowerCase();
-      return code.includes(q) || orderId.includes(q) || status.includes(q);
+      return code.includes(q) || name.includes(q) || status.includes(q);
     });
-  }, [robots, globalQuery]);
-
-  const handleManualFulfillment = async (orderId?: string) => {
-    if (!orderId) return;
-    try {
-      await orderService.updateOrderStatus(
-        orderId,
-        2,
-        "Robot gặp sự cố giữa chừng. Nhân viên phục vụ thủ công hoàn tất phần món còn lại.",
-      );
-      toast({
-        title: "Xử lý thủ công thành công",
-        description: `Đơn hàng #${orderId.slice(0, 8)} đã được chuyển sang Trạng thái Hoàn thành.`,
-      });
-      fetchOperationData();
-    } catch {
-      toast({
-        title: "Lỗi hệ thống",
-        description: "Không thể cập nhật trạng thái đơn hàng.",
-      });
-    }
-  };
+  }, [robotArms, globalQuery]);
 
   return (
     <div className="space-y-10">
@@ -180,48 +145,42 @@ export default function StaffDashboardPage() {
           <div>
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3 mb-5">
               <Cpu className="w-6 h-6 text-gray-600" />
-              Robot
+              Cánh Tay Robot
             </h2>
-            {filteredRobots.length === 0 ? (
+            {filteredRobotArms.length === 0 ? (
               <div className="text-center py-8 text-sm text-gray-400 font-medium">
-                {globalQuery.trim() ? "Không tìm thấy robot nào khớp" : "Không có robot nào"}
+                {globalQuery.trim()
+                  ? "Không tìm thấy robot nào khớp"
+                  : "Không có cánh tay robot nào"}
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredRobots.map((bot) => (
-                  <div
-                    key={bot.id}
-                    className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-gray-800">{bot.code}</span>
-                      <span
-                        className={`text-sm px-3 py-1.5 rounded-full font-semibold ${
-                          bot.status === "Serving"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {bot.status === "Serving" ? "Đang hoạt động" : "Lỗi!"}
-                      </span>
-                    </div>
-
-                    {bot.status === "MidOrderFailure" && (
-                      <div className="bg-red-100/70 border border-red-200 rounded-xl p-4 space-y-3">
-                        <p className="text-sm text-red-800 font-semibold flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4" />
-                          Sự cố đơn #{bot.currentOrderId}
-                        </p>
-                        <button
-                          onClick={() => handleManualFulfillment(bot.currentOrderId)}
-                          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-sm py-2.5 rounded-xl transition shadow-xs"
+                {filteredRobotArms.map((bot) => {
+                  const isOk = bot.status === "Idle" || bot.status === "Busy";
+                  return (
+                    <div
+                      key={bot.id}
+                      className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-bold text-gray-800">
+                          {bot.name || bot.code}
+                        </span>
+                        <span
+                          className={`text-sm px-3 py-1 rounded-full font-semibold ${
+                            isOk ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                          }`}
                         >
-                          Tiếp quản thủ công
-                        </button>
+                          {isOk ? "Sẵn sàng" : bot.status}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <p className="text-xs text-gray-500 font-medium">
+                        Mã: <span className="font-bold text-gray-700">{bot.code}</span> · Trạm:{" "}
+                        <span className="font-bold text-gray-700">#{bot.stationIndex}</span>
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -15,4 +15,5 @@ export const ROUTES = {
   SUSPENDED: "/suspended",
   NOTIFICATIONS: "/notifications",
   WALLET_TRANSACTIONS: "/wallet/transactions",
+  CHANGE_PROPOSALS: "/change-proposals",
 } as const;

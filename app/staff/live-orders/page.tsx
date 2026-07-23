@@ -105,7 +105,7 @@ export default function LiveOrdersPage() {
   const fetchOrders = () => {
     setLoading(true);
     orderService
-      .getMyOrders({ pageSize: 100, pageNumber: 1 })
+      .getAll({ pageSize: 100, pageNumber: 1 })
       .then((data) => {
         const items = (data?.items || []) as unknown as LiveOrder[];
         setOrders(items);

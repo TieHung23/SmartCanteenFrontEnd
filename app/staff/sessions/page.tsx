@@ -267,7 +267,12 @@ export default function StaffSessionsPage() {
   }, [activeSessionId, sessions]);
 
   const handleQuantityChange = (dishId: string, val: string) => {
-    const num = val === "" ? 0 : parseInt(val, 10);
+    if (val === "") {
+      setPreparedQuantities((prev) => ({ ...prev, [dishId]: "" as unknown as number }));
+      return;
+    }
+    const cleaned = val.replace(/^0+(?=\d)/, "");
+    const num = parseInt(cleaned, 10);
     setPreparedQuantities((prev) => ({
       ...prev,
       [dishId]: isNaN(num) ? 0 : Math.max(0, num),
@@ -462,16 +467,20 @@ export default function StaffSessionsPage() {
                   }}
                   className={`shrink-0 flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-base border-2 transition-all duration-300 ${
                     isSelected
-                      ? "bg-gray-900 text-white border-gray-900 shadow-lg scale-102"
+                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-lg shadow-orange-500/25 scale-102"
                       : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-300 border-gray-200 shadow-2xs"
                   }`}
                 >
                   <Coffee
-                    className={`w-5 h-5 ${isSelected ? "text-[#FF4C24]" : "text-gray-400"}`}
+                    className={`w-5 h-5 transition-colors ${isSelected ? "text-white" : "text-gray-400"}`}
                   />
                   <span className="whitespace-nowrap">{session.name}</span>
                   {isSessionLive(session) && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full animate-pulse ${
+                        isSelected ? "bg-white" : "bg-green-500"
+                      }`}
+                    />
                   )}
                 </button>
               );
@@ -751,10 +760,25 @@ export default function StaffSessionsPage() {
                               <input
                                 type="number"
                                 min="0"
-                                value={preparedQuantities[d.dishId ?? ""] ?? 0}
+                                value={
+                                  preparedQuantities[d.dishId ?? ""] === undefined ||
+                                  preparedQuantities[d.dishId ?? ""] === null
+                                    ? 0
+                                    : preparedQuantities[d.dishId ?? ""]
+                                }
                                 onChange={(e) =>
                                   handleQuantityChange(d.dishId ?? "", e.target.value)
                                 }
+                                onFocus={(e) => e.target.select()}
+                                onBlur={() => {
+                                  const key = d.dishId ?? "";
+                                  if (
+                                    preparedQuantities[key] === ("" as unknown as number) ||
+                                    isNaN(Number(preparedQuantities[key]))
+                                  ) {
+                                    setPreparedQuantities((prev) => ({ ...prev, [key]: 0 }));
+                                  }
+                                }}
                                 disabled={isSubmitting}
                                 className="w-16 px-2 py-1.5 text-center border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-[#D35400] focus:border-[#D35400] text-sm font-bold"
                               />

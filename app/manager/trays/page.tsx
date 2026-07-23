@@ -12,10 +12,12 @@ import {
   RefreshCw,
   Layers,
   AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { trayService } from "@/services/tray.service";
 import type { TrayPoolSummary, TrayStatus } from "@/types/tray.types";
 import Modal from "../_components/modal";
+import TrayDetailModal from "@/components/features/trays/tray-detail-modal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -55,6 +57,8 @@ export default function ManagerTraysPage() {
   const [search, setSearch] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedTrayId, setSelectedTrayId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"single" | "bulk">("single");
   const [singleCode, setSingleCode] = useState("");
   const [bulkPrefix, setBulkPrefix] = useState("TRAY");
@@ -62,6 +66,11 @@ export default function ManagerTraysPage() {
   const [bulkTo, setBulkTo] = useState(10);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOpenDetail = (id: string) => {
+    setSelectedTrayId(id);
+    setIsDetailOpen(true);
+  };
 
   const fetchPool = async () => {
     try {
@@ -364,17 +373,20 @@ export default function ManagerTraysPage() {
                   <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
                     Cập nhật lúc
                   </th>
+                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((tray, idx) => {
+                {filtered.map((tray) => {
                   const s = STATUS_CONFIG[tray.status];
                   const Icon = s.icon;
                   return (
                     <tr
                       key={tray.id}
-                      className="hover:bg-orange-50/30 transition-colors group animate-fade-in-scale"
-                      style={{ animationDelay: `${350 + idx * 50}ms` }}
+                      className="hover:bg-orange-50/30 transition-colors group animate-fade-in-scale cursor-pointer"
+                      onClick={() => handleOpenDetail(tray.id)}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -387,7 +399,7 @@ export default function ManagerTraysPage() {
                           >
                             <Icon className={cn("w-4 h-4", s.text)} />
                           </div>
-                          <code className="text-sm font-mono font-bold text-gray-800">
+                          <code className="text-sm font-mono font-bold text-gray-800 group-hover:text-[#D35400] transition-colors">
                             {tray.code}
                           </code>
                         </div>
@@ -428,6 +440,16 @@ export default function ManagerTraysPage() {
                         ) : (
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleOpenDetail(tray.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200/80 hover:border-orange-300 text-gray-600 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl text-xs font-bold transition-all shadow-2xs"
+                          title="Xem chi tiết"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Chi tiết</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -590,6 +612,14 @@ export default function ManagerTraysPage() {
           </div>
         </div>
       </Modal>
+
+      {/* ── DETAIL MODAL ── */}
+      <TrayDetailModal
+        trayId={selectedTrayId}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onRefreshPool={fetchPool}
+      />
     </div>
   );
 }
