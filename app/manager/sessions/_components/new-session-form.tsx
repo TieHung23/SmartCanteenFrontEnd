@@ -641,6 +641,36 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setError(null);
+
+      const FIELD_ORDER = [
+        "name",
+        "description",
+        "orderOpenDate",
+        "availableForOrder",
+        "sessionDate",
+        "finalizationDeadline",
+        "availableFrom",
+        "availableTo",
+        "templatesName",
+        "templatesSettings",
+        "dishes",
+      ];
+
+      const firstKey = FIELD_ORDER.find((k) => validationErrors[k]);
+      if (firstKey) {
+        const el = document.getElementById(`field-${firstKey}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.focus({ preventScroll: true });
+          }
+        }
+      }
+
+      const firstErrorMsg = Object.values(validationErrors)[0];
+      toast.error("Thông tin tạo ca chưa hợp lệ", {
+        description: firstErrorMsg || "Vui lòng kiểm tra các trường bị lỗi.",
+      });
       return;
     }
 
@@ -741,6 +771,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Tên ca phục vụ *
                 </label>
                 <input
+                  id="field-name"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -770,6 +801,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Mô tả ngắn gọn *
                 </label>
                 <textarea
+                  id="field-description"
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value);
@@ -804,7 +836,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     <Play className="w-4 h-4" /> Mở đặt
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                    <div id="field-orderOpenDate">
                       <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
                         Ngày mở đặt
                       </label>
@@ -844,6 +876,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       )}
                     </div>
                     <div
+                      id="field-availableForOrder"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("order"))}
                     >
@@ -909,7 +942,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
                     <CalendarPlus className="w-4 h-4" /> Phục vụ
                   </h3>
-                  <div>
+                  <div id="field-sessionDate">
                     <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
                       Ngày phục vụ
                     </label>
@@ -954,6 +987,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div
+                      id="field-finalizationDeadline"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("deadline"))}
                     >
@@ -1005,6 +1039,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         )}
                     </div>
                     <div
+                      id="field-availableFrom"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("start"))}
                     >
@@ -1056,6 +1091,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         )}
                     </div>
                     <div
+                      id="field-availableTo"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("end"))}
                     >
@@ -1182,6 +1218,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
           {/* Template Limits Configuration */}
           <div
+            id="field-templatesName"
             className={cn(
               "bg-white rounded-3xl border p-6 sm:p-8 space-y-6 shadow-xs transition-colors duration-300",
               errors.templatesName || errors.templatesSettings
@@ -1432,6 +1469,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         <div className="lg:col-span-6 space-y-8 lg:sticky lg:top-0">
           {/* Mapped Session Dishes Pool (Drop zone) */}
           <div
+            id="field-dishes"
             ref={dropZoneRef}
             onDragOver={handleDragOverDropZone}
             onDragLeave={() => setIsDragOverDropZone(false)}

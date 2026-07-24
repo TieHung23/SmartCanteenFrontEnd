@@ -19,9 +19,10 @@ import type { CartItem } from "@/context/cart-context";
 import { useCart } from "@/context/cart-context";
 import { toast } from "sonner";
 import { animate, stagger, spring } from "animejs";
-import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
+import { ShoppingCart, Clock, CalendarDays, Search } from "lucide-react";
 import { isSessionExpired } from "@/lib/utils";
 import { useCurrency } from "@/lib/hooks/use-currency";
+import { useGlobalSearch } from "@/lib/stores/use-search";
 
 const getSafeImageUrl = (
   url: string | null | undefined,
@@ -77,6 +78,7 @@ function MenuContent() {
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
   const { data: sessionDetail, isLoading: loadingMeal } = useSessionDetail(sessionId);
   const { formatPoints } = useCurrency();
+  const { query: searchQuery } = useGlobalSearch();
 
   const {
     addToCart: contextAddToCart,
@@ -439,6 +441,14 @@ function MenuContent() {
     return allDishesData?.items ?? [];
   }, [mealDetail, allDishesData]);
 
+  const filteredDishes = useMemo(() => {
+    if (!searchQuery.trim()) return dishes;
+    const q = searchQuery.toLowerCase();
+    return dishes.filter(
+      (d) => d.name?.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q),
+    );
+  }, [dishes, searchQuery]);
+
   const templates = useMemo(() => mealDetail?.mealTemplates || [], [mealDetail?.mealTemplates]);
   const selectedTemplate = selectedTemplateIdx !== null ? templates[selectedTemplateIdx] : null;
 
@@ -759,6 +769,25 @@ function MenuContent() {
               isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
             }`}
           >
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                value={searchQuery}
+                onChange={(e) => useGlobalSearch.getState().setQuery(e.target.value)}
+                placeholder="Tìm kiếm món ăn..."
+                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => useGlobalSearch.getState().setQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+
             {/* Round Category Horizontal Menu */}
             {categories.length === 0 && !isLoading ? (
               <div className="text-center py-28 bg-gray-50 rounded-[2.5rem] text-gray-400 border border-dashed border-gray-200">
@@ -840,10 +869,16 @@ function MenuContent() {
                 </div>
 
                 {/* Grid Món ăn */}
-                {selectedCategoryId === null ? (
+                {searchQuery.trim() && filteredDishes.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-lg font-bold text-gray-500">Không tìm thấy món ăn</p>
+                    <p className="text-sm text-gray-400 mt-1">Thử tìm kiếm với từ khóa khác</p>
+                  </div>
+                ) : selectedCategoryId === null ? (
                   <div className="space-y-6">
                     {categories.map((cat) => {
-                      const catDishes = dishes.filter((d) => d.categoryId === cat.id);
+                      const catDishes = filteredDishes.filter((d) => d.categoryId === cat.id);
                       if (catDishes.length === 0) return null;
                       const setting = getSettingForCategory(cat.id);
                       const cartCount = getCartCountForCategory(cat.id);
@@ -914,7 +949,9 @@ function MenuContent() {
                   (() => {
                     const activeCat = categories.find((c) => c.id === selectedCategoryId);
                     if (!activeCat) return null;
-                    const categoryDishes = dishes.filter((d) => d.categoryId === activeCat.id);
+                    const categoryDishes = filteredDishes.filter(
+                      (d) => d.categoryId === activeCat.id,
+                    );
                     if (categoryDishes.length === 0) return null;
 
                     const setting = getSettingForCategory(activeCat.id);
