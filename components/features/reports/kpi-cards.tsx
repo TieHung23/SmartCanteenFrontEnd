@@ -1,6 +1,6 @@
 "use client";
 
-import { Coins, Receipt, TrendingUp, Utensils } from "lucide-react";
+import { Coins, Receipt, TrendingUp, Utensils, Users, AlertTriangle, Activity } from "lucide-react";
 import type { DashboardSummary } from "@/types/report.types";
 
 function formatVND(amount: number): string {
@@ -28,10 +28,6 @@ export function KpiCards({ data, loading }: KpiCardsProps) {
       change: data ? formatPercent(data.orderChange) : null,
       icon: Receipt,
       changePositive: data ? data.orderChange >= 0 : true,
-      cardBg: "bg-blue-50/60",
-      cardBorder: "border-blue-100",
-      iconBg: "bg-blue-100 border-blue-200",
-      iconColor: "text-blue-600",
     },
     {
       title: "Doanh thu",
@@ -39,10 +35,20 @@ export function KpiCards({ data, loading }: KpiCardsProps) {
       change: data ? formatPercent(data.revenueChange) : null,
       icon: Coins,
       changePositive: data ? data.revenueChange >= 0 : true,
-      cardBg: "bg-emerald-50/60",
-      cardBorder: "border-emerald-100",
-      iconBg: "bg-emerald-100 border-emerald-200",
-      iconColor: "text-emerald-600",
+    },
+    {
+      title: "Khiếu nại",
+      value: data ? data.totalComplaints.toLocaleString("vi-VN") : "—",
+      change: null,
+      icon: AlertTriangle,
+      changePositive: true,
+    },
+    {
+      title: "Khách mới",
+      value: data ? data.newCustomers.toLocaleString("vi-VN") : "—",
+      change: data ? formatPercent(data.customerChange) : null,
+      icon: Users,
+      changePositive: data ? data.customerChange >= 0 : true,
     },
     {
       title: "Tỷ lệ hoàn tiền",
@@ -50,36 +56,34 @@ export function KpiCards({ data, loading }: KpiCardsProps) {
       change: data ? formatPercent(data.refundChange) : null,
       icon: TrendingUp,
       changePositive: data ? data.refundChange <= 0 : true,
-      cardBg: "bg-rose-50/60",
-      cardBorder: "border-rose-100",
-      iconBg: "bg-rose-100 border-rose-200",
-      iconColor: "text-rose-600",
+    },
+    {
+      title: "Ca đang hoạt động",
+      value: data ? data.activeSessions.toLocaleString("vi-VN") : "—",
+      icon: Activity,
+      changePositive: true,
     },
     {
       title: "Món bán chạy",
       value: data ? data.topDish : "—",
       icon: Utensils,
-      cardBg: "bg-orange-50/60",
-      cardBorder: "border-orange-100",
-      iconBg: "bg-orange-100 border-orange-200",
-      iconColor: "text-orange-600",
+      changePositive: true,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       {cards.map((card) => (
-        <div
-          key={card.title}
-          className={`${card.cardBg} rounded-2xl border ${card.cardBorder} p-6 shadow-sm hover:shadow-md transition-all duration-200`}
-        >
+        <div key={card.title} className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1.5">
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+            <div className="min-w-0">
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider">
                 {card.title}
               </p>
               <p
-                className={`font-extrabold text-gray-900 ${card.title === "Món bán chạy" ? "text-xl truncate" : "text-3xl"}`}
+                className={`font-black text-gray-900 mt-2 ${
+                  card.title === "Món bán chạy" ? "text-xl truncate" : "text-2xl"
+                }`}
               >
                 {loading ? (
                   <span className="inline-block w-20 h-8 bg-gray-200 rounded-lg animate-pulse" />
@@ -89,7 +93,7 @@ export function KpiCards({ data, loading }: KpiCardsProps) {
               </p>
               {card.change && (
                 <p
-                  className={`text-sm font-bold mt-1 ${
+                  className={`text-sm font-bold mt-2 ${
                     card.changePositive ? "text-green-600" : "text-red-500"
                   }`}
                 >
@@ -97,9 +101,7 @@ export function KpiCards({ data, loading }: KpiCardsProps) {
                 </p>
               )}
             </div>
-            <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${card.iconBg} ${card.iconColor}`}
-            >
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#D35400] flex items-center justify-center border border-orange-100 shrink-0">
               <card.icon className="w-6 h-6" />
             </div>
           </div>

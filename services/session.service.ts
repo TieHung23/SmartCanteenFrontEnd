@@ -32,115 +32,80 @@ export const sessionService = {
     isActive?: boolean;
     name?: string;
   }): Promise<PaginatedList<SessionListItem>> => {
-    try {
-      const response = (await apiClient.get<ApiResponse<PaginatedList<SessionListItem>>>(
-        API_ENDPOINTS.SESSION.LIST,
-        { params },
-      )) as unknown as ApiResponse<PaginatedList<SessionListItem>>;
+    const response = (await apiClient.get<ApiResponse<PaginatedList<SessionListItem>>>(
+      API_ENDPOINTS.SESSION.LIST,
+      { params },
+    )) as unknown as ApiResponse<PaginatedList<SessionListItem>>;
 
-      return response.value;
-    } catch (error) {
-      console.error("Error when listing sessions:", error);
-      throw error;
-    }
+    return response.value;
   },
 
   getSessionDetail: async (id: string): Promise<SessionDetail> => {
-    try {
-      const response = (await apiClient.get<ApiResponse<unknown>>(
-        API_ENDPOINTS.SESSION.GET(id),
-      )) as unknown as ApiResponse<unknown>;
+    const response = (await apiClient.get<ApiResponse<unknown>>(
+      API_ENDPOINTS.SESSION.GET(id),
+    )) as unknown as ApiResponse<unknown>;
 
-      const rawData = response.value;
-      const validatedData = SessionDetailSchema.parse(rawData);
+    const rawData = response.value;
+    const validatedData = SessionDetailSchema.parse(rawData);
 
-      return validatedData;
-    } catch (error) {
-      console.error(`Error when fetching session detail ID ${id}:`, error);
-      throw error;
-    }
+    return validatedData;
   },
 
   createSession: async (
     data: CreateSessionRequest,
   ): Promise<ApiResponse<{ id: string; name: string; message: string }>> => {
-    try {
-      const response = (await apiClient.post<
-        ApiResponse<{ id: string; name: string; message: string }>
-      >(API_ENDPOINTS.SESSION.CREATE, data)) as unknown as ApiResponse<{
-        id: string;
-        name: string;
-        message: string;
-      }>;
+    const response = (await apiClient.post<
+      ApiResponse<{ id: string; name: string; message: string }>
+    >(API_ENDPOINTS.SESSION.CREATE, data)) as unknown as ApiResponse<{
+      id: string;
+      name: string;
+      message: string;
+    }>;
 
-      return response;
-    } catch (error) {
-      console.error("Lỗi khi tạo mới ca ăn:", error);
-      throw error;
-    }
+    return response;
   },
 
   updateSession: async (
     id: string,
     data: Partial<CreateSessionRequest> & { isActive?: boolean },
   ): Promise<ApiResponse<{ id: string; name: string; message: string }>> => {
-    try {
-      const response = (await apiClient.put<
-        ApiResponse<{ id: string; name: string; message: string }>
-      >(API_ENDPOINTS.SESSION.UPDATE(id), data)) as unknown as ApiResponse<{
-        id: string;
-        name: string;
-        message: string;
-      }>;
+    const response = (await apiClient.put<
+      ApiResponse<{ id: string; name: string; message: string }>
+    >(API_ENDPOINTS.SESSION.UPDATE(id), data)) as unknown as ApiResponse<{
+      id: string;
+      name: string;
+      message: string;
+    }>;
 
-      return response;
-    } catch (error) {
-      console.error(`Error when updating session ID ${id}:`, error);
-      throw error;
-    }
+    return response;
   },
 
   deleteSession: async (id: string): Promise<ApiResponse<{ id: string; message: string }>> => {
-    try {
-      const response = (await apiClient.delete<ApiResponse<{ id: string; message: string }>>(
-        API_ENDPOINTS.SESSION.DELETE(id),
-      )) as unknown as ApiResponse<{ id: string; message: string }>;
+    const response = (await apiClient.delete<ApiResponse<{ id: string; message: string }>>(
+      API_ENDPOINTS.SESSION.DELETE(id),
+    )) as unknown as ApiResponse<{ id: string; message: string }>;
 
-      return response;
-    } catch (error) {
-      console.error(`Error when deleting session ID ${id}:`, error);
-      throw error;
-    }
+    return response;
   },
 
   finalizeSession: async (
     id: string,
     preparedDishes: { dishId: string; preparedQuantity: number }[],
   ): Promise<ApiResponse<{ message: string }>> => {
-    try {
-      const response = (await apiClient.post<ApiResponse<{ message: string }>>(
-        API_ENDPOINTS.SESSION.FINALIZE(id),
-        { sessionId: id, preparedDishes },
-      )) as unknown as ApiResponse<{ message: string }>;
+    const response = (await apiClient.post<ApiResponse<{ message: string }>>(
+      API_ENDPOINTS.SESSION.FINALIZE(id),
+      { sessionId: id, preparedDishes },
+    )) as unknown as ApiResponse<{ message: string }>;
 
-      return response;
-    } catch (error) {
-      console.error(`Error finalizing session ID ${id}:`, error);
-      throw error;
-    }
+    return response;
   },
 
   getAllDishes: async (): Promise<Dish[]> => {
-    try {
-      const response = (await apiClient.get<ApiResponse<PaginatedList<Dish>>>(
-        API_ENDPOINTS.DISH.LIST,
-        { params: { pageSize: 100 } },
-      )) as unknown as ApiResponse<PaginatedList<Dish>>;
+    const response = (await apiClient.get<ApiResponse<PaginatedList<Dish>>>(
+      API_ENDPOINTS.DISH.LIST,
+      { params: { pageSize: 100 } },
+    )) as unknown as ApiResponse<PaginatedList<Dish>>;
 
-      return response.value?.items || [];
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách Dishes:", error);
-      return [];
-    }
+    return response.value?.items || [];
   },
 };

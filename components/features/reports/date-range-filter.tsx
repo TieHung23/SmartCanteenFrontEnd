@@ -124,7 +124,13 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
         )}
       </div>
       <span className="text-sm font-semibold text-gray-400 ml-2">
-        {format(new Date(value.from), "dd/MM/yyyy")} - {format(new Date(value.to), "dd/MM/yyyy")}
+        {(() => {
+          const f = value.from.split("-");
+          const t = value.to.split("-");
+          const fromStr = f.length === 3 ? `${f[2]}/${f[1]}/${f[0]}` : value.from;
+          const toStr = t.length === 3 ? `${t[2]}/${t[1]}/${t[0]}` : value.to;
+          return `${fromStr} - ${toStr}`;
+        })()}
       </span>
     </div>
   );

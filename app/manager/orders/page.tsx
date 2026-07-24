@@ -152,19 +152,24 @@ export default function ManagerOrdersPage() {
         if (status !== "all") params.status = Number(status) as OrderStatus;
 
         const data = await orderService.getManagerOrdersBySession(sessionId, params);
-        const items = (data.items || []) as unknown as (OrderListItem & { userName?: string })[];
-        setTotalCount(data.totalCount || 0);
+        const items = (data?.items || []) as unknown as (OrderListItem & { userName?: string })[];
+        setTotalCount(data?.totalCount || 0);
 
         const results = await Promise.allSettled(
           items.map((o) =>
-            orderService.getOrderById(o.id).then((res) => res as unknown as EnrichedOrderDetail),
+            orderService
+              .getManagerOrderById(o.id)
+              .catch(() => orderService.getOrderById(o.id))
+              .catch(() => o as unknown as EnrichedOrderDetail),
           ),
         );
 
         const map = new Map<string, EnrichedOrderDetail>();
         results.forEach((r, i) => {
-          if (r.status === "fulfilled") {
+          if (r.status === "fulfilled" && r.value) {
             map.set(items[i].id, r.value as EnrichedOrderDetail);
+          } else {
+            map.set(items[i].id, items[i] as unknown as EnrichedOrderDetail);
           }
         });
         setDetailsMap(map);
@@ -189,11 +194,8 @@ export default function ManagerOrdersPage() {
     detailsMap.forEach((detail, id) => {
       result.push({ ...detail, id });
     });
-    if (result.length === 0 && !loadingOrders && detailsMap.size === 0) {
-      return [];
-    }
     return result;
-  }, [detailsMap, loadingOrders]);
+  }, [detailsMap]);
 
   const filteredOrders = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();

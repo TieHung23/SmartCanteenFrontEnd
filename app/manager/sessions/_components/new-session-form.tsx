@@ -7,8 +7,19 @@ import { categoryService } from "@/services/category.service";
 import { sessionService } from "@/services/session.service";
 import type { Dish } from "@/types/dish.types";
 import type { Category } from "@/types/category.types";
-import type { CreateSessionRequest, CreateSessionTemplate } from "@/types/session.types";
+import type {
+  CreateSessionRequest,
+  CreateSessionTemplate,
+  SessionListItem,
+} from "@/types/session.types";
 import { cn } from "@/lib/utils";
+import {
+  checkSessionOverlap,
+  extractApiErrorMessage,
+  formatSessionOverlapMessage,
+  formatSessionRange,
+  getSessionsForDate,
+} from "@/lib/session-overlap";
 import {
   Search,
   GripVertical,
@@ -20,6 +31,8 @@ import {
   Lock,
   Trash2,
   Hourglass,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
@@ -42,6 +55,7 @@ interface NewSessionFormProps {
 export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: NewSessionFormProps) {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [existingSessions, setExistingSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,16 +109,35 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         setAvailableForOrder(fullStr);
         newForOrder = fullStr;
       } else {
-        const dateStr = sessionDate || dayjs().format("YYYY-MM-DD");
-        if (!sessionDate) setSessionDate(dateStr);
-        const fullStr = `${dateStr}T${time.format("HH:mm")}`;
+        const baseDate = sessionDate || dayjs().format("YYYY-MM-DD");
+        if (!sessionDate) setSessionDate(baseDate);
         if (field === "deadline") {
+          const fullStr = `${baseDate}T${time.format("HH:mm")}`;
           setFinalizationDeadline(fullStr);
           newDeadline = fullStr;
         } else if (field === "start") {
+          const startTime = time.format("HH:mm");
+          const fullStr = `${baseDate}T${startTime}`;
           setAvailableFrom(fullStr);
           newFrom = fullStr;
+          if (newTo) {
+            const toTime = newTo.split("T")[1];
+            if (toTime) {
+              const endDateStr =
+                toTime < startTime ? dayjs(baseDate).add(1, "day").format("YYYY-MM-DD") : baseDate;
+              const updatedTo = `${endDateStr}T${toTime}`;
+              setAvailableTo(updatedTo);
+              newTo = updatedTo;
+            }
+          }
         } else if (field === "end") {
+          const endTime = time.format("HH:mm");
+          const startTime = newFrom ? newFrom.split("T")[1] : "";
+          const endDateStr =
+            startTime && endTime < startTime
+              ? dayjs(baseDate).add(1, "day").format("YYYY-MM-DD")
+              : baseDate;
+          const fullStr = `${endDateStr}T${endTime}`;
           setAvailableTo(fullStr);
           newTo = fullStr;
         }
@@ -154,12 +187,16 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dishResult, catResult] = await Promise.all([
+        const [dishResult, catResult, sessionResult] = await Promise.all([
           dishService.getDishes({ isActive: true, pageSize: 100 }),
           categoryService.getAll(),
+          sessionService
+            .getSessions({ pageSize: 100 })
+            .catch(() => ({ items: [] as SessionListItem[] })),
         ]);
         setDishes(dishResult.items);
         setCategories(catResult.items);
+        setExistingSessions(sessionResult.items || []);
 
         if (copyFrom) {
           const detail = await sessionService.getSessionDetail(copyFrom);
@@ -189,6 +226,16 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     };
     fetchData();
   }, [copyFrom]);
+
+  const sessionsForSelectedDate = useMemo(
+    () => getSessionsForDate(sessionDate, existingSessions),
+    [sessionDate, existingSessions],
+  );
+
+  const overlappingSessions = useMemo(
+    () => checkSessionOverlap(availableFrom, availableTo, existingSessions),
+    [availableFrom, availableTo, existingSessions],
+  );
 
   const filteredDishes = useMemo(
     () =>
@@ -594,6 +641,36 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setError(null);
+
+      const FIELD_ORDER = [
+        "name",
+        "description",
+        "orderOpenDate",
+        "availableForOrder",
+        "sessionDate",
+        "finalizationDeadline",
+        "availableFrom",
+        "availableTo",
+        "templatesName",
+        "templatesSettings",
+        "dishes",
+      ];
+
+      const firstKey = FIELD_ORDER.find((k) => validationErrors[k]);
+      if (firstKey) {
+        const el = document.getElementById(`field-${firstKey}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.focus({ preventScroll: true });
+          }
+        }
+      }
+
+      const firstErrorMsg = Object.values(validationErrors)[0];
+      toast.error("Thông tin tạo ca chưa hợp lệ", {
+        description: firstErrorMsg || "Vui lòng kiểm tra các trường bị lỗi.",
+      });
       return;
     }
 
@@ -625,12 +702,35 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         })),
     };
 
+    if (overlappingSessions.length > 0) {
+      const overlapMsg = formatSessionOverlapMessage(
+        availableFrom,
+        availableTo,
+        overlappingSessions,
+      );
+      toast.error(overlapMsg);
+      setError(overlapMsg);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const result = await sessionService.createSession(payload);
       toast.success(`Tạo ca phục vụ "${result.value.name}" thành công!`);
       onSuccess({ id: result.value.id, name: result.value.name });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to create session";
+      console.error("[Session Create] Error:", err);
+      const apiMsg = extractApiErrorMessage(err, "");
+      let msg = apiMsg;
+      if (!msg) {
+        const conflicts = checkSessionOverlap(availableFrom, availableTo, existingSessions);
+        if (conflicts.length > 0) {
+          msg = formatSessionOverlapMessage(availableFrom, availableTo, conflicts);
+        } else {
+          msg = "Tạo ca phục vụ thất bại. Vui lòng thử lại.";
+        }
+      }
+      toast.error(msg);
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -641,7 +741,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-        <span className="ml-3 text-sm text-gray-500">Loading form data...</span>
+        <span className="ml-3 text-sm text-gray-500">Đang tải dữ liệu biểu mẫu...</span>
       </div>
     );
   }
@@ -671,6 +771,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Tên ca phục vụ *
                 </label>
                 <input
+                  id="field-name"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -700,6 +801,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Mô tả ngắn gọn *
                 </label>
                 <textarea
+                  id="field-description"
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value);
@@ -734,7 +836,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     <Play className="w-4 h-4" /> Mở đặt
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                    <div id="field-orderOpenDate">
                       <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
                         Ngày mở đặt
                       </label>
@@ -774,6 +876,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       )}
                     </div>
                     <div
+                      id="field-availableForOrder"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("order"))}
                     >
@@ -839,7 +942,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
                     <CalendarPlus className="w-4 h-4" /> Phục vụ
                   </h3>
-                  <div>
+                  <div id="field-sessionDate">
                     <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
                       Ngày phục vụ
                     </label>
@@ -884,6 +987,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div
+                      id="field-finalizationDeadline"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("deadline"))}
                     >
@@ -935,6 +1039,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         )}
                     </div>
                     <div
+                      id="field-availableFrom"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("start"))}
                     >
@@ -986,6 +1091,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         )}
                     </div>
                     <div
+                      id="field-availableTo"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("end"))}
                     >
@@ -1033,6 +1139,57 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       )}
                     </div>
                   </div>
+
+                  {/* Existing Sessions Schedule Preview for Selected Date */}
+                  {sessionDate && (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2 mt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-500" />
+                          Các ca phục vụ trong ngày ({dayjs(sessionDate).format("DD/MM/YYYY")})
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-400">
+                          {sessionsForSelectedDate.length} ca
+                        </span>
+                      </div>
+                      {sessionsForSelectedDate.length === 0 ? (
+                        <p className="text-xs text-slate-400 italic">
+                          Chưa có ca phục vụ nào trong ngày này.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {sessionsForSelectedDate.map((s) => (
+                            <div
+                              key={s.id}
+                              className="flex items-center gap-2 bg-white border border-slate-200 shadow-2xs px-3 py-1.5 rounded-xl text-xs"
+                            >
+                              <span className="font-extrabold text-slate-800">{s.name}:</span>
+                              <span className="font-semibold text-slate-600">
+                                {formatSessionRange(s.availableFrom, s.availableTo)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Real-time Overlap Warning Card */}
+                  {overlappingSessions.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 space-y-1.5 shadow-xs animate-shake mt-4">
+                      <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wide text-amber-700">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                        Cảnh báo trùng thời gian ca phục vụ!
+                      </div>
+                      <p className="text-xs font-bold leading-relaxed">
+                        {formatSessionOverlapMessage(
+                          availableFrom,
+                          availableTo,
+                          overlappingSessions,
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </LocalizationProvider>
 
@@ -1061,6 +1218,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
           {/* Template Limits Configuration */}
           <div
+            id="field-templatesName"
             className={cn(
               "bg-white rounded-3xl border p-6 sm:p-8 space-y-6 shadow-xs transition-colors duration-300",
               errors.templatesName || errors.templatesSettings
@@ -1311,6 +1469,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         <div className="lg:col-span-6 space-y-8 lg:sticky lg:top-0">
           {/* Mapped Session Dishes Pool (Drop zone) */}
           <div
+            id="field-dishes"
             ref={dropZoneRef}
             onDragOver={handleDragOverDropZone}
             onDragLeave={() => setIsDragOverDropZone(false)}

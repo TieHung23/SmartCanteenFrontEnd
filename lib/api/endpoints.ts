@@ -40,6 +40,8 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
     MANAGER_BY_SESSION: (sessionId: string) => `/api/manager/orders/session/${sessionId}`,
+    MANAGER_GET: (id: string) => `/api/manager/orders/${id}`,
+    MANAGER_UPDATE_STATUS: (id: string) => `/api/manager/orders/${id}/status`,
   },
   CART: {
     GET: "/api/Cart",
@@ -100,8 +102,10 @@ export const API_ENDPOINTS = {
   },
   CHANGE_PROPOSAL: {
     LIST: "/api/ChangeProposals",
+    GET: (id: string) => `/api/ChangeProposals/${id}`,
     ACCEPT: (id: string) => `/api/ChangeProposals/${id}/accept`,
     REQUEST_REFUND: (id: string) => `/api/ChangeProposals/${id}/request-refund`,
+    REQUEST_ORDER_REFUND: (id: string) => `/api/ChangeProposals/${id}/request-order-refund`,
   },
   PICKUP: {
     ASSIGN: "/api/pickup/assign",
@@ -120,6 +124,7 @@ export const API_ENDPOINTS = {
     },
     TRAYS: {
       LIST: "/api/manager/trays",
+      GET_BY_ID: (id: string) => `/api/manager/trays/${id}`,
       CREATE: "/api/manager/trays",
       FORCE_RELEASE: (id: string) => `/api/manager/trays/${id}/force-release`,
       RETIRE: (id: string) => `/api/manager/trays/${id}/retire`,
@@ -143,5 +148,11 @@ export const API_ENDPOINTS = {
       LIST: "/api/admin/logs",
       GET: (id: string) => `/api/admin/logs/${id}`,
     },
+  },
+  REPORT: {
+    SUMMARY: "/api/manager/reports/summary",
+    SESSIONS: "/api/manager/reports/sessions",
+    ORDER_ISSUES: "/api/manager/reports/order-issues",
+    REFUND_POLICIES: "/api/manager/reports/refund-policies",
   },
 } as const;

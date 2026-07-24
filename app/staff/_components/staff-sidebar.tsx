@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -35,14 +35,13 @@ interface StaffSidebarProps {
   setSidebarOpen: (open: boolean) => void;
 }
 
-export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps) {
+export const StaffSidebar = memo(function StaffSidebar({
+  sidebarOpen,
+  setSidebarOpen,
+}: StaffSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, fetchProfile } = useUser();
-
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+  const { profile } = useUser();
 
   const handleLogout = () => {
     clearAuthTokens();
@@ -154,4 +153,4 @@ export function StaffSidebar({ sidebarOpen, setSidebarOpen }: StaffSidebarProps)
       </div>
     </aside>
   );
-}
+});

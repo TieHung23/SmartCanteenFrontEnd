@@ -22,10 +22,16 @@ import {
 import { sessionService } from "@/services/session.service";
 import { categoryService } from "@/services/category.service";
 import { dishService } from "@/services/dish.service";
-import type { SessionDetail } from "@/types/session.types";
+import type { SessionDetail, SessionListItem } from "@/types/session.types";
 import type { Category } from "@/types/category.types";
 import type { Dish } from "@/types/dish.types";
 import { cn } from "@/lib/utils";
+import {
+  checkSessionOverlap,
+  extractApiErrorMessage,
+  formatSessionOverlapMessage,
+} from "@/lib/session-overlap";
+import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { SlotConfigTab } from "./slot-config-tab";
@@ -99,6 +105,7 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allDishes, setAllDishes] = useState<Dish[]>([]);
+  const [existingSessions, setExistingSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,16 +132,20 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
 
   const loadSession = useCallback(async () => {
     try {
-      const [sessionData, catResult, dishResult] = await Promise.all([
+      const [sessionData, catResult, dishResult, sessionResult] = await Promise.all([
         sessionService.getSessionDetail(sessionId),
         categoryService.getAll().catch(() => ({ items: [] as Category[] })),
         dishService
           .getDishes({ isActive: true, pageSize: 200 })
           .catch(() => ({ items: [] as Dish[] })),
+        sessionService
+          .getSessions({ pageSize: 100 })
+          .catch(() => ({ items: [] as SessionListItem[] })),
       ]);
       setSession(sessionData);
       setCategories(catResult.items);
       setAllDishes(dishResult.items);
+      setExistingSessions(sessionResult.items || []);
 
       const initialQs: Record<string, number> = {};
       (sessionData.dishes || []).forEach((d) => {
@@ -162,11 +173,16 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       setEditCategoryFilter("all");
       setEditSelectedAddCat({});
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load session details");
+      setError(err instanceof Error ? err.message : "Không thể tải chi tiết ca ăn.");
     } finally {
       setLoading(false);
     }
   }, [sessionId]);
+
+  const editOverlappingSessions = useMemo(
+    () => checkSessionOverlap(editAvailableFrom, editAvailableTo, existingSessions, sessionId),
+    [editAvailableFrom, editAvailableTo, existingSessions, sessionId],
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -247,6 +263,17 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       dishes: Array.from(totalDishIds).map((dishId) => ({ dishId })),
     };
 
+    if (editOverlappingSessions.length > 0) {
+      const overlapMsg = formatSessionOverlapMessage(
+        editAvailableFrom,
+        editAvailableTo,
+        editOverlappingSessions,
+      );
+      toast.error(overlapMsg);
+      setIsSaving(false);
+      return;
+    }
+
     try {
       console.log("[Session Update] Payload:", JSON.stringify(payload, null, 2));
       const result = await sessionService.updateSession(session.id, payload);
@@ -256,22 +283,34 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       await loadSession();
     } catch (err) {
       console.error("[Session Update] Error:", err);
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as { response?: { status?: number; data?: unknown } };
-        console.error("[Session Update] Status:", axiosErr.response?.status);
-        console.error(
-          "[Session Update] Server response:",
-          JSON.stringify(axiosErr.response?.data, null, 2),
+      const apiMsg = extractApiErrorMessage(err, "");
+      let msg = apiMsg;
+      if (!msg) {
+        const conflicts = checkSessionOverlap(
+          editAvailableFrom,
+          editAvailableTo,
+          existingSessions,
+          sessionId,
         );
+        if (conflicts.length > 0) {
+          msg = formatSessionOverlapMessage(editAvailableFrom, editAvailableTo, conflicts);
+        } else {
+          msg = "Cập nhật ca phục vụ thất bại. Vui lòng thử lại.";
+        }
       }
-      toast.error("Lỗi khi cập nhật ca phục vụ.");
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleQuantityChange = (dishId: string, val: string) => {
-    const num = val === "" ? 0 : parseInt(val, 10);
+    if (val === "") {
+      setPreparedQuantities((prev) => ({ ...prev, [dishId]: "" as unknown as number }));
+      return;
+    }
+    const cleaned = val.replace(/^0+(?=\d)/, "");
+    const num = parseInt(cleaned, 10);
     setPreparedQuantities((prev) => ({
       ...prev,
       [dishId]: isNaN(num) ? 0 : Math.max(0, num),
@@ -459,7 +498,7 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
   if (error && !session) {
     return (
       <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-3xl text-base font-bold shadow-xs">
-        {error || "Session not found"}
+        {error || "Không tìm thấy ca ăn."}
       </div>
     );
   }
@@ -493,7 +532,7 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
               isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500",
             )}
           >
-            {isActive ? "Active" : "Inactive"}
+            {isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
           </span>
           {session.isFinalized && (
             <span className="shrink-0 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-100 text-blue-800">
@@ -741,8 +780,22 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                         <input
                           type="number"
                           min="0"
-                          value={preparedQuantities[d.dishId] ?? 0}
+                          value={
+                            preparedQuantities[d.dishId] === undefined ||
+                            preparedQuantities[d.dishId] === null
+                              ? 0
+                              : preparedQuantities[d.dishId]
+                          }
                           onChange={(e) => handleQuantityChange(d.dishId, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          onBlur={() => {
+                            if (
+                              preparedQuantities[d.dishId] === ("" as unknown as number) ||
+                              isNaN(Number(preparedQuantities[d.dishId]))
+                            ) {
+                              setPreparedQuantities((prev) => ({ ...prev, [d.dishId]: 0 }));
+                            }
+                          }}
                           disabled={isSubmitting}
                           className="w-16 px-2 py-1.5 text-center border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-[#D35400] focus:border-[#D35400] text-sm font-bold shadow-xs hover:border-orange-300 transition-colors"
                         />
@@ -853,6 +906,22 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                     <option value={2}>Tự động chốt khi hết ca ăn</option>
                   </select>
                 </div>
+
+                {editOverlappingSessions.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 space-y-1.5 shadow-xs animate-shake mt-3">
+                    <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wide text-amber-700">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                      Cảnh báo trùng thời gian ca phục vụ!
+                    </div>
+                    <p className="text-xs font-bold leading-relaxed">
+                      {formatSessionOverlapMessage(
+                        editAvailableFrom,
+                        editAvailableTo,
+                        editOverlappingSessions,
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

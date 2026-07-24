@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { ApiResponse } from "./session.service";
 import type {
   TrayPoolSummary,
+  TrayDetail,
   CreateTraySinglePayload,
   CreateTrayBulkPayload,
   CreateTrayResponse,
@@ -13,6 +14,13 @@ export const trayService = {
     const response = (await apiClient.get<ApiResponse<TrayPoolSummary>>(
       API_ENDPOINTS.MANAGER.TRAYS.LIST,
     )) as unknown as ApiResponse<TrayPoolSummary>;
+    return response.value;
+  },
+
+  getById: async (id: string): Promise<TrayDetail> => {
+    const response = (await apiClient.get<ApiResponse<TrayDetail>>(
+      API_ENDPOINTS.MANAGER.TRAYS.GET_BY_ID(id),
+    )) as unknown as ApiResponse<TrayDetail>;
     return response.value;
   },
 
@@ -30,5 +38,13 @@ export const trayService = {
       data,
     )) as unknown as ApiResponse<CreateTrayResponse>;
     return response.value;
+  },
+
+  forceRelease: async (id: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.MANAGER.TRAYS.FORCE_RELEASE(id));
+  },
+
+  retire: async (id: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.MANAGER.TRAYS.RETIRE(id));
   },
 };

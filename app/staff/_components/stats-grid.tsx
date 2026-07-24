@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ClipboardList, Clock, CheckCircle2, AlertOctagon, type LucideIcon } from "lucide-react";
-import apiClient from "@/lib/api/client";
-import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import { orderService } from "@/services/order.service";
+import type { OrderListItem } from "@/types/order.types";
 
 interface StatsItem {
   label: string;
@@ -13,11 +13,6 @@ interface StatsItem {
   bg: string;
   cardBg: string;
   cardBorder: string;
-}
-
-interface OrderItem {
-  createdAt: string;
-  status: number;
 }
 
 const DEFAULT_STATS: StatsItem[] = [
@@ -63,15 +58,15 @@ export function StatsGrid() {
   const [stats, setStats] = useState<StatsItem[]>(DEFAULT_STATS);
 
   useEffect(() => {
-    apiClient
-      .get<{ value?: { items?: OrderItem[] } }>(API_ENDPOINTS.ORDER.LIST, {
-        params: { pageNumber: 1, pageSize: 200 },
-      })
-      .then((res) => {
-        const data = res as { value?: { items?: OrderItem[] } };
-        const items = data?.value?.items || [];
+    orderService
+      .getAll({ pageNumber: 1, pageSize: 200 })
+      .then((data) => {
+        const items = data?.items || [];
         const today = new Date().toDateString();
-        const todayOrders = items.filter((o) => new Date(o.createdAt).toDateString() === today);
+        const todayOrders = items.filter((o: OrderListItem) => {
+          const dateStr = o.createdAtUtc;
+          return dateStr ? new Date(dateStr).toDateString() === today : false;
+        });
 
         setStats([
           {

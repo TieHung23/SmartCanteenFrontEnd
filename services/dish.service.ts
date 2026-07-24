@@ -110,4 +110,13 @@ export const dishService = {
       throw error;
     }
   },
+
+  updateStock: async (id: string, quantity: number): Promise<void> => {
+    try {
+      await apiClient.put(API_ENDPOINTS.DISH.UPDATE_STOCK(id), { quantity });
+    } catch (error) {
+      console.error(`Error updating stock for dish ${id}:`, error);
+      throw error;
+    }
+  },
 };

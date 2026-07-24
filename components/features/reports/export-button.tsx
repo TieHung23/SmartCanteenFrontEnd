@@ -3,31 +3,28 @@
 import { useState } from "react";
 import { Download, FileSpreadsheet, FileText } from "lucide-react";
 import type {
-  DashboardSummary,
-  RevenueDataPoint,
-  PopularDish,
-  OrderStats,
-  RefundStats,
+  SummaryReportResponse,
+  SessionReportResponse,
+  OrderIssuesResponse,
+  RefundPolicyReportResponse,
 } from "@/types/report.types";
 import * as XLSX from "xlsx";
 
 interface ExportButtonProps {
   dateRange: { from: string; to: string };
-  dashboard: DashboardSummary | undefined;
-  revenue: RevenueDataPoint[] | undefined;
-  popularDishes: PopularDish[] | undefined;
-  orderStats: OrderStats[] | undefined;
-  refundStats: RefundStats | undefined;
+  summary: SummaryReportResponse | undefined;
+  sessions: SessionReportResponse | undefined;
+  issues: OrderIssuesResponse | undefined;
+  refundPolicies: RefundPolicyReportResponse | undefined;
   disabled?: boolean;
 }
 
 export function ExportButton({
   dateRange,
-  dashboard,
-  revenue,
-  popularDishes,
-  orderStats,
-  refundStats,
+  summary,
+  sessions,
+  issues,
+  refundPolicies,
   disabled,
 }: ExportButtonProps) {
   const [open, setOpen] = useState(false);
@@ -35,61 +32,83 @@ export function ExportButton({
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
 
-    // Sheet 1: Dashboard
-    if (dashboard) {
+    if (summary) {
       const dashData = [
         ["Chỉ số", "Giá trị"],
-        ["Tổng đơn hàng", dashboard.totalOrders],
-        ["Doanh thu", dashboard.totalRevenue],
-        ["Tỷ lệ hoàn tiền", `${dashboard.refundRate}%`],
-        ["Món bán chạy", dashboard.topDish],
-        ["Thay đổi đơn hàng", `${dashboard.orderChange}%`],
-        ["Thay đổi doanh thu", `${dashboard.revenueChange}%`],
-        ["Thay đổi hoàn tiền", `${dashboard.refundChange}%`],
+        ["Tổng đơn hàng", summary.dashboard.totalOrders],
+        ["Doanh thu", summary.dashboard.totalRevenue],
+        ["Tỷ lệ hoàn tiền", `${summary.dashboard.refundRate}%`],
+        ["Món bán chạy", summary.dashboard.topDish],
+        ["Khách mới", summary.dashboard.newCustomers],
+        ["Khiếu nại", summary.dashboard.totalComplaints],
+        ["Thay đổi đơn hàng", `${summary.dashboard.orderChange}%`],
+        ["Thay đổi doanh thu", `${summary.dashboard.revenueChange}%`],
       ];
-      const sheet = XLSX.utils.aoa_to_sheet(dashData);
-      XLSX.utils.book_append_sheet(wb, sheet, "Tổng quan");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dashData), "Tổng quan");
     }
 
-    // Sheet 2: Revenue
-    if (revenue && revenue.length > 0) {
+    if (summary?.revenueTrend && summary.revenueTrend.length > 0) {
       const revData = [
         ["Ngày", "Đơn hàng", "Doanh thu"],
-        ...revenue.map((r) => [r.date, r.orders, r.revenue]),
+        ...summary.revenueTrend.map((r) => [r.date, r.orders, r.revenue]),
       ];
-      const sheet = XLSX.utils.aoa_to_sheet(revData);
-      XLSX.utils.book_append_sheet(wb, sheet, "Doanh thu");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(revData), "Doanh thu");
     }
 
-    // Sheet 3: Popular Dishes
-    if (popularDishes && popularDishes.length > 0) {
+    if (summary?.popularDishes && summary.popularDishes.length > 0) {
       const dishData = [
         ["Món ăn", "Số đơn", "Số lượng", "Doanh thu"],
-        ...popularDishes.map((d) => [d.dishName, d.totalOrders, d.totalQuantity, d.revenue]),
+        ...summary.popularDishes.map((d) => [
+          d.dishName,
+          d.totalOrders,
+          d.totalQuantity,
+          d.revenue,
+        ]),
       ];
-      const sheet = XLSX.utils.aoa_to_sheet(dishData);
-      XLSX.utils.book_append_sheet(wb, sheet, "Món ăn bán chạy");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dishData), "Món ăn bán chạy");
     }
 
-    // Sheet 4: Order Stats
-    if (orderStats && orderStats.length > 0) {
-      const orderData = [["Trạng thái", "Số lượng"], ...orderStats.map((s) => [s.label, s.count])];
-      const sheet = XLSX.utils.aoa_to_sheet(orderData);
-      XLSX.utils.book_append_sheet(wb, sheet, "Đơn hàng");
+    if (sessions?.items && sessions.items.length > 0) {
+      const sessionData = [
+        ["Ca", "Từ", "Đến", "Đơn", "Hoàn thành", "Tỷ lệ", "Doanh thu", "Hoàn tiền"],
+        ...sessions.items.map((s) => [
+          s.sessionName,
+          s.availableFrom,
+          s.availableTo,
+          s.totalOrders,
+          s.completedOrders,
+          `${s.completionRate}%`,
+          s.revenue,
+          s.refundAmount,
+        ]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sessionData), "Ca phục vụ");
     }
 
-    // Sheet 5: Refund Stats
-    if (refundStats) {
-      const refundData = [
+    if (issues) {
+      const issueData = [
         ["Chỉ số", "Giá trị"],
-        ["Tổng yêu cầu", refundStats.totalRefunds],
-        ["Đã duyệt", refundStats.approvedRefunds],
-        ["Từ chối", refundStats.rejectedRefunds],
-        ["Chờ duyệt", refundStats.pendingRefunds],
-        ["Tổng tiền hoàn", refundStats.totalRefundAmount],
+        ["Tổng đơn", issues.totalOrders],
+        ["Huỷ", issues.cancelledOrders],
+        ["Quá hạn", issues.expiredOrders],
+        ["Hoàn tiền", issues.refundRequestedOrders],
       ];
-      const sheet = XLSX.utils.aoa_to_sheet(refundData);
-      XLSX.utils.book_append_sheet(wb, sheet, "Hoàn tiền");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(issueData), "Vấn đề đơn");
+    }
+
+    if (refundPolicies?.items && refundPolicies.items.length > 0) {
+      const refundData = [
+        ["Chính sách", "Yêu cầu", "Duyệt", "Từ chối", "Tỷ lệ", "Số tiền"],
+        ...refundPolicies.items.map((p) => [
+          p.policyName,
+          p.totalRequests,
+          p.approvedRequests,
+          p.rejectedRequests,
+          `${p.approvalRate}%`,
+          p.totalAmount,
+        ]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(refundData), "Hoàn tiền");
     }
 
     const range = `${dateRange.from}_${dateRange.to}`;
@@ -98,10 +117,10 @@ export function ExportButton({
   };
 
   const exportCSV = () => {
-    if (!revenue || revenue.length === 0) return;
+    if (!summary?.revenueTrend || summary.revenueTrend.length === 0) return;
 
     const header = "Ngày,Đơn hàng,Doanh thu\n";
-    const rows = revenue.map((r) => `${r.date},${r.orders},${r.revenue}`).join("\n");
+    const rows = summary.revenueTrend.map((r) => `${r.date},${r.orders},${r.revenue}`).join("\n");
     const bom = "\uFEFF";
     const blob = new Blob([bom + header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -116,27 +116,29 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   });
 
   // Auto-close sidebar on route changes on mobile
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname);
-    if (sidebarOpen) {
-      setSidebarOpen(false);
-    }
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => setSidebarOpen(false), 0);
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
-  const isActive = (path: string) =>
-    path === "/manager" ? pathname === "/manager" : pathname.startsWith(path);
+  const isActive = useCallback(
+    (path: string) => (path === "/manager" ? pathname === "/manager" : pathname.startsWith(path)),
+    [pathname],
+  );
 
-  const isGroupActive = (group: MenuGroup) => group.items.some((item) => isActive(item.path));
+  const isGroupActive = useCallback(
+    (group: MenuGroup) => group.items.some((item) => isActive(item.path)),
+    [isActive],
+  );
 
-  const toggleGroup = (label: string) => {
+  const toggleGroup = useCallback((label: string) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(label)) next.delete(label);
       else next.add(label);
       return next;
     });
-  };
+  }, []);
 
   const displayName = user?.name || "Quản Lý";
   const displayEmail = user?.email || "manager@canteen.vn";
@@ -225,29 +227,9 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
             </div>
           </div>
 
-          {/* Navigation menu with auto-scroll on hover */}
+          {/* Navigation menu */}
           <div className="relative flex-1 min-h-0">
-            <nav
-              className="sidebar-nav h-full pr-1"
-              onMouseEnter={(e) => {
-                const nav = e.currentTarget;
-                const rect = nav.getBoundingClientRect();
-                const mouseY = e.clientY - rect.top;
-                const scrollable = nav.scrollHeight - nav.clientHeight;
-                if (scrollable <= 0) return;
-                nav.scrollTop = (mouseY / rect.height) * scrollable;
-              }}
-              onMouseMove={(e) => {
-                const nav = e.currentTarget;
-                const rect = nav.getBoundingClientRect();
-                const mouseY = e.clientY - rect.top;
-                const scrollable = nav.scrollHeight - nav.clientHeight;
-                if (scrollable <= 0) return;
-                const targetScroll = (mouseY / rect.height) * scrollable;
-                const diff = targetScroll - nav.scrollTop;
-                if (Math.abs(diff) > 0.5) nav.scrollTop += diff * 0.12;
-              }}
-            >
+            <nav className="sidebar-nav h-full pr-1">
               <ul className="space-y-1 pb-3">
                 {MANAGER_MENU_GROUPS.map((group) => {
                   const isSingle = group.items.length === 1;

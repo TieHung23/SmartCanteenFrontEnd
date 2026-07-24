@@ -77,6 +77,18 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
+  const handleNotificationClick = (n: NotificationItem) => {
+    if (!n.isRead) handleMarkRead(n.id);
+    if (!n.referenceId) return;
+    if (
+      n.referenceType === "Order" ||
+      n.referenceType === "ChangeProposal" ||
+      n.referenceType === "Refund"
+    ) {
+      router.push(`/orders/${n.referenceId}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <Navbar />
@@ -152,7 +164,7 @@ export default function NotificationsPage() {
               {notifications.map((n) => (
                 <button
                   key={n.id}
-                  onClick={() => !n.isRead && handleMarkRead(n.id)}
+                  onClick={() => handleNotificationClick(n)}
                   className={`w-full text-left border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-all ${
                     !n.isRead ? "bg-orange-50/40" : ""
                   }`}

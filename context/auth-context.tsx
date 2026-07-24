@@ -22,6 +22,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(() => {
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const isInitialMount = useRef(true);
+  const consecutiveFailures = useRef(0);
 
   const handleBlockedProfile = useCallback(
     (profile: UserProfileResponse) => {
@@ -59,18 +62,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const profile = await userService.getProfile();
+      consecutiveFailures.current = 0;
       if (profile.status === 4 || profile.status === 5) {
         handleBlockedProfile(profile);
         return;
       }
       setUser(profile);
-    } catch {
-      clearAuthTokens();
-      setUser(null);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const hasResponse = !!(err as { response?: unknown })?.response;
+
+      if (status === 401 || status === 403) {
+        clearAuthTokens();
+        setToken(null);
+        setUser(null);
+        disconnectSignalr();
+        router.push("/login");
+        return;
+      }
+
+      if (!hasResponse) {
+        consecutiveFailures.current += 1;
+        if (consecutiveFailures.current === 1) {
+          console.warn(
+            "[Auth] Server unreachable,暂停 polling sau",
+            MAX_CONSECUTIVE_FAILURES,
+            "lần thất bại",
+          );
+        }
+      }
     } finally {
       setLoading(false);
     }
-  }, [handleBlockedProfile]);
+  }, [handleBlockedProfile, router]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -93,6 +117,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!token) return;
 
     const interval = window.setInterval(() => {
+      if (consecutiveFailures.current >= MAX_CONSECUTIVE_FAILURES) {
+        return;
+      }
       fetchProfile();
     }, 15000);
 

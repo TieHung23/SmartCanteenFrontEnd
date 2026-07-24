@@ -101,8 +101,8 @@ export function RevenueTable({ data, loading, error, onRetry }: RevenueTableProp
           </thead>
           <tbody>
             {sorted.map((row) => {
-              const d = new Date(row.date);
-              const dateStr = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+              const parts = row.date.split("-");
+              const dateStr = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : row.date;
               const avg = row.orders > 0 ? row.revenue / row.orders : 0;
               return (
                 <tr

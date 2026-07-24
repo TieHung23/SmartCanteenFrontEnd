@@ -89,6 +89,7 @@ export interface ManagerRefundDetail {
   id: string;
   orderId: string;
   userId: string;
+  changeProposalId: string | null;
   policyCode: string;
   policyName: string;
   refundPercent: number;

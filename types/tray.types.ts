@@ -8,6 +8,16 @@ export interface Tray {
   updatedAtUtc: string | null;
 }
 
+export interface TrayDetail extends Tray {
+  createdAtUtc?: string | null;
+  slotCode?: string | null;
+  slotId?: string | null;
+  orderCode?: string | null;
+  orderStatus?: string | null;
+  customerName?: string | null;
+  note?: string | null;
+}
+
 export interface TrayPoolSummary {
   available: number;
   reserved: number;

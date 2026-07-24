@@ -433,16 +433,13 @@
   animation: gradientBorder 4s ease infinite;
 }
 
-/* === Sidebar nav (no scrollbar — auto-scroll on hover) === */
+/* === Sidebar nav (smooth scroll, hidden scrollbar) === */
 .sidebar-nav {
-  overflow-y: hidden;
-  scroll-behavior: smooth;
-}
-.sidebar-nav:hover {
   overflow-y: auto;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .sidebar-nav::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  display: none;
 }
