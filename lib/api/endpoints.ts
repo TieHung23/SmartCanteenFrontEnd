@@ -40,6 +40,8 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
     MANAGER_BY_SESSION: (sessionId: string) => `/api/manager/orders/session/${sessionId}`,
+    MANAGER_GET: (id: string) => `/api/manager/orders/${id}`,
+    MANAGER_UPDATE_STATUS: (id: string) => `/api/manager/orders/${id}/status`,
   },
   CART: {
     GET: "/api/Cart",

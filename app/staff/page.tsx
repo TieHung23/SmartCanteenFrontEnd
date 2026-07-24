@@ -6,6 +6,7 @@ import { StatsGrid } from "./_components/stats-grid";
 import { Cpu, RefreshCw } from "lucide-react";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 import { orderService } from "@/services/order.service";
+import { sessionService } from "@/services/session.service";
 import { robotArmService } from "@/services/robot-arm.service";
 import type { OrderListItem } from "@/types/order.types";
 import type { RobotArm } from "@/types/robot-arm.types";
@@ -21,8 +22,27 @@ export default function StaffDashboardPage() {
       orderService.getAll({ status: 0, pageSize: 10 }).catch(() => null),
       robotArmService.getList().catch(() => []),
     ])
-      .then(([ordersRes, armsRes]) => {
-        setLiveOrders(ordersRes?.items || []);
+      .then(async ([ordersRes, armsRes]) => {
+        let orders = ordersRes?.items || [];
+        if (orders.length === 0) {
+          try {
+            const activeSessions = await sessionService.getSessions({ pageSize: 10 });
+            const currentSession =
+              activeSessions.items.find(
+                (s) => s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date()),
+              ) || activeSessions.items[0];
+            if (currentSession) {
+              const sessionOrdersData = await orderService.getManagerOrdersBySession(
+                currentSession.id,
+                { status: 0, pageSize: 10 },
+              );
+              orders = sessionOrdersData?.items || [];
+            }
+          } catch {
+            // Keep empty
+          }
+        }
+        setLiveOrders(orders);
         setRobotArms(armsRes || []);
       })
       .finally(() => setLoading(false));
