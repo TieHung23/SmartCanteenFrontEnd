@@ -18,14 +18,19 @@ import {
   Plus,
   CreditCard,
   ArrowUpRight,
+  ArrowDownLeft,
   Loader2,
   Camera,
   History,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
-import { orderService } from "@/services/order.service";
-import type { OrderListItem } from "@/types/order.types";
-import { paymentService, type TopUpResponse } from "@/services/payment.service";
+import {
+  paymentService,
+  type TopUpResponse,
+  type WalletTransaction,
+} from "@/services/payment.service";
 import { authService } from "@/services/auth.service";
 import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
@@ -76,36 +81,80 @@ const normalizeProfile = (data: UserProfileResponse): UserProfileResponse => ({
   imgUrl: data.imgUrl ?? null,
 });
 
+const CARD_THEME_KEY = "sc_virtual_card_theme";
+
 const cardThemes = [
   {
     id: "orange",
     name: "Canteen Signature",
-    background: "bg-gradient-to-br from-[#D35400] to-orange-400",
+    background: "bg-gradient-to-br from-[#D35400] via-orange-500 to-amber-400",
     shadow: "shadow-orange-500/40",
   },
   {
     id: "dark",
-    name: "Midnight Premium",
-    background: "bg-gradient-to-br from-gray-900 to-gray-700",
+    name: "Midnight Obsidian",
+    background: "bg-gradient-to-br from-zinc-950 via-gray-900 to-slate-800",
     shadow: "shadow-gray-900/40",
+  },
+  {
+    id: "blue",
+    name: "Royal Sapphire",
+    background: "bg-gradient-to-br from-blue-900 via-indigo-700 to-sky-500",
+    shadow: "shadow-indigo-500/40",
   },
   {
     id: "emerald",
     name: "Emerald Wealth",
-    background: "bg-gradient-to-br from-emerald-600 to-teal-400",
+    background: "bg-gradient-to-br from-emerald-800 via-teal-600 to-cyan-500",
     shadow: "shadow-emerald-500/40",
   },
   {
     id: "purple",
     name: "Cyberpunk Neon",
-    background: "bg-gradient-to-br from-purple-600 to-pink-500",
+    background: "bg-gradient-to-br from-purple-900 via-pink-600 to-rose-500",
     shadow: "shadow-purple-500/40",
   },
   {
-    id: "blue",
-    name: "Ocean Trust",
-    background: "bg-gradient-to-br from-blue-700 to-cyan-500",
-    shadow: "shadow-blue-500/40",
+    id: "rosegold",
+    name: "Rose Gold Prestige",
+    background: "bg-gradient-to-br from-rose-900 via-rose-600 to-amber-300",
+    shadow: "shadow-rose-500/40",
+  },
+  {
+    id: "aurora",
+    name: "Cosmic Aurora",
+    background: "bg-gradient-to-br from-violet-950 via-indigo-900 to-fuchsia-600",
+    shadow: "shadow-violet-500/40",
+  },
+  {
+    id: "gold",
+    name: "Gold Sovereign",
+    background: "bg-gradient-to-br from-amber-600 via-yellow-500 to-amber-300",
+    shadow: "shadow-amber-500/40",
+  },
+  {
+    id: "ocean",
+    name: "Ocean Deep",
+    background: "bg-gradient-to-br from-cyan-900 via-blue-700 to-teal-400",
+    shadow: "shadow-cyan-500/40",
+  },
+  {
+    id: "lava",
+    name: "Crimson Lava",
+    background: "bg-gradient-to-br from-red-900 via-rose-700 to-orange-500",
+    shadow: "shadow-red-500/40",
+  },
+  {
+    id: "platinum",
+    name: "Platinum Silver",
+    background: "bg-gradient-to-br from-slate-500 via-slate-300 to-zinc-400",
+    shadow: "shadow-slate-400/40",
+  },
+  {
+    id: "nordic",
+    name: "Nordic Forest",
+    background: "bg-gradient-to-br from-emerald-950 via-green-900 to-teal-800",
+    shadow: "shadow-emerald-950/40",
   },
 ];
 
@@ -124,7 +173,29 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
-  const [selectedTheme, setSelectedTheme] = useState(cardThemes[0]);
+  const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<(typeof cardThemes)[0]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(CARD_THEME_KEY);
+        if (saved) {
+          const found = cardThemes.find((t) => t.id === saved);
+          if (found) return found;
+        }
+      } catch {}
+    }
+    return cardThemes[0];
+  });
+
+  const handleSelectTheme = (theme: (typeof cardThemes)[0]) => {
+    setSelectedTheme(theme);
+    try {
+      localStorage.setItem(CARD_THEME_KEY, theme.id);
+      toast.success(`Đã lưu giao diện thẻ "${theme.name}"! ✨`);
+    } catch (error) {
+      console.error("Failed to save card theme:", error);
+    }
+  };
 
   const [walletTab, setWalletTab] = useState<WalletTab>("overview");
   const [topUpAmountStr, setTopUpAmountStr] = useState("50000");
@@ -132,7 +203,7 @@ export default function ProfilePage() {
   const [topUpMethod, setTopUpMethod] = useState(4);
   const [isTopUpping, setIsTopUpping] = useState(false);
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
-  const [orders, setOrders] = useState<OrderListItem[]>([]);
+  const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -154,16 +225,29 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const fetchWalletTransactions = useCallback(async () => {
+    setIsLoadingTx(true);
+    try {
+      const result = await paymentService.getWalletTransactions({ pageSize: 20 });
+      setWalletTransactions(result.items || []);
+    } catch (error) {
+      console.error("Failed to fetch wallet transactions:", error);
+    } finally {
+      setIsLoadingTx(false);
+    }
+  }, []);
+
   useSignalr(
     useCallback(
       (notification: NotificationItem) => {
+        refreshProfile();
+        fetchWalletTransactions();
         if (notification.type === "Payment.Completed") {
-          refreshProfile();
           toast.success("Nạp tiền thành công! Số dư đã được cập nhật.");
           setTopUpResult(null);
         }
       },
-      [refreshProfile],
+      [refreshProfile, fetchWalletTransactions],
     ),
   );
 
@@ -193,17 +277,14 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-  const fetchOrders = async () => {
-    setIsLoadingTx(true);
-    try {
-      const result = await orderService.getMyOrders({ pageSize: 50 });
-      setOrders(result.items || []);
-    } catch (error) {
-      console.error("Failed to fetch profile:", error);
-    } finally {
-      setIsLoadingTx(false);
+  useEffect(() => {
+    if (activeTab === "wallet") {
+      const timer = setTimeout(() => {
+        fetchWalletTransactions();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [activeTab, fetchWalletTransactions]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -441,7 +522,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => {
                     setActiveTab("wallet");
-                    fetchOrders();
+                    fetchWalletTransactions();
                   }}
                   className={`flex items-center gap-4 w-full px-5 py-3.5 rounded-2xl font-bold text-sm transition-all
                     ${activeTab === "wallet" ? "bg-orange-50 text-[#D35400]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
@@ -679,7 +760,7 @@ export default function ProfilePage() {
                   <button
                     onClick={() => {
                       setWalletTab("overview");
-                      fetchOrders();
+                      fetchWalletTransactions();
                     }}
                     className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                       walletTab === "overview"
@@ -780,104 +861,170 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                      <div className="flex items-center gap-2 mb-5">
-                        <Paintbrush className="w-5 h-5 text-gray-500" />
-                        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                          Tùy chỉnh giao diện thẻ
-                        </h4>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        {cardThemes.map((theme) => (
-                          <button
-                            key={theme.id}
-                            onClick={() => setSelectedTheme(theme)}
-                            className={`flex flex-col items-center gap-3 p-3 rounded-xl transition-all duration-300
-                              ${
-                                selectedTheme.id === theme.id
-                                  ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.08)] ring-2 ring-[#D35400] scale-105 z-10"
-                                  : "hover:bg-white hover:shadow-sm"
-                              }`}
-                          >
-                            <div
-                              className={`w-full h-10 rounded-lg ${theme.background} shadow-inner`}
-                            />
-                            <span className="text-[10px] font-bold text-gray-500 text-center uppercase leading-tight">
-                              {theme.name}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+                    {/* Collapsible Card Theme Picker Dropdown */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden transition-all duration-300">
+                      <button
+                        type="button"
+                        onClick={() => setIsThemePickerOpen((prev) => !prev)}
+                        className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-50/80 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#D35400] flex items-center justify-center shrink-0">
+                            <Paintbrush className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-extrabold text-gray-800 uppercase tracking-wider">
+                              Tùy chỉnh giao diện thẻ ({cardThemes.length} mẫu)
+                            </h4>
+                            <p className="text-xs text-gray-400 font-medium mt-0.5">
+                              Đang dùng:{" "}
+                              <strong className="text-[#D35400] font-bold">
+                                {selectedTheme.name}
+                              </strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-6 h-6 rounded-lg ${selectedTheme.background} shadow-xs border border-white/50 shrink-0`}
+                            title={selectedTheme.name}
+                          />
+                          <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                            {isThemePickerOpen ? (
+                              <ChevronUp className="w-4 h-4 text-gray-700" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-700" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+                      {isThemePickerOpen && (
+                        <div className="p-5 pt-3 border-t border-gray-100 bg-gray-50/50">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            {cardThemes.map((theme) => {
+                              const isSelected = selectedTheme.id === theme.id;
+                              return (
+                                <button
+                                  key={theme.id}
+                                  onClick={() => handleSelectTheme(theme)}
+                                  className={`group relative flex flex-col items-center gap-2 p-2.5 rounded-2xl transition-all duration-300 border cursor-pointer ${
+                                    isSelected
+                                      ? "bg-white border-[#D35400] ring-2 ring-[#D35400]/20 shadow-md scale-[1.03] z-10"
+                                      : "bg-white/60 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm"
+                                  }`}
+                                >
+                                  <div
+                                    className={`relative w-full h-11 rounded-xl ${theme.background} shadow-inner overflow-hidden flex items-center justify-center`}
+                                  >
+                                    {isSelected && (
+                                      <CheckCircle2 className="w-5 h-5 text-white drop-shadow-md" />
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`text-[10px] font-bold text-center leading-tight truncate w-full ${
+                                      isSelected
+                                        ? "text-[#D35400]"
+                                        : "text-gray-600 group-hover:text-gray-900"
+                                    }`}
+                                  >
+                                    {theme.name}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-8">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                          Đơn hàng gần đây
+                          Giao dịch gần đây
                         </h4>
                         <Link
                           href={ROUTES.WALLET_TRANSACTIONS}
                           className="flex items-center gap-1 text-[10px] font-bold text-[#D35400] hover:text-[#B34700] transition-colors"
                         >
-                          <History className="w-3 h-3" /> Xem lịch sử giao dịch
+                          <History className="w-3 h-3" /> Xem tất cả giao dịch
                         </Link>
                       </div>
                       {isLoadingTx ? (
                         <div className="flex justify-center py-8">
                           <Loader2 className="w-6 h-6 animate-spin text-[#D35400]" />
                         </div>
-                      ) : orders.length === 0 ? (
+                      ) : walletTransactions.length === 0 ? (
                         <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                           <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                          <p className="text-xs font-bold text-gray-500">Chưa có đơn hàng</p>
+                          <p className="text-xs font-bold text-gray-500">Chưa có giao dịch nào</p>
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                          {orders.map((order) => {
-                            const orderStatusLabels: Record<number, string> = {
-                              0: "Chờ xử lý",
-                              1: "Sẵn sàng",
-                              2: "Hoàn thành",
-                              3: "Đã hủy",
-                              4: "Đang chuẩn bị",
-                              7: "Quá hạn",
-                            };
-                            const orderStatusColors: Record<number, string> = {
-                              0: "text-amber-600 bg-amber-50",
-                              1: "text-emerald-600 bg-emerald-50",
-                              2: "text-indigo-600 bg-indigo-50",
-                              3: "text-red-600 bg-red-50",
-                              4: "text-blue-600 bg-blue-50",
-                              7: "text-gray-500 bg-gray-100",
-                            };
+                          {walletTransactions.map((tx) => {
+                            const isTopUp =
+                              tx.transactionType === 1 || tx.transactionTypeName === "TopUp";
+                            const isRefund =
+                              tx.transactionType === 3 || tx.transactionTypeName === "Refund";
+                            const isOrder =
+                              tx.transactionType === 2 || tx.transactionTypeName === "OrderPayment";
+                            const isInflow = isTopUp || isRefund || tx.amount > 0;
+
+                            let title = tx.transactionTypeName || "Giao dịch ví";
+                            if (isTopUp) title = "Nạp tiền vào ví";
+                            else if (isRefund) title = "Hoàn tiền đơn hàng";
+                            else if (isOrder) title = "Thanh toán đơn hàng";
+
                             return (
                               <div
-                                key={order.id}
-                                className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all"
+                                key={tx.id}
+                                className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all border border-gray-100/80"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
-                                    <ArrowUpRight className="w-4 h-4 text-red-500" />
+                                  <div
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                                      isTopUp
+                                        ? "bg-green-100 text-green-600"
+                                        : isRefund
+                                          ? "bg-emerald-100 text-emerald-600"
+                                          : "bg-red-100 text-red-500"
+                                    }`}
+                                  >
+                                    {isInflow ? (
+                                      <ArrowDownLeft className="w-4 h-4" />
+                                    ) : (
+                                      <ArrowUpRight className="w-4 h-4" />
+                                    )}
                                   </div>
                                   <div>
-                                    <p className="text-sm font-bold text-gray-800">
-                                      Thanh toán đơn hàng
-                                    </p>
+                                    <p className="text-sm font-bold text-gray-800">{title}</p>
                                     <p className="text-[10px] text-gray-400">
-                                      {new Date(order.createdAtUtc).toLocaleDateString("vi-VN", {
+                                      {new Date(tx.createdAtUtc).toLocaleDateString("vi-VN", {
                                         month: "short",
                                         day: "numeric",
                                         hour: "2-digit",
                                         minute: "2-digit",
-                                      })}{" "}
-                                      · {order.itemCount} món
+                                      })}
+                                      {tx.balanceAfter !== undefined && (
+                                        <span>
+                                          {" "}
+                                          · Số dư:{" "}
+                                          {new Intl.NumberFormat("vi-VN").format(tx.balanceAfter)}
+                                        </span>
+                                      )}
                                     </p>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-sm font-black text-red-500 flex items-center justify-end gap-1">
+                                  <p
+                                    className={`text-sm font-black flex items-center justify-end gap-1 ${
+                                      isInflow ? "text-emerald-600" : "text-red-500"
+                                    }`}
+                                  >
                                     <span>
-                                      -{new Intl.NumberFormat("vi-VN").format(order.totalPrice)}
+                                      {isInflow ? "+" : "-"}
+                                      {new Intl.NumberFormat("vi-VN").format(Math.abs(tx.amount))}
                                     </span>
                                     <Image
                                       src="/logo_point.png"
@@ -889,10 +1036,14 @@ export default function ProfilePage() {
                                   </p>
                                   <span
                                     className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 ${
-                                      orderStatusColors[order.status] || "text-gray-500 bg-gray-100"
+                                      isTopUp
+                                        ? "text-green-700 bg-green-50"
+                                        : isRefund
+                                          ? "text-emerald-700 bg-emerald-50"
+                                          : "text-red-700 bg-red-50"
                                     }`}
                                   >
-                                    {orderStatusLabels[order.status] || "Unknown"}
+                                    {isTopUp ? "Nạp tiền" : isRefund ? "Hoàn tiền" : "Thanh toán"}
                                   </span>
                                 </div>
                               </div>

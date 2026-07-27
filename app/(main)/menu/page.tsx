@@ -796,14 +796,14 @@ function MenuContent() {
             ) : (
               <>
                 <div className="w-full bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-[2rem] border border-orange-100/60 shadow-sm">
-                  <div className="flex gap-5 items-center overflow-x-auto scrollbar-none">
+                  <div className="flex gap-5 items-center overflow-x-auto scrollbar-none py-3 px-2">
                     {/* All Category Button */}
                     <button
                       onClick={() => setSelectedCategoryId(null)}
-                      className="flex flex-col items-center gap-2 shrink-0 group"
+                      className="flex flex-col items-center gap-2 shrink-0 group relative cursor-pointer"
                     >
                       <div
-                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center ${
+                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-300 flex items-center justify-center ${
                           selectedCategoryId === null
                             ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 bg-[#FF4C24] text-white animate-bounce-subtle"
                             : "ring-1 ring-gray-200 bg-white text-gray-500 hover:ring-[#FF4C24]/50"
@@ -831,24 +831,26 @@ function MenuContent() {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategoryId(category.id)}
-                          className="flex flex-col items-center gap-2 shrink-0 group"
+                          className="flex flex-col items-center gap-2 shrink-0 group relative cursor-pointer"
                         >
-                          <div
-                            className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden transition-all duration-300 ${
-                              isActive
-                                ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 animate-bounce-subtle"
-                                : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50"
-                            }`}
-                          >
-                            <Image
-                              src={getSafeImageUrl(category.imgUrl, "/placeholder-food.png")}
-                              alt={category.name}
-                              fill
-                              className="object-cover rounded-full"
-                              sizes="80px"
-                            />
+                          <div className="relative">
+                            <div
+                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden transition-all duration-300 ${
+                                isActive
+                                  ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 animate-bounce-subtle"
+                                  : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50"
+                              }`}
+                            >
+                              <Image
+                                src={getSafeImageUrl(category.imgUrl, "/placeholder-food.png")}
+                                alt={category.name}
+                                fill
+                                className="object-cover rounded-full"
+                                sizes="80px"
+                              />
+                            </div>
                             {cartCount > 0 && (
-                              <span className="absolute -top-0.5 -right-0.5 bg-[#FF4C24] text-white text-[10px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
+                              <span className="absolute -top-1 -right-1 z-20 bg-[#FF4C24] text-white text-[11px] font-black min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
                                 {cartCount}
                               </span>
                             )}
@@ -1210,28 +1212,30 @@ function DishCard({
           : "cursor-pointer hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] hover:border-orange-300 border-gray-100"
       }`}
     >
-      <div
-        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-lg group-hover:scale-105 transition-transform duration-300"
-        style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
-      >
-        <Image
-          src={finalImageUrl}
-          alt={dish.name}
-          fill
-          sizes="160px"
-          className="object-cover rounded-full"
-        />
+      <div className="relative">
+        <div
+          className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-lg group-hover:scale-105 transition-transform duration-300 relative"
+          style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
+        >
+          <Image
+            src={finalImageUrl}
+            alt={dish.name}
+            fill
+            sizes="160px"
+            className="object-cover rounded-full"
+          />
+          {!disabled && (
+            <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
+              <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">
+                + Thêm món
+              </span>
+            </div>
+          )}
+        </div>
         {dishQuantity > 0 && (
-          <span className="absolute top-1 right-1 bg-[#FF4C24] text-white text-xs font-black min-w-[24px] h-6 rounded-full flex items-center justify-center px-1.5 border-2 border-white shadow-md z-10">
+          <span className="absolute -top-1 -right-1 bg-[#FF4C24] text-white text-xs font-black min-w-[24px] h-6 rounded-full flex items-center justify-center px-1.5 border-2 border-white shadow-md z-20">
             x{dishQuantity}
           </span>
-        )}
-        {!disabled && (
-          <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
-            <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">
-              + Thêm món
-            </span>
-          </div>
         )}
       </div>
       <div className="w-full mt-3 space-y-1.5">

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { notificationService } from "@/services/notification.service";
 import type { NotificationItem } from "@/types/notification.types";
+import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver";
 import Navbar from "@/components/layout/Navbar";
 import { getAccessToken } from "@/lib/auth-token-storage";
 import { ROUTES } from "@/config/routes";
@@ -77,16 +78,11 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
-  const handleNotificationClick = (n: NotificationItem) => {
+  const handleNotificationClick = async (n: NotificationItem) => {
     if (!n.isRead) handleMarkRead(n.id);
     if (!n.referenceId) return;
-    if (
-      n.referenceType === "Order" ||
-      n.referenceType === "ChangeProposal" ||
-      n.referenceType === "Refund"
-    ) {
-      router.push(`/orders/${n.referenceId}`);
-    }
+    const targetUrl = await resolveNotificationTargetUrl(n);
+    router.push(targetUrl);
   };
 
   return (
