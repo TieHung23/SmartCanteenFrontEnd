@@ -54,8 +54,8 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/Payments/${id}`,
   },
   WALLET: {
-    TRANSACTIONS: "/api/Wallet/transactions",
-    GET: (id: string) => `/api/Wallet/transactions/${id}`,
+    TRANSACTIONS: "/api/wallet-transactions",
+    GET: (id: string) => `/api/wallet-transactions/${id}`,
   },
   SETTINGS: {
     LIST: "/api/Settings",

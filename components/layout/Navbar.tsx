@@ -10,6 +10,7 @@ import NotificationDropdown from "@/components/features/notifications/Notificati
 import { getAccessToken } from "@/lib/auth-token-storage";
 import { useSignalr } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
+import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver";
 import { toast } from "sonner";
 
 export default function Navbar() {
@@ -52,7 +53,10 @@ export default function Navbar() {
         action: n.referenceId
           ? {
               label: "Xem",
-              onClick: () => (window.location.href = `/orders/${n.referenceId}`),
+              onClick: async () => {
+                const targetUrl = await resolveNotificationTargetUrl(n);
+                window.location.href = targetUrl;
+              },
             }
           : undefined,
         duration: 8000,

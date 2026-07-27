@@ -250,11 +250,15 @@ export default function OrderDetailPage() {
   useSignalr(
     useCallback(
       (notification: NotificationItem) => {
+        const refType = notification.referenceType || "";
+        const notifType = notification.type || "";
         if (
-          notification.referenceId?.toLowerCase() === orderId?.toLowerCase() &&
-          (notification.referenceType === "Order" ||
-            notification.referenceType === "ChangeProposal" ||
-            notification.referenceType === "Refund")
+          refType === "Order" ||
+          refType === "ChangeProposal" ||
+          refType === "Refund" ||
+          notifType.includes("Order") ||
+          notifType.includes("ChangeProposal") ||
+          notifType.includes("Refund")
         ) {
           queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
           fetchProposals();
@@ -322,7 +326,8 @@ export default function OrderDetailPage() {
 
   const refundStatusNum = orderRefund ? normalizeRefundStatus(orderRefund.status) : null;
   const isOrderRefundRejected = order.status === 3 && refundStatusNum === 2;
-  const isOrderRefundPending = order.status === 3 && refundStatusNum === 0;
+  const isOrderRefundPending =
+    (order.status === 3 && refundStatusNum === 0) || proposals.some((p) => p.proposalStatus === 3);
 
   const rawMeta = ORDER_STATUS_META[order.status as OrderStatus] || ORDER_STATUS_META[0];
   const meta = isOrderRefundRejected
