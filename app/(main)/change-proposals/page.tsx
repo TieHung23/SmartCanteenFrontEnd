@@ -147,6 +147,21 @@ export default function ChangeProposalsPage() {
                                   {proposal.suggestedDishName &&
                                     ` • Gợi ý: ${proposal.suggestedDishName}`}
                                 </p>
+                                {proposal.responseDeadlineUtc && (
+                                  <p className="text-[11px] font-bold text-amber-600 mt-1 flex items-center gap-1">
+                                    ⏰ Hạn phản hồi:{" "}
+                                    {new Date(proposal.responseDeadlineUtc).toLocaleString(
+                                      "vi-VN",
+                                      {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                      },
+                                    )}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <span

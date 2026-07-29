@@ -142,4 +142,5 @@ export interface ChangeProposalDetail {
   allowedActions: AllowedAction[];
   respondedAtUtc: string | null;
   createdAtUtc: string;
+  responseDeadlineUtc?: string | null;
 }

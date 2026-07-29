@@ -14,7 +14,6 @@ import {
   ChefHat,
   Layers,
   Users,
-  UserCheck,
   Coins,
   RotateCcw,
   Cpu,
@@ -23,10 +22,10 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
-  Menu,
   X,
   Package,
-  Route,
+  ShoppingBag,
+  BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,10 +34,17 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-manager",
 });
 
-interface MenuItem {
+interface SubMenuItem {
   name: string;
   path: string;
   icon: LucideIcon;
+}
+
+interface MenuItem {
+  name: string;
+  path?: string;
+  icon: LucideIcon;
+  subItems?: SubMenuItem[];
 }
 
 interface MenuGroup {
@@ -49,45 +55,41 @@ interface MenuGroup {
 
 const MANAGER_MENU_GROUPS: MenuGroup[] = [
   {
-    label: "Bảng Điều Khiển",
-    items: [{ name: "Bảng Điều Khiển", path: "/manager", icon: LayoutDashboard }],
-  },
-  {
-    label: "Quản Lý",
-    icon: CalendarDays,
+    label: "Báo cáo",
+    icon: TrendingUp,
     items: [
-      { name: "Phiên Phục Vụ", path: "/manager/sessions", icon: CalendarDays },
-      { name: "Đơn Hàng", path: "/manager/orders", icon: Package },
-      { name: "Thực Đơn", path: "/manager/menu", icon: ChefHat },
-      { name: "Danh Mục", path: "/manager/categories", icon: Layers },
+      { name: "Tổng quát", path: "/manager", icon: LayoutDashboard },
+      { name: "Báo cáo chi tiết Session", path: "/manager/reports/sessions", icon: TrendingUp },
     ],
   },
   {
-    label: "Người Dùng",
-    icon: Users,
+    label: "Quản lý",
+    icon: Layers,
     items: [
-      { name: "Quản Lý", path: "/manager/users", icon: Users },
-      { name: "Xác Thực", path: "/manager/verify", icon: UserCheck },
+      { name: "Người dùng", path: "/manager/users", icon: Users },
+      { name: "Danh mục", path: "/manager/categories", icon: Layers },
+      { name: "Món ăn", path: "/manager/menu", icon: ChefHat },
+      {
+        name: "Hoàn tiền",
+        icon: Coins,
+        subItems: [
+          { name: "Danh sách yêu cầu", path: "/manager/refunds", icon: Coins },
+          { name: "Chính sách hoàn tiền", path: "/manager/refund-policies", icon: RotateCcw },
+        ],
+      },
+      { name: "Ca phục vụ", path: "/manager/sessions", icon: CalendarDays },
+      { name: "Đơn hàng", path: "/manager/orders", icon: ShoppingBag },
+      { name: "Xác thực danh tính", path: "/manager/verify", icon: BadgeCheck },
     ],
   },
   {
-    label: "Hoàn Tiền",
-    icon: Coins,
-    items: [
-      { name: "Yêu Cầu", path: "/manager/refunds", icon: Coins },
-      { name: "Chính Sách", path: "/manager/refund-policies", icon: RotateCcw },
-    ],
-  },
-  {
-    label: "Hệ Thống",
+    label: "Hệ thống",
     icon: Cpu,
     items: [
-      { name: "Robot", path: "/manager/robot", icon: Cpu },
       { name: "Khay (Trays)", path: "/manager/trays", icon: Package },
+      { name: "Robot", path: "/manager/robot", icon: Cpu },
       { name: "Ô Kệ (Slots)", path: "/manager/pickup-slots", icon: Package },
-      { name: "Cấu Hình Lane", path: "/manager/slot-configs", icon: Route },
-      { name: "Báo Cáo", path: "/manager/reports", icon: TrendingUp },
-      { name: "Cài Đặt", path: "/manager/settings", icon: Settings },
+      { name: "Cài đặt", path: "/manager/settings", icon: Settings },
     ],
   },
 ];
@@ -96,6 +98,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
+
+  // Sidebar is hidden by default to maximize main content width and height
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Redirect to login if not authenticated
@@ -104,31 +108,28 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       router.push("/login");
     }
   }, [loading, isAuthenticated, router]);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
-    const activeGroup = MANAGER_MENU_GROUPS.find((g) =>
-      g.items.some((item) =>
-        item.path === "/manager" ? pathname === "/manager" : pathname.startsWith(item.path),
-      ),
-    );
-    return new Set(
-      activeGroup ? [activeGroup.label] : [MANAGER_MENU_GROUPS[0]?.label].filter(Boolean),
-    );
-  });
 
-  // Auto-close sidebar on route changes on mobile
-  useEffect(() => {
-    const timer = setTimeout(() => setSidebarOpen(false), 0);
-    return () => clearTimeout(timer);
-  }, [pathname]);
-
-  const isActive = useCallback(
-    (path: string) => (path === "/manager" ? pathname === "/manager" : pathname.startsWith(path)),
-    [pathname],
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(["Quản lý", "Hệ thống", "Báo cáo"]),
+  );
+  const [expandedSubmenus, setExpandedSubmenus] = useState<Set<string>>(
+    () => new Set(["Hoàn tiền"]),
   );
 
-  const isGroupActive = useCallback(
-    (group: MenuGroup) => group.items.some((item) => isActive(item.path)),
-    [isActive],
+  // Auto-close sidebar drawer when navigating
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  const isLinkActive = useCallback(
+    (targetPath: string) => {
+      if (targetPath === "/manager") {
+        return pathname === "/manager";
+      }
+      return pathname.startsWith(targetPath);
+    },
+    [pathname],
   );
 
   const toggleGroup = useCallback((label: string) => {
@@ -140,11 +141,19 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  const toggleSubmenu = useCallback((name: string) => {
+    setExpandedSubmenus((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
   const displayName = user?.name || "Quản Lý";
   const displayEmail = user?.email || "manager@canteen.vn";
   const avatarUrl = user?.imgUrl || null;
 
-  // Show loading while checking auth
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -158,227 +167,237 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  // Redirect handled by useEffect above
   if (!isAuthenticated) return null;
 
   return (
     <div
       className={cn(
-        "flex flex-col lg:flex-row h-screen overflow-hidden antialiased select-none",
+        "flex h-screen w-screen overflow-hidden antialiased select-none relative",
         plusJakartaSans.variable,
       )}
       style={{ fontFamily: "var(--font-manager), var(--font-sans), sans-serif" }}
     >
       <ManagerBackground />
 
-      {/* Mobile Top Navbar */}
-      <div className="lg:hidden flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 z-30 shrink-0">
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="p-2 text-gray-500 hover:text-gray-800 focus:outline-none"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg overflow-hidden relative shrink-0">
-            <Image src="/logo.png" alt="Logo" width={32} height={28} className="object-contain" />
-          </div>
-          <span className="font-bold text-gray-900 text-lg">Smart Canteen</span>
-        </div>
-        <div className="w-10" />
-      </div>
+      {/* Floating Edge Pull Handle - Cục Popup kéo sát mép màn hình màu Xám */}
+      <button
+        onClick={() => setSidebarOpen((prev) => !prev)}
+        className={cn(
+          "fixed left-0 top-1/2 -translate-y-1/2 z-40 flex items-center justify-center w-8 h-16 bg-gray-300 hover:bg-orange-400 text-white rounded-r-2xl shadow-2xl hover:w-10 transition-all duration-300 group cursor-pointer border-y border-r border-gray-600/50",
+          sidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100",
+        )}
+        title="Nhấn để kéo menu quản lý"
+      >
+        <ChevronRight className="w-5 h-5 text-white transition-transform group-hover:translate-x-0.5" />
+      </button>
 
-      {/* Sidebar Backdrop Overlay on Mobile */}
+      {/* Sidebar Backdrop Overlay */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 animate-fade-in"
         />
       )}
 
-      {/* Sleek full-height responsive sidebar */}
+      {/* Slide-over Drawer Sidebar Panel */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 w-[300px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 lg:sticky lg:h-screen lg:w-[350px] lg:translate-x-0 p-6 shadow-sm justify-between group/sidebar",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          "fixed inset-y-0 left-0 w-[300px] sm:w-[320px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 ease-in-out p-6 shadow-2xl justify-between",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="space-y-8 flex flex-col flex-1 overflow-hidden relative">
-          {/* Close button on mobile */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* Logo brand */}
-          <div className="px-2 py-1 flex items-center gap-4 shrink-0">
-            <div className="w-14 h-14 rounded-xl overflow-hidden relative shrink-0 flex items-center justify-center shadow-xs">
-              <Image src="/logo.png" alt="Logo" width={56} height={48} className="object-contain" />
+        <div className="space-y-6 flex flex-col flex-1 overflow-hidden relative">
+          {/* Close drawer button */}
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden relative shrink-0 flex items-center justify-center shadow-xs">
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  width={40}
+                  height={35}
+                  className="object-contain"
+                />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-gray-900 leading-tight">
+                  Smart <span className="text-[#E86A33]">Canteen</span>
+                </h2>
+                <p className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest">
+                  Menu Quản Lý
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-                Smart <span className="text-[#E86A33]">Canteen</span>
-              </h2>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-[0.15em] mt-0.5">
-                Cổng Quản Lý
-              </p>
-            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Navigation menu */}
-          <div className="relative flex-1 min-h-0">
-            <nav className="sidebar-nav h-full pr-1">
-              <ul className="space-y-1 pb-3">
-                {MANAGER_MENU_GROUPS.map((group) => {
-                  const isSingle = group.items.length === 1;
-                  const item = group.items[0];
-                  const groupActive = isGroupActive(group);
-                  const expanded = expandedGroups.has(group.label);
+          {/* Navigation menu (Hidden scrollbar) */}
+          <div className="relative flex-1 min-h-0 overflow-y-auto space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {MANAGER_MENU_GROUPS.map((group) => {
+              const isGroupExpanded = expandedGroups.has(group.label);
+              const GroupIcon = group.icon || Cpu;
 
-                  if (isSingle) {
-                    return (
-                      <li key={group.label}>
-                        <Link
-                          href={item.path}
-                          className={cn(
-                            "flex items-center justify-between px-4 py-3.5 rounded-2xl text-base font-semibold transition-all duration-200 group hover:translate-x-1.5",
-                            isActive(item.path)
-                              ? "bg-gray-50 text-[#E86A33] border border-gray-200 shadow-xs"
-                              : "text-gray-500 hover:text-gray-800 hover:bg-gray-50/80",
-                          )}
-                        >
-                          <div className="flex items-center gap-4 min-w-0">
-                            <item.icon
-                              className={cn(
-                                "w-5 h-5 shrink-0 transition-colors",
-                                isActive(item.path)
-                                  ? "text-[#E86A33]"
-                                  : "text-gray-400 group-hover:text-gray-600",
-                              )}
-                            />
-                            <span className="truncate">{item.name}</span>
-                          </div>
-                          {isActive(item.path) && (
-                            <ChevronRight className="w-4 h-4 text-[#E86A33] shrink-0" />
-                          )}
-                        </Link>
-                      </li>
-                    );
-                  }
+              return (
+                <div key={group.label} className="space-y-2">
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-black text-gray-800 uppercase tracking-wider bg-gray-50 border border-gray-200/60 rounded-2xl hover:bg-orange-50/50 hover:text-[#D35400] transition-all shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <GroupIcon className="w-4.5 h-4.5 text-[#D35400]" />
+                      <span>{group.label}</span>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-gray-400 transition-transform duration-200",
+                        isGroupExpanded ? "rotate-180" : "",
+                      )}
+                    />
+                  </button>
 
-                  return (
-                    <li key={group.label}>
-                      {(() => {
-                        const GroupIcon = group.icon!;
-                        return (
-                          <button
-                            onClick={() => toggleGroup(group.label)}
-                            className={cn(
-                              "w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-base font-semibold transition-all duration-200 group",
-                              groupActive && !expanded
-                                ? "bg-gray-50 text-[#E86A33] border border-gray-200 shadow-xs"
-                                : "text-gray-500 hover:text-gray-800 hover:bg-gray-50/80",
-                            )}
-                          >
-                            <div className="flex items-center gap-4 min-w-0">
-                              <GroupIcon
+                  {isGroupExpanded && (
+                    <ul className="space-y-1 pl-1">
+                      {group.items.map((item) => {
+                        const ItemIcon = item.icon;
+
+                        if (item.subItems) {
+                          const isSubExpanded = expandedSubmenus.has(item.name);
+                          const hasActiveChild = item.subItems.some((s) => isLinkActive(s.path));
+
+                          return (
+                            <li key={item.name} className="space-y-1">
+                              <button
+                                onClick={() => toggleSubmenu(item.name)}
                                 className={cn(
-                                  "w-5 h-5 shrink-0 transition-colors",
-                                  groupActive
-                                    ? "text-[#E86A33]"
-                                    : "text-gray-400 group-hover:text-gray-600",
-                                )}
-                              />
-                              <span className="truncate">{group.label}</span>
-                            </div>
-                            <ChevronDown
-                              className={cn(
-                                "w-4 h-4 shrink-0 transition-transform duration-200",
-                                expanded && "rotate-180",
-                                groupActive ? "text-[#E86A33]" : "text-gray-400",
-                              )}
-                            />
-                          </button>
-                        );
-                      })()}
-                      <div
-                        className={cn(
-                          "grid transition-all duration-200 ease-in-out",
-                          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-                        )}
-                      >
-                        <div className="overflow-hidden">
-                          <div className="ml-3 pl-4 border-l-2 border-gray-100 space-y-0.5 mt-0.5 mb-1">
-                            {group.items.map((sub) => (
-                              <Link
-                                key={sub.path}
-                                href={sub.path}
-                                className={cn(
-                                  "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-                                  isActive(sub.path)
-                                    ? "bg-gray-50 text-[#E86A33] border border-gray-200 shadow-xs"
-                                    : "text-gray-400 hover:text-gray-700 hover:bg-gray-50/60",
+                                  "w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-sm font-bold transition-all duration-200",
+                                  hasActiveChild
+                                    ? "bg-orange-50/70 text-[#D35400]"
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
                                 )}
                               >
-                                <sub.icon
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <ItemIcon
+                                    className={cn(
+                                      "w-4 h-4 shrink-0",
+                                      hasActiveChild ? "text-[#D35400]" : "text-gray-400",
+                                    )}
+                                  />
+                                  <span className="truncate">{item.name}</span>
+                                </div>
+                                <ChevronDown
                                   className={cn(
-                                    "w-4 h-4 shrink-0",
-                                    isActive(sub.path) ? "text-[#E86A33]" : "text-gray-400",
+                                    "w-3.5 h-3.5 transition-transform duration-200 text-gray-400",
+                                    isSubExpanded ? "rotate-180" : "",
                                   )}
                                 />
-                                <span>{sub.name}</span>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
+                              </button>
+
+                              {isSubExpanded && (
+                                <div className="ml-4 pl-3 border-l-2 border-orange-100 space-y-1">
+                                  {item.subItems.map((sub) => {
+                                    const active = isLinkActive(sub.path);
+                                    const SubIcon = sub.icon;
+                                    return (
+                                      <Link
+                                        key={sub.path}
+                                        href={sub.path}
+                                        onClick={() => setSidebarOpen(false)}
+                                        className={cn(
+                                          "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+                                          active
+                                            ? "bg-[#D35400] text-white shadow-xs"
+                                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                                        )}
+                                      >
+                                        <SubIcon className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="truncate">{sub.name}</span>
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        }
+
+                        const active = item.path ? isLinkActive(item.path) : false;
+
+                        return (
+                          <li key={item.name}>
+                            <Link
+                              href={item.path || "#"}
+                              onClick={() => setSidebarOpen(false)}
+                              className={cn(
+                                "flex items-center justify-between px-3 py-2.5 rounded-2xl text-sm font-bold transition-all duration-200",
+                                active
+                                  ? "bg-[#D35400] text-white shadow-xs"
+                                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
+                              )}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <ItemIcon
+                                  className={cn(
+                                    "w-4 h-4 shrink-0",
+                                    active ? "text-white" : "text-gray-400",
+                                  )}
+                                />
+                                <span className="truncate">{item.name}</span>
+                              </div>
+                              {active && <ChevronRight className="w-4 h-4 text-white shrink-0" />}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Footer profile panel */}
         {user && (
-          <div className="border-t border-gray-100 pt-5 bg-white shrink-0">
-            <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-50/80 border border-gray-100/50">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#E86A33]/10 border border-[#E86A33]/20 flex items-center justify-center shrink-0 shadow-xs">
+          <div className="border-t border-gray-100 pt-4 bg-white shrink-0">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50/80 border border-gray-100/50">
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#E86A33]/10 border border-[#E86A33]/20 flex items-center justify-center shrink-0 shadow-xs">
                 {avatarUrl ? (
                   <Image
                     src={avatarUrl}
                     alt={displayName}
-                    width={48}
-                    height={48}
+                    width={40}
+                    height={40}
                     className="object-cover w-full h-full"
                   />
                 ) : (
-                  <span className="text-[#E86A33] font-extrabold text-lg">
+                  <span className="text-[#E86A33] font-black text-base">
                     {displayName.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
               <div className="flex-1 min-w-0 space-y-0.5">
-                <p className="text-base font-bold text-gray-900 truncate">{displayName}</p>
-                <p className="text-sm font-medium text-gray-400 truncate">{displayEmail}</p>
+                <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
+                <p className="text-xs font-medium text-gray-400 truncate">{displayEmail}</p>
               </div>
               <button
                 onClick={logout}
-                className="text-gray-400 hover:text-red-500 p-2.5 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all shrink-0"
+                className="text-gray-400 hover:text-[#D35400] p-2 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all shrink-0"
                 title="Đăng xuất"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
       </aside>
 
-      {/* Main page content area */}
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+      {/* Main page content area - FULL WIDTH 100% & FULL HEIGHT 100% */}
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0 w-full h-full">
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth [&_*]:tracking-[0.02em]">
           {children}
         </main>

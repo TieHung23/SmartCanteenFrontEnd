@@ -7,6 +7,7 @@ import { BarChart3, RefreshCw, ArrowRight, AlertCircle, Calendar } from "lucide-
 import { reportService } from "@/services/report.service";
 import { KpiCards } from "@/components/features/reports/kpi-cards";
 import { RevenueChart } from "@/components/features/reports/revenue-chart";
+import { RevenueTable } from "@/components/features/reports/revenue-table";
 import { PopularDishesChart } from "@/components/features/reports/popular-dishes-chart";
 import { RefundStatsCard } from "@/components/features/reports/refund-stats-card";
 import { OrderStatusPie } from "@/components/features/reports/order-status-pie";
@@ -119,6 +120,14 @@ export default function ManagerDashboard() {
           onRetry={() => summaryQuery.refetch()}
         />
       </div>
+
+      {/* Revenue Table */}
+      <RevenueTable
+        data={summary?.revenueTrend}
+        loading={isLoading}
+        error={isError}
+        onRetry={() => summaryQuery.refetch()}
+      />
     </div>
   );
 }

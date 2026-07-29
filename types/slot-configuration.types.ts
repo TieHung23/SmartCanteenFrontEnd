@@ -7,6 +7,15 @@ export interface SlotConfiguration {
   robotArmId: string | null;
 }
 
+export interface SlotConfigurationDetail extends SlotConfiguration {
+  sessionName: string;
+  dishName: string;
+  robotArmCode: string | null;
+  robotArmName: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
 export interface SlotConfigurationListResponse {
   configurations: SlotConfiguration[];
 }

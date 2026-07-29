@@ -138,3 +138,71 @@ export interface DateRange {
 }
 
 export type ReportPreset = "today" | "thisWeek" | "thisMonth" | "lastMonth" | "custom";
+
+// ── Session Detail Report ──
+
+export interface SessionDetailReportSession {
+  sessionId: string;
+  sessionName: string;
+  description?: string;
+  isActive: boolean;
+  isFinalized: boolean;
+  availableForOrder?: string;
+  availableFrom?: string;
+  availableTo?: string;
+  finalizationDeadline?: string;
+  finalizedAtUtc?: string | null;
+}
+
+export interface SessionDetailReportSummary {
+  totalOrders: number;
+  pendingOrders: number;
+  preparingOrders: number;
+  readyForPickupOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  expiredOrders: number;
+  totalRevenue: number;
+  refundRequests: number;
+  approvedRefunds: number;
+  rejectedRefunds: number;
+  pendingRefunds: number;
+  refundAmount: number;
+  completionRate: number;
+  cancelRate: number;
+  refundRate: number;
+  averageOrderValue: number;
+}
+
+export interface SessionDetailTimelineItem {
+  time: string;
+  label: string;
+  type: string;
+}
+
+export interface SessionDetailOrderTrendItem {
+  timeBucket: string;
+  orders: number;
+  revenue: number;
+}
+
+export interface SessionDetailRecentOrder {
+  orderId: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  status: number;
+  totalPrice: number;
+  itemCount: number;
+  createdAtUtc: string;
+}
+
+export interface SessionDetailReportData {
+  session: SessionDetailReportSession;
+  summary: SessionDetailReportSummary;
+  timeline: SessionDetailTimelineItem[];
+  orderTrend: SessionDetailOrderTrendItem[];
+  orderStats: OrderStats[];
+  popularDishes: PopularDish[];
+  recentOrders: SessionDetailRecentOrder[];
+}

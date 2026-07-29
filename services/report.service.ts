@@ -6,6 +6,7 @@ import type {
   SessionReportResponse,
   OrderIssuesResponse,
   RefundPolicyReportResponse,
+  SessionDetailReportData,
 } from "@/types/report.types";
 
 export const reportService = {
@@ -22,6 +23,13 @@ export const reportService = {
       API_ENDPOINTS.REPORT.SESSIONS,
       { params },
     )) as unknown as ApiResponse<SessionReportResponse>;
+    return response.value;
+  },
+
+  getSessionDetail: async (sessionId: string) => {
+    const response = (await apiClient.get<ApiResponse<SessionDetailReportData>>(
+      API_ENDPOINTS.REPORT.SESSION_DETAIL(sessionId),
+    )) as unknown as ApiResponse<SessionDetailReportData>;
     return response.value;
   },
 
