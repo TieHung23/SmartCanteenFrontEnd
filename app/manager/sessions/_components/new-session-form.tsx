@@ -20,6 +20,9 @@ import {
   formatSessionRange,
   getSessionsForDate,
 } from "@/lib/session-overlap";
+import { slotConfigurationService } from "@/services/slot-configuration.service";
+import { robotArmService } from "@/services/robot-arm.service";
+import type { RobotArm } from "@/types/robot-arm.types";
 import {
   Search,
   GripVertical,
@@ -33,9 +36,22 @@ import {
   Hourglass,
   Clock,
   AlertTriangle,
+  Route,
 } from "lucide-react";
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
+
+const AVAILABLE_LANE_CODES = [
+  "S1_L1",
+  "S1_L2",
+  "S1_L3",
+  "S2_L1",
+  "S2_L2",
+  "S2_L3",
+  "S3_L1",
+  "S3_L2",
+  "S3_L3",
+];
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -178,6 +194,12 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     },
   ]);
 
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  const [wizardLaneConfigs, setWizardLaneConfigs] = useState<
+    Record<string, { laneCode: string; capacity: number; robotArmId: string }>
+  >({});
+  const [robotArms, setRobotArms] = useState<RobotArm[]>([]);
+
   function toDatetimeLocal(iso: string): string {
     const d = new Date(iso);
     const pad = (n: number) => n.toString().padStart(2, "0");
@@ -185,18 +207,39 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWizardLaneConfigs((prev) => {
+      const next = { ...prev };
+      let idx = 0;
+      selectedDishIds.forEach((dishId) => {
+        if (!next[dishId]) {
+          next[dishId] = {
+            laneCode: AVAILABLE_LANE_CODES[idx % AVAILABLE_LANE_CODES.length],
+            capacity: 12,
+            robotArmId: "",
+          };
+          idx++;
+        }
+      });
+      return next;
+    });
+  }, [selectedDishIds]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dishResult, catResult, sessionResult] = await Promise.all([
+        const [dishResult, catResult, sessionResult, armsResult] = await Promise.all([
           dishService.getDishes({ isActive: true, pageSize: 100 }),
           categoryService.getAll(),
           sessionService
             .getSessions({ pageSize: 100 })
             .catch(() => ({ items: [] as SessionListItem[] })),
+          robotArmService.getList().catch(() => [] as RobotArm[]),
         ]);
         setDishes(dishResult.items);
         setCategories(catResult.items);
         setExistingSessions(sessionResult.items || []);
+        setRobotArms(armsResult);
 
         if (copyFrom) {
           const detail = await sessionService.getSessionDetail(copyFrom);
@@ -716,7 +759,48 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
     try {
       const result = await sessionService.createSession(payload);
-      toast.success(`Tạo ca phục vụ "${result.value.name}" thành công!`);
+      const createdSessionId = result.value.id;
+
+      // Create Lane configurations simultaneously if configured in wizard step 2
+      const laneEntries = Object.entries(wizardLaneConfigs).filter(([dishId]) =>
+        payload.dishes.some((d) => d.dishId === dishId),
+      );
+
+      if (laneEntries.length > 0) {
+        let laneSuccessCount = 0;
+        for (const [dishId, cfg] of laneEntries) {
+          if (!cfg.laneCode?.trim()) continue;
+          const validArmId =
+            cfg.robotArmId && robotArms.some((a) => a.id === cfg.robotArmId)
+              ? cfg.robotArmId
+              : null;
+          try {
+            await slotConfigurationService.create({
+              sessionId: createdSessionId,
+              dishId,
+              laneCode: cfg.laneCode.trim().toUpperCase(),
+              capacity: cfg.capacity || 12,
+              robotArmId: validArmId,
+            });
+            laneSuccessCount++;
+          } catch (laneErr) {
+            console.warn(`[Slot Config Error] for dish ${dishId}:`, laneErr);
+          }
+        }
+
+        if (laneSuccessCount > 0) {
+          toast.success(
+            `Tạo ca phục vụ "${result.value.name}" và gán ${laneSuccessCount} cấu hình Lane thành công!`,
+          );
+        } else {
+          toast.success(
+            `Tạo ca phục vụ "${result.value.name}" thành công! (Bạn có thể gán cấu hình Lane trong Chi tiết ca).`,
+          );
+        }
+      } else {
+        toast.success(`Tạo ca phục vụ "${result.value.name}" thành công!`);
+      }
+
       onSuccess({ id: result.value.id, name: result.value.name });
     } catch (err: unknown) {
       console.error("[Session Create] Error:", err);
@@ -754,8 +838,175 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         </div>
       )}
 
+      {/* 2-Step Wizard Stepper Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-white rounded-3xl border border-gray-200 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setWizardStep(1)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-xs font-black transition-all",
+            wizardStep === 1
+              ? "bg-[#D35400] text-white shadow-md"
+              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50",
+          )}
+        >
+          <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">
+            1
+          </span>
+          <CalendarPlus className="w-4 h-4 shrink-0" />
+          <span>Thông tin chung & Món ăn ({selectedDishes.length} món)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setWizardStep(2)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-xs font-black transition-all",
+            wizardStep === 2
+              ? "bg-[#D35400] text-white shadow-md"
+              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50",
+          )}
+        >
+          <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">
+            2
+          </span>
+          <Route className="w-4 h-4 shrink-0" />
+          <span>Cấu hình Lane & Sức chứa</span>
+        </button>
+      </div>
+
+      {wizardStep === 2 && (
+        <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-6 shadow-xs animate-fade-in">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
+                <Route className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-gray-900">
+                  Cấu hình Lane & Sức chứa cho các món ăn trong ca
+                </h3>
+                <p className="text-xs text-gray-400 font-medium">
+                  Gán Mã Lane (`S1_L1` .. `S3_L3`), sức chứa tối đa và Robot Arm phụ trách cho từng
+                  món ăn.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {selectedDishes.length === 0 ? (
+            <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <p className="text-sm font-bold text-gray-400">
+                Chưa có món ăn nào được chọn ở Tab 1.
+              </p>
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="mt-3 text-xs font-bold text-[#D35400] underline"
+              >
+                Về Tab 1 để chọn món
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Món ăn
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Mã Lane
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Sức chứa (Khay)
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Tay máy Robot
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {selectedDishes.map((dish) => {
+                    const cfg = wizardLaneConfigs[dish.id] || {
+                      laneCode: "S1_L1",
+                      capacity: 12,
+                      robotArmId: "",
+                    };
+                    return (
+                      <tr key={dish.id} className="hover:bg-orange-50/20">
+                        <td className="px-5 py-4 font-bold text-sm text-gray-900">{dish.name}</td>
+                        <td className="px-5 py-4">
+                          <select
+                            value={cfg.laneCode}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setWizardLaneConfigs((prev) => ({
+                                ...prev,
+                                [dish.id]: { ...cfg, laneCode: val },
+                              }));
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl font-mono text-sm font-bold text-gray-900 focus:border-[#D35400] outline-none shadow-xs"
+                          >
+                            {AVAILABLE_LANE_CODES.map((lane) => (
+                              <option key={lane} value={lane}>
+                                {lane}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-5 py-4">
+                          <input
+                            type="number"
+                            min={1}
+                            value={cfg.capacity}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 1;
+                              setWizardLaneConfigs((prev) => ({
+                                ...prev,
+                                [dish.id]: { ...cfg, capacity: val },
+                              }));
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold w-24 focus:border-[#D35400] outline-none"
+                          />
+                        </td>
+                        <td className="px-5 py-4">
+                          <select
+                            value={cfg.robotArmId}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setWizardLaneConfigs((prev) => ({
+                                ...prev,
+                                [dish.id]: { ...cfg, robotArmId: val },
+                              }));
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:border-[#D35400] outline-none"
+                          >
+                            <option value="">-- Tự phục vụ --</option>
+                            {robotArms.map((arm) => (
+                              <option key={arm.id} value={arm.id}>
+                                {arm.name || arm.code}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 2-Column Responsive Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div
+        className={cn(
+          "grid grid-cols-1 lg:grid-cols-12 gap-8 items-start",
+          wizardStep === 2 && "hidden",
+        )}
+      >
         {/* Left Column: Form Details & Templates */}
         <div className="lg:col-span-6 space-y-8">
           {/* General Metadata */}

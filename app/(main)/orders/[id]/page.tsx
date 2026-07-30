@@ -486,6 +486,18 @@ export default function OrderDetailPage() {
                                   ? `Gợi ý: ${proposal.suggestedDishName}. Vui lòng chọn món khác thay thế.`
                                   : "Vui lòng chọn món khác thay thế."}
                             </p>
+                            {proposal?.responseDeadlineUtc && proposal.proposalStatus === 0 && (
+                              <p className="text-[11px] font-bold text-amber-800 mt-1.5 flex items-center gap-1 bg-amber-100/80 px-2 py-0.5 rounded-md w-fit">
+                                ⏰ Hạn phản hồi:{" "}
+                                {new Date(proposal.responseDeadlineUtc).toLocaleString("vi-VN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                })}
+                              </p>
+                            )}
                           </div>
                         </div>
 

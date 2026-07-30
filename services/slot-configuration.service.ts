@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type { ApiResponse } from "./session.service";
 import type {
   SlotConfiguration,
+  SlotConfigurationDetail,
   SlotConfigurationListResponse,
   CreateSlotConfigurationPayload,
   UpdateSlotConfigurationPayload,
@@ -10,6 +11,13 @@ import type {
 } from "@/types/slot-configuration.types";
 
 export const slotConfigurationService = {
+  getById: async (id: string): Promise<SlotConfigurationDetail> => {
+    const response = (await apiClient.get<ApiResponse<SlotConfigurationDetail>>(
+      API_ENDPOINTS.MANAGER.SLOT_CONFIGURATIONS.GET(id),
+    )) as unknown as ApiResponse<SlotConfigurationDetail>;
+    return response.value;
+  },
+
   getBySession: async (sessionId: string): Promise<SlotConfiguration[]> => {
     const response = (await apiClient.get<ApiResponse<SlotConfigurationListResponse>>(
       API_ENDPOINTS.MANAGER.SLOT_CONFIGURATIONS.LIST_BY_SESSION(sessionId),

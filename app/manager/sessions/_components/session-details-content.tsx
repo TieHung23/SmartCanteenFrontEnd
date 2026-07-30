@@ -22,19 +22,23 @@ import {
 import { sessionService } from "@/services/session.service";
 import { categoryService } from "@/services/category.service";
 import { dishService } from "@/services/dish.service";
+import { orderService } from "@/services/order.service";
+import { managerUserService } from "@/services/manager-user.service";
 import type { SessionDetail, SessionListItem } from "@/types/session.types";
 import type { Category } from "@/types/category.types";
 import type { Dish } from "@/types/dish.types";
+import type { OrderListItem, OrderDetail } from "@/types/order.types";
 import { cn } from "@/lib/utils";
 import {
   checkSessionOverlap,
   extractApiErrorMessage,
   formatSessionOverlapMessage,
 } from "@/lib/session-overlap";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ShoppingBag, Eye } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { SlotConfigTab } from "./slot-config-tab";
+import Modal from "../../_components/modal";
 
 interface LocalTemplate {
   id?: string;
@@ -128,7 +132,50 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
 
   const [preparedQuantities, setPreparedQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"info" | "config">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "config" | "orders">("info");
+
+  const [sessionOrders, setSessionOrders] = useState<OrderListItem[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<OrderDetail | null>(null);
+  const [userMap, setUserMap] = useState<
+    Record<string, { name: string; email: string; studentId: string | null }>
+  >({});
+
+  const fetchSessionOrders = useCallback(async () => {
+    if (!sessionId) return;
+    setLoadingOrders(true);
+    try {
+      const [res, usersRes] = await Promise.all([
+        orderService.getManagerOrdersBySession(sessionId, { pageSize: 100 }),
+        managerUserService.getUsers({ pageSize: 200 }).catch(() => null),
+      ]);
+      if (usersRes?.items) {
+        const uMap: Record<string, { name: string; email: string; studentId: string | null }> = {};
+        usersRes.items.forEach((u) => {
+          uMap[u.id] = {
+            name: u.name || u.email || `Khách hàng (${u.id.slice(0, 8)})`,
+            email: u.email || "",
+            studentId: u.studentId || null,
+          };
+        });
+        setUserMap(uMap);
+      }
+      setSessionOrders(res.items || []);
+    } catch (err) {
+      console.error("Failed to load session orders:", err);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (activeTab === "orders") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchSessionOrders();
+    }
+  }, [activeTab, fetchSessionOrders]);
 
   const loadSession = useCallback(async () => {
     try {
@@ -588,7 +635,19 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
           )}
         >
           <Route className="w-4 h-4" />
-          Cấu hình robot
+          Cấu hình robot & Hardware
+        </button>
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={cn(
+            "flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-black transition-all",
+            activeTab === "orders"
+              ? "bg-[#D35400] text-white shadow-sm"
+              : "text-gray-500 hover:text-gray-700",
+          )}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          Chi tiết đơn đặt ({sessionOrders.length})
         </button>
       </div>
 
@@ -1288,6 +1347,213 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       {/* Tab Content: Config */}
       {activeTab === "config" && (
         <SlotConfigTab sessionId={sessionId} dishes={session.dishes || []} />
+      )}
+
+      {/* Tab Content: Orders */}
+      {activeTab === "orders" && (
+        <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-6 shadow-xs animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div>
+              <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-[#D35400]" />
+                Danh sách đơn hàng trong ca ({sessionOrders.length})
+              </h3>
+              <p className="text-xs text-gray-400 font-medium">
+                Theo dõi tất cả đơn hàng đã được người dùng đặt trong ca phục vụ này.
+              </p>
+            </div>
+
+            {/* Filter pills & search */}
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  placeholder="Tìm mã đơn, tên khách..."
+                  className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:border-[#D35400]"
+                />
+              </div>
+
+              <select
+                value={orderStatusFilter}
+                onChange={(e) => setOrderStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none focus:border-[#D35400]"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="0">Chờ xử lý (0)</option>
+                <option value="1">Đang nấu / Chuẩn bị (1)</option>
+                <option value="2">Đã hoàn thành (2)</option>
+                <option value="3">Đã hủy (3)</option>
+              </select>
+            </div>
+          </div>
+
+          {loadingOrders ? (
+            <div className="flex h-48 items-center justify-center">
+              <div className="w-8 h-8 border-4 border-[#D35400]/20 border-t-[#D35400] rounded-full animate-spin" />
+            </div>
+          ) : sessionOrders.length === 0 ? (
+            <div className="p-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <ShoppingBag className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-gray-400">
+                Chưa có đơn hàng nào được tạo trong ca phục vụ này.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Mã đơn hàng
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Khách hàng
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Thời gian đặt
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Tổng tiền
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Trạng thái
+                    </th>
+                    <th className="px-5 py-3.5 text-right text-xs font-black uppercase text-gray-400">
+                      Thao tác
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {sessionOrders
+                    .filter((ord) => {
+                      if (
+                        orderStatusFilter !== "all" &&
+                        ord.status !== parseInt(orderStatusFilter, 10)
+                      ) {
+                        return false;
+                      }
+                      const uInfo = userMap[ord.userId];
+                      if (orderSearch.trim()) {
+                        const q = orderSearch.toLowerCase();
+                        const matchId = (ord.id || "").toLowerCase().includes(q);
+                        const matchUserId = (ord.userId || "").toLowerCase().includes(q);
+                        const matchName = (uInfo?.name || "").toLowerCase().includes(q);
+                        const matchEmail = (uInfo?.email || "").toLowerCase().includes(q);
+                        return matchId || matchUserId || matchName || matchEmail;
+                      }
+                      return true;
+                    })
+                    .map((ord) => {
+                      const uInfo = userMap[ord.userId];
+                      const custName = uInfo?.name || `Khách hàng (${ord.userId.slice(0, 8)})`;
+                      const custEmail = uInfo?.email || ord.userId;
+                      return (
+                        <tr key={ord.id} className="hover:bg-orange-50/20">
+                          <td className="px-5 py-4 font-mono font-bold text-sm text-[#D35400]">
+                            #{ord.id.slice(0, 8).toUpperCase()}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="text-sm font-bold text-gray-900">{custName}</p>
+                            <p className="text-[10px] text-gray-400 font-mono">{custEmail}</p>
+                          </td>
+                          <td className="px-5 py-4 text-xs font-bold text-gray-600">
+                            {ord.createdAtUtc ? formatDate(ord.createdAtUtc) : "—"}
+                          </td>
+                          <td className="px-5 py-4 text-sm font-black text-gray-900">
+                            {(ord.totalPrice || 0).toLocaleString("vi-VN")} đ
+                          </td>
+                          <td className="px-5 py-4">
+                            <span
+                              className={cn(
+                                "px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider",
+                                ord.status === 2
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : ord.status === 3
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-amber-100 text-amber-800",
+                              )}
+                            >
+                              {ord.status === 2
+                                ? "Hoàn thành"
+                                : ord.status === 3
+                                  ? "Đã hủy"
+                                  : "Đang xử lý"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const detail = await orderService.getManagerOrderById(ord.id);
+                                  setSelectedOrderForModal(detail);
+                                } catch {
+                                  toast.error("Không thể tải chi tiết đơn hàng.");
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-[#D35400] text-gray-700 hover:text-white rounded-xl text-xs font-bold transition-all"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              Xem chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Order Detail Modal */}
+      {selectedOrderForModal && (
+        <Modal
+          isOpen={!!selectedOrderForModal}
+          onClose={() => setSelectedOrderForModal(null)}
+          title={`Chi tiết đơn hàng #${selectedOrderForModal.id.slice(0, 8).toUpperCase()}`}
+          size="lg"
+        >
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl text-xs font-bold text-gray-700">
+              <div>
+                <p className="text-gray-400 uppercase text-[10px]">Khách hàng</p>
+                <p className="text-gray-900 text-sm font-black mt-0.5">
+                  {userMap[selectedOrderForModal.userId]?.name ||
+                    `Khách hàng (${selectedOrderForModal.userId.slice(0, 8)})`}
+                </p>
+                <p className="text-gray-500 font-mono text-[11px]">
+                  {userMap[selectedOrderForModal.userId]?.email || selectedOrderForModal.userId}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-400 uppercase text-[10px]">Tổng thanh toán</p>
+                <p className="text-[#D35400] text-sm font-black mt-0.5">
+                  {(selectedOrderForModal.totalPrice || 0).toLocaleString("vi-VN")} đ
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-black uppercase text-gray-400">Danh sách món ăn</h4>
+              <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden">
+                {selectedOrderForModal.items?.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-white text-xs">
+                    <span className="font-bold text-gray-900">{item.dishName}</span>
+                    <span className="font-black text-gray-600">
+                      x{item.quantity} (
+                      {((item.unitPrice || 0) * item.quantity).toLocaleString("vi-VN")} đ)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Footer actions */}

@@ -9,10 +9,30 @@ import { refundService } from "@/services/refund.service";
 import type { ManagerRefundDetail } from "@/types/refund.types";
 import { cn } from "@/lib/utils";
 
-const STATUS_STYLES: Record<string, { label: string; color: string; bg: string }> = {
-  Pending: { label: "Pending", color: "text-yellow-850", bg: "bg-yellow-50" },
-  Approved: { label: "Approved", color: "text-green-850", bg: "bg-green-50" },
-  Rejected: { label: "Rejected", color: "text-red-850", bg: "bg-red-50" },
+const getRefundStatusStyle = (status: string | number) => {
+  const s = String(status).toLowerCase();
+  if (s === "pending" || s === "1" || s === "0") {
+    return {
+      label: "CHỜ XỬ LÝ",
+      color: "text-amber-800",
+      bg: "bg-amber-100 border border-amber-200",
+    };
+  }
+  if (s === "approved" || s === "2") {
+    return {
+      label: "ĐÃ DUYỆT",
+      color: "text-emerald-800",
+      bg: "bg-emerald-100 border border-emerald-200",
+    };
+  }
+  if (s === "rejected" || s === "3") {
+    return { label: "TỪ CHỐI", color: "text-red-800", bg: "bg-red-100 border border-red-200" };
+  }
+  return {
+    label: "CHỜ XỬ LÝ",
+    color: "text-amber-800",
+    bg: "bg-amber-100 border border-amber-200",
+  };
 };
 
 interface RefundDetailsContentProps {
@@ -95,7 +115,7 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
     );
   }
 
-  const style = STATUS_STYLES[detail.status] || STATUS_STYLES.Pending;
+  const style = getRefundStatusStyle(detail.status);
 
   return (
     <div className="space-y-6">
@@ -111,9 +131,13 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
             <div className="divide-y divide-gray-100/60 text-sm">
               <div className="py-3 first:pt-0">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Mã người dùng (User ID)
+                  Người dùng
                 </p>
-                <p className="font-mono font-bold text-gray-800 mt-1 truncate">{detail.userId}</p>
+                <p className="font-bold text-gray-900 mt-1">{detail.userName || "—"}</p>
+                {detail.userEmail && (
+                  <p className="text-xs text-gray-500 mt-0.5">{detail.userEmail}</p>
+                )}
+                <p className="font-mono font-bold text-gray-400 text-xs mt-0.5">{detail.userId}</p>
               </div>
               <div className="py-3">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -129,6 +153,40 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
                   <p className="font-mono font-bold text-[#D35400] mt-1 truncate">
                     {detail.changeProposalId}
                   </p>
+                </div>
+              )}
+              {(detail.dishName ||
+                detail.currentDishName ||
+                detail.suggestedDishName ||
+                detail.selectedDishName) && (
+                <div className="py-3 space-y-2">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Món ăn liên quan
+                  </p>
+                  {detail.dishName && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold text-gray-500">Món gốc:</span>
+                      <span className="font-bold text-gray-900">{detail.dishName}</span>
+                    </div>
+                  )}
+                  {detail.currentDishName && detail.currentDishName !== detail.dishName && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold text-gray-500">Món thiếu:</span>
+                      <span className="font-bold text-gray-900">{detail.currentDishName}</span>
+                    </div>
+                  )}
+                  {detail.suggestedDishName && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold text-gray-500">Đề xuất thay thế:</span>
+                      <span className="font-bold text-emerald-600">{detail.suggestedDishName}</span>
+                    </div>
+                  )}
+                  {detail.selectedDishName && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold text-gray-500">Khách chọn:</span>
+                      <span className="font-bold text-blue-600">{detail.selectedDishName}</span>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="py-3">
@@ -157,11 +215,7 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
                 <span
                   className={cn(
                     "inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
-                    detail.status === "Pending"
-                      ? "bg-yellow-50 text-yellow-800 border border-yellow-200/30"
-                      : detail.status === "Approved"
-                        ? "bg-green-50 text-green-800 border border-green-200/30"
-                        : "bg-red-50 text-red-800 border border-red-200/30",
+                    style.bg,
                   )}
                 >
                   {style.label}

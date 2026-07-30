@@ -117,6 +117,7 @@ export const API_ENDPOINTS = {
   MANAGER: {
     ROBOT_ARMS: {
       LIST: "/api/manager/robot-arms",
+      GET: (id: string) => `/api/manager/robot-arms/${id}`,
       CREATE: "/api/manager/robot-arms",
       UPDATE: (id: string) => `/api/manager/robot-arms/${id}`,
       DELETE: (id: string) => `/api/manager/robot-arms/${id}`,
@@ -138,9 +139,19 @@ export const API_ENDPOINTS = {
     SLOT_CONFIGURATIONS: {
       LIST_BY_SESSION: (sessionId: string) =>
         `/api/manager/slot-configurations?sessionId=${sessionId}`,
+      GET: (id: string) => `/api/manager/slot-configurations/${id}`,
       CREATE: "/api/manager/slot-configurations",
       UPDATE: (id: string) => `/api/manager/slot-configurations/${id}`,
       DELETE: (id: string) => `/api/manager/slot-configurations/${id}`,
+    },
+    SHELF_STOCKS: {
+      LIST_BY_SESSION: (sessionId: string) => `/api/manager/shelf-stocks?sessionId=${sessionId}`,
+      GET: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      CREATE: "/api/manager/shelf-stocks",
+      UPDATE: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      DELETE: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      LIST_BY_ARM: (armId: string) => `/api/manager/shelf-stocks?armId=${armId}`,
+      LIST_BY_DISH: (dishId: string) => `/api/manager/shelf-stocks?dishId=${dishId}`,
     },
   },
   ADMIN: {
@@ -152,6 +163,7 @@ export const API_ENDPOINTS = {
   REPORT: {
     SUMMARY: "/api/manager/reports/summary",
     SESSIONS: "/api/manager/reports/sessions",
+    SESSION_DETAIL: (sessionId: string) => `/api/manager/reports/sessions/${sessionId}`,
     ORDER_ISSUES: "/api/manager/reports/order-issues",
     REFUND_POLICIES: "/api/manager/reports/refund-policies",
   },

@@ -10,7 +10,6 @@ import {
   Lock,
   RefreshCw,
   Layers,
-  Clock,
   AlertTriangle,
 } from "lucide-react";
 import { pickupSlotService } from "@/services/pickup-slot.service";
@@ -171,8 +170,8 @@ export default function ManagerPickupSlotsPage() {
       {/* ── Header ── */}
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25 shrink-0 animate-float">
-            <Grid3X3 className="w-6 h-6 text-white" />
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25 shrink-0">
+            <Grid3X3 className="w-7 h-7 text-white" />
           </div>
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900">Ô Kệ Pickup</h1>
@@ -233,22 +232,24 @@ export default function ManagerPickupSlotsPage() {
       )}
 
       {/* ── Search ── */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          placeholder="Tìm theo mã ô, trạng thái, đơn hàng..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+      <div className="rounded-2xl border border-gray-100/80 bg-white p-6 shadow-xs">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-gray-400" />
+          <input
+            placeholder="Tìm theo mã ô, trạng thái, đơn hàng..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-14 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-14 pr-12 text-base font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Content ── */}
@@ -289,42 +290,35 @@ export default function ManagerPickupSlotsPage() {
           </p>
         </div>
       ) : (
-        <div
-          className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm animate-slide-up-3d"
-          style={{ animationDelay: "200ms" }}
-        >
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left">
-              <thead className="border-b border-gray-100 bg-gray-50/70">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/80 border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Mã ô
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Đơn hàng
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Khay
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Bind lúc
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((slot, idx) => {
+                {filtered.map((slot) => {
                   const s = STATUS_CONFIG[slot.status];
                   const Icon = s.icon;
                   return (
-                    <tr
-                      key={slot.id}
-                      className="hover:bg-orange-50/30 transition-colors group animate-fade-in-scale"
-                      style={{ animationDelay: `${250 + idx * 50}ms` }}
-                    >
-                      <td className="px-6 py-4">
+                    <tr key={slot.id} className="hover:bg-orange-50/20 transition-colors">
+                      <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div
                             className={cn(
@@ -340,7 +334,7 @@ export default function ManagerPickupSlotsPage() {
                           </code>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <span
                           className={cn(
                             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border",
@@ -353,7 +347,7 @@ export default function ManagerPickupSlotsPage() {
                           {s.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         {slot.orderId ? (
                           <code className="text-xs font-mono text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
                             {slot.orderId.slice(0, 8)}...
@@ -362,7 +356,7 @@ export default function ManagerPickupSlotsPage() {
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         {slot.trayId ? (
                           <code className="text-xs font-mono text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
                             {slot.trayId.slice(0, 8)}...
@@ -371,18 +365,16 @@ export default function ManagerPickupSlotsPage() {
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         {slot.updatedAtUtc ? (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                            <Clock className="w-3 h-3" />
+                          <span className="text-sm font-bold text-gray-600">
                             {new Date(slot.updatedAtUtc).toLocaleString("vi-VN", {
                               hour: "2-digit",
                               minute: "2-digit",
-                              second: "2-digit",
                               day: "2-digit",
                               month: "2-digit",
                             })}
-                          </div>
+                          </span>
                         ) : (
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
@@ -393,9 +385,10 @@ export default function ManagerPickupSlotsPage() {
               </tbody>
             </table>
           </div>
-          <div className="border-t border-gray-100 px-6 py-3 bg-gray-50/50">
-            <p className="text-xs font-semibold text-gray-400">
-              Hiển thị {filtered.length} / {slots.length} ô kệ
+          <div className="border-t border-gray-100 px-8 py-5 bg-gray-50/50">
+            <p className="text-base font-semibold text-gray-500">
+              Hiển thị <span className="font-black text-gray-800">{filtered.length}</span> /{" "}
+              <span className="font-black text-gray-800">{slots.length}</span> ô kệ
             </p>
           </div>
         </div>

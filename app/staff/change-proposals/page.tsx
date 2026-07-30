@@ -330,6 +330,22 @@ export default function StaffChangeProposalsPage() {
                             <p className="text-xs text-gray-500">
                               SL: {item.quantity} • {item.unitPrice?.toLocaleString()}đ
                             </p>
+                            {(() => {
+                              const proposal = group.proposals?.find(
+                                (p) => p.id === item.proposalId,
+                              );
+                              return proposal?.responseDeadlineUtc ? (
+                                <p className="text-[10px] font-bold text-amber-600 mt-0.5">
+                                  ⏰ Hạn:{" "}
+                                  {new Date(proposal.responseDeadlineUtc).toLocaleString("vi-VN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                  })}
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
