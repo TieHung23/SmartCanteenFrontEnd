@@ -24,6 +24,7 @@ import { categoryService } from "@/services/category.service";
 import { dishService } from "@/services/dish.service";
 import { orderService } from "@/services/order.service";
 import { managerUserService } from "@/services/manager-user.service";
+import { slotConfigurationService } from "@/services/slot-configuration.service";
 import type { SessionDetail, SessionListItem } from "@/types/session.types";
 import type { Category } from "@/types/category.types";
 import type { Dish } from "@/types/dish.types";
@@ -321,10 +322,30 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       return;
     }
 
+    // Compute dishes removed from session to clean up orphaned slot-configs
+    const oldDishIds = session.dishes.map((d) => d.dishId);
+    const removedDishIds = oldDishIds.filter((id) => !totalDishIds.has(id));
+
     try {
       console.log("[Session Update] Payload:", JSON.stringify(payload, null, 2));
       const result = await sessionService.updateSession(session.id, payload);
       console.log("[Session Update] Response:", result);
+
+      // Clean up orphaned slot-configurations for removed dishes
+      if (removedDishIds.length > 0) {
+        try {
+          const configs = await slotConfigurationService.getBySession(sessionId);
+          const orphanedConfigs = configs.filter((c) => removedDishIds.includes(c.dishId));
+          if (orphanedConfigs.length > 0) {
+            await Promise.all(
+              orphanedConfigs.map((c) => slotConfigurationService.delete(c.id).catch(() => {})),
+            );
+          }
+        } catch {
+          // Non-blocking: log cleanup failure silently
+        }
+      }
+
       toast.success("Cập nhật ca phục vụ thành công!");
       setIsEditing(false);
       await loadSession();

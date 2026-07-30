@@ -11,6 +11,8 @@ import {
   LayoutList,
   Pencil,
 } from "lucide-react";
+import Swal from "sweetalert2";
+import { toast } from "sonner";
 import { dishService } from "@/services/dish.service";
 import { categoryService } from "@/services/category.service";
 import type { Dish } from "@/types/dish.types";
@@ -73,12 +75,34 @@ export default function ManagerMenuPage() {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Xóa món ăn "${name}"?`)) return;
+    const result = await Swal.fire({
+      title: "Xác nhận xóa món ăn?",
+      html: `Bạn có chắc chắn muốn xóa món ăn <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-gray-500 font-normal mt-1 block">Hành động này không thể hoàn tác.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xóa món ăn",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-2xl p-6",
+        title: "text-xl font-black text-gray-900",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await dishService.deleteDish(id);
       setDishes((prev) => prev.filter((d) => d.id !== id));
-    } catch (err) {
-      console.error(err);
+      toast.success(`Đã xóa món ăn "${name}" thành công!`);
+    } catch (err: unknown) {
+      console.error("Lỗi xóa món ăn:", err);
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Xóa món ăn thất bại. Món ăn có thể đang nằm trong ca phục vụ.";
+      toast.error(msg);
     }
   };
 

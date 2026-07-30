@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Search, Trash2, Tag, LayoutGrid, LayoutList, Pencil } from "lucide-react";
+import Swal from "sweetalert2";
+import { toast } from "sonner";
 import { categoryService } from "@/services/category.service";
 import type { Category } from "@/types/category.types";
 import { cn } from "@/lib/utils";
@@ -54,12 +56,34 @@ export default function CategoryListPage() {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Xóa danh mục "${name}"?`)) return;
+    const result = await Swal.fire({
+      title: "Xác nhận xóa danh mục?",
+      html: `Bạn có chắc chắn muốn xóa danh mục <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-gray-500 font-normal mt-1 block">Hành động này không thể hoàn tác.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xóa danh mục",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-2xl p-6",
+        title: "text-xl font-black text-gray-900",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await categoryService.delete(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      console.error(err);
+      toast.success(`Đã xóa danh mục "${name}" thành công!`);
+    } catch (err: unknown) {
+      console.error("Lỗi xóa danh mục:", err);
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Xóa danh mục thất bại. Danh mục có thể đang chứa món ăn.";
+      toast.error(msg);
     }
   };
 

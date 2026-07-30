@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil } from "lucide-react";
+import Swal from "sweetalert2";
+import { toast } from "sonner";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
@@ -67,12 +69,34 @@ export default function ManagerSessionsPage() {
   }, [showActive]);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Xóa ca phục vụ "${name}"?`)) return;
+    const result = await Swal.fire({
+      title: "Xác nhận xóa ca phục vụ?",
+      html: `Bạn có chắc chắn muốn xóa ca phục vụ <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-gray-500 font-normal mt-1 block">Hành động này không thể hoàn tác.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xóa ca phục vụ",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-2xl p-6",
+        title: "text-xl font-black text-gray-900",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await sessionService.deleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
-    } catch (err) {
-      console.error(err);
+      toast.success(`Đã xóa ca phục vụ "${name}" thành công!`);
+    } catch (err: unknown) {
+      console.error("Lỗi xóa ca phục vụ:", err);
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Xóa ca phục vụ thất bại. Ca phục vụ có thể đang chứa đơn hàng.";
+      toast.error(msg);
     }
   };
 

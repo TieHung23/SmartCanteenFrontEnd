@@ -41,17 +41,7 @@ import {
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
 
-const AVAILABLE_LANE_CODES = [
-  "S1_L1",
-  "S1_L2",
-  "S1_L3",
-  "S2_L1",
-  "S2_L2",
-  "S2_L3",
-  "S3_L1",
-  "S3_L2",
-  "S3_L3",
-];
+const AVAILABLE_LANE_CODES = ["S1_L1", "S1_L2", "S1_L3"];
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -214,7 +204,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
       selectedDishIds.forEach((dishId) => {
         if (!next[dishId]) {
           next[dishId] = {
-            laneCode: AVAILABLE_LANE_CODES[idx % AVAILABLE_LANE_CODES.length],
+            laneCode: AVAILABLE_LANE_CODES[idx % 3], // Ưu tiên S1_L1, S1_L2, S1_L3 làm mặc định
             capacity: 12,
             robotArmId: "",
           };
@@ -768,6 +758,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
       if (laneEntries.length > 0) {
         let laneSuccessCount = 0;
+        const laneErrorMsgs: string[] = [];
+
         for (const [dishId, cfg] of laneEntries) {
           if (!cfg.laneCode?.trim()) continue;
           const validArmId =
@@ -785,10 +777,20 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
             laneSuccessCount++;
           } catch (laneErr) {
             console.warn(`[Slot Config Error] for dish ${dishId}:`, laneErr);
+            const errDetail = extractApiErrorMessage(
+              laneErr,
+              `Lỗi mã lane ${cfg.laneCode.toUpperCase()}`,
+            );
+            laneErrorMsgs.push(errDetail);
           }
         }
 
-        if (laneSuccessCount > 0) {
+        if (laneErrorMsgs.length > 0) {
+          toast.warning(
+            `Tạo ca "${result.value.name}" thành công! Lỗi gán Lane: ${laneErrorMsgs.join("; ")}`,
+            { duration: 8000 },
+          );
+        } else if (laneSuccessCount > 0) {
           toast.success(
             `Tạo ca phục vụ "${result.value.name}" và gán ${laneSuccessCount} cấu hình Lane thành công!`,
           );
@@ -887,8 +889,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Cấu hình Lane & Sức chứa cho các món ăn trong ca
                 </h3>
                 <p className="text-xs text-gray-400 font-medium">
-                  Gán Mã Lane (`S1_L1` .. `S3_L3`), sức chứa tối đa và Robot Arm phụ trách cho từng
-                  món ăn.
+                  Gán Mã Lane (`S1_L1`, `S1_L2`, `S1_L3`), sức chứa tối đa và Robot Arm phụ trách
+                  cho từng món ăn.
                 </p>
               </div>
             </div>

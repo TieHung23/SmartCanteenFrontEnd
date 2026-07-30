@@ -38,7 +38,7 @@ export const robotArmService = {
   update: async (id: string, data: UpdateRobotArmPayload): Promise<RobotArm> => {
     const response = (await apiClient.put<ApiResponse<RobotArm>>(
       API_ENDPOINTS.MANAGER.ROBOT_ARMS.UPDATE(id),
-      data,
+      { ...data, id },
     )) as unknown as ApiResponse<RobotArm>;
     return response.value;
   },

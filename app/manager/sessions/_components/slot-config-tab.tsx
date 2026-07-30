@@ -140,8 +140,8 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
       toast.error("Mã lane không được để trống.");
       return;
     }
-    if (!/^[A-Z]\d_L\d$/i.test(formLaneCode.trim())) {
-      toast.error("Mã lane phải đúng định dạng S1_L1 .. S3_L3.");
+    if (!["S1_L1", "S1_L2", "S1_L3"].includes(formLaneCode.trim().toUpperCase())) {
+      toast.error("Mã lane phải là một trong ba mã: S1_L1, S1_L2 hoặc S1_L3.");
       return;
     }
     if (formCapacity <= 0) {
@@ -533,24 +533,14 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 font-mono font-bold text-sm transition-all shadow-xs"
             >
               <option value="">-- Chọn Mã Lane --</option>
-              {[
-                "S1_L1",
-                "S1_L2",
-                "S1_L3",
-                "S2_L1",
-                "S2_L2",
-                "S2_L3",
-                "S3_L1",
-                "S3_L2",
-                "S3_L3",
-              ].map((lane) => (
+              {["S1_L1", "S1_L2", "S1_L3"].map((lane) => (
                 <option key={lane} value={lane}>
                   {lane}
                 </option>
               ))}
             </select>
             <p className="text-xs text-gray-400 mt-1.5 font-medium">
-              Chọn một trong các Mã Lane cố định (S1_L1 .. S3_L3).
+              Chọn một trong các Mã Lane cố định được Backend hỗ trợ (S1_L1, S1_L2, S1_L3).
             </p>
           </div>
 
