@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil } from "lucide-react";
+import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil, Power } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "sonner";
 import { sessionService } from "@/services/session.service";
@@ -68,6 +68,67 @@ export default function ManagerSessionsPage() {
     };
   }, [showActive]);
 
+  const handleToggleActive = async (session: SessionListItem) => {
+    const nextState = !session.isActive;
+    const actionName = nextState ? "Mở (Bật)" : "Khóa (Tắt)";
+    const result = await Swal.fire({
+      title: `Xác nhận ${actionName.toLowerCase()} ca phục vụ?`,
+      html: `Bạn có chắc chắn muốn <strong>${actionName.toLowerCase()}</strong> ca phục vụ <strong class="text-[#D35400]">"${session.name}"</strong> không?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: nextState ? "#16a34a" : "#ea580c",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: nextState ? "Mở hoạt động" : "Khóa hoạt động",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-2xl p-6",
+        title: "text-xl font-black text-gray-900",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const detail = await sessionService.getSessionDetail(session.id);
+      const payload = {
+        id: detail.id,
+        name: detail.name,
+        description: detail.description,
+        isActive: nextState,
+        availableFrom: detail.availableFrom,
+        availableTo: detail.availableTo,
+        availableForOrder: detail.availableForOrder,
+        ...(detail.finalizationDeadline
+          ? { finalizationDeadline: detail.finalizationDeadline }
+          : {}),
+        autoFinalizePolicy: detail.autoFinalizePolicy ?? 0,
+        mealTemplates: (detail.mealTemplates || []).map((t) => ({
+          name: t.name,
+          settings: t.settings.map((s) => ({
+            categoryId: s.categoryId,
+            minQuantity: s.minQuantity,
+            maxQuantity: s.maxQuantity,
+            isRequired: s.isRequired,
+          })),
+        })),
+        dishes: (detail.dishes || []).map((d) => ({ dishId: d.dishId })),
+      };
+
+      await sessionService.updateSession(session.id, payload);
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? { ...s, isActive: nextState } : s)),
+      );
+      toast.success(`Đã ${actionName.toLowerCase()} ca phục vụ "${session.name}" thành công!`);
+    } catch (err: unknown) {
+      console.error("Lỗi cập nhật trạng thái ca:", err);
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Cập nhật trạng thái ca thất bại.";
+      toast.error(msg);
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
     const result = await Swal.fire({
       title: "Xác nhận xóa ca phục vụ?",
@@ -125,7 +186,7 @@ export default function ManagerSessionsPage() {
       const bLive = isSessionLive(b);
       if (aLive && !bLive) return -1;
       if (!aLive && bLive) return 1;
-      return 0;
+      return new Date(b.availableFrom || 0).getTime() - new Date(a.availableFrom || 0).getTime();
     });
 
   return (
@@ -244,6 +305,21 @@ export default function ManagerSessionsPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    handleToggleActive(session);
+                  }}
+                  className={cn(
+                    "p-3 rounded-2xl border transition-all shrink-0",
+                    session.isActive
+                      ? "text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 border-green-200/80"
+                      : "text-gray-400 hover:text-orange-600 bg-gray-50 hover:bg-orange-50 border-gray-200/80 hover:border-orange-100",
+                  )}
+                  title={session.isActive ? "Khóa (tắt) ca phục vụ" : "Mở (bật) ca phục vụ"}
+                >
+                  <Power className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     handleOpenCopy(session.id);
                   }}
                   className="p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all shrink-0"
@@ -269,6 +345,7 @@ export default function ManagerSessionsPage() {
                     handleDelete(session.id, session.name);
                   }}
                   className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl border border-transparent hover:border-red-100 transition-all shrink-0"
+                  title="Xóa ca phục vụ"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>

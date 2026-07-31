@@ -81,7 +81,7 @@ export default function ManagerOrdersPage() {
       const bLive = b.isActive && (!b.availableTo || new Date(b.availableTo) > now);
       if (aLive && !bLive) return -1;
       if (!aLive && bLive) return 1;
-      return 0;
+      return new Date(b.availableFrom || 0).getTime() - new Date(a.availableFrom || 0).getTime();
     });
   }, [sessions]);
 

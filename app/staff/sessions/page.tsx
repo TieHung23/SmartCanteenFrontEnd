@@ -69,7 +69,7 @@ export default function StaffSessionsPage() {
       const bLive = isSessionLive(b);
       if (aLive && !bLive) return -1;
       if (!aLive && bLive) return 1;
-      return 0;
+      return new Date(b.availableFrom || 0).getTime() - new Date(a.availableFrom || 0).getTime();
     });
 
   return (
