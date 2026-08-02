@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth } from "date-fns";
+import { format, subDays } from "date-fns";
 import { toast } from "sonner";
 import {
   BarChart3,
@@ -27,7 +27,7 @@ import type { DateRange } from "@/types/report.types";
 
 const now = new Date();
 const defaultRange: DateRange = {
-  from: format(startOfMonth(now), "yyyy-MM-dd"),
+  from: format(subDays(now, 29), "yyyy-MM-dd"),
   to: format(now, "yyyy-MM-dd"),
 };
 
@@ -166,7 +166,11 @@ export default function ManagerReportsPage() {
       {activeTab === "overview" && (
         <div className="space-y-6">
           <KpiCards data={summary?.dashboard} loading={summaryQuery.isLoading} />
-          <RevenueChart data={summary?.revenueTrend} loading={summaryQuery.isLoading} />
+          <RevenueChart
+            data={summary?.revenueTrend}
+            loading={summaryQuery.isLoading}
+            dateRange={dateRange}
+          />
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <PopularDishesChart data={summary?.popularDishes} loading={summaryQuery.isLoading} />

@@ -178,7 +178,7 @@ export default function SessionPage() {
               <span className="text-[#A03D14] font-bold tracking-[0.25em] uppercase text-sm md:text-base mb-5">
                 Trải nghiệm ẩm thực
               </span>
-              <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-serif font-extrabold text-[#1a0a00] leading-[1.1] mb-6 drop-shadow-sm">
+              <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black tracking-tight text-[#1a0a00] leading-[1.15] mb-6 drop-shadow-sm">
                 Nâng tầm <br />
                 <span className="text-[#D35400]">Bữa ăn hàng ngày</span>
               </h1>

@@ -5,6 +5,7 @@ import {
   type SessionDetail,
   type SessionListItem,
   type CreateSessionRequest,
+  type SessionCalendarData,
 } from "@/types/session.types";
 import { SessionDetailSchema } from "@/types/session.types";
 
@@ -38,6 +39,20 @@ export const sessionService = {
     )) as unknown as ApiResponse<PaginatedList<SessionListItem>>;
 
     return response.value;
+  },
+
+  getSessionCalendar: async (year?: number): Promise<SessionCalendarData | null> => {
+    try {
+      const response = (await apiClient.get<ApiResponse<SessionCalendarData>>(
+        API_ENDPOINTS.SESSION.CALENDAR,
+        { params: year ? { year } : undefined },
+      )) as unknown as ApiResponse<SessionCalendarData>;
+
+      return response.value || null;
+    } catch (err) {
+      console.error("Error fetching session calendar:", err);
+      return null;
+    }
   },
 
   getSessionDetail: async (id: string): Promise<SessionDetail> => {

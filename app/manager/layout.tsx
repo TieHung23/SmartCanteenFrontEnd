@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ManagerBackground } from "./_components/manager-background";
 import {
-  LayoutDashboard,
+  BarChart3,
   CalendarDays,
   ChefHat,
   Layers,
@@ -56,9 +56,9 @@ interface MenuGroup {
 const MANAGER_MENU_GROUPS: MenuGroup[] = [
   {
     label: "Báo cáo",
-    icon: TrendingUp,
+    icon: BarChart3,
     items: [
-      { name: "Tổng quát", path: "/manager", icon: LayoutDashboard },
+      { name: "Báo cáo tổng hợp", path: "/manager", icon: BarChart3 },
       { name: "Báo cáo chi tiết Session", path: "/manager/reports/sessions", icon: TrendingUp },
     ],
   },

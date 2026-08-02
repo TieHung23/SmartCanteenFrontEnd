@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format, startOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Calendar, ChevronDown } from "lucide-react";
 import type { ReportPreset, DateRange } from "@/types/report.types";
 
@@ -20,12 +20,12 @@ function computeRange(preset: ReportPreset): DateRange {
       return { from: d, to: d };
     }
     case "thisWeek": {
-      const from = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const from = format(subDays(now, 6), "yyyy-MM-dd");
       const to = format(now, "yyyy-MM-dd");
       return { from, to };
     }
     case "thisMonth": {
-      const from = format(startOfMonth(now), "yyyy-MM-dd");
+      const from = format(subDays(now, 29), "yyyy-MM-dd");
       const to = format(now, "yyyy-MM-dd");
       return { from, to };
     }

@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Sessions/${id}`,
     DELETE: (id: string) => `/api/Sessions/${id}`,
     FINALIZE: (id: string) => `/api/Sessions/${id}/finalize`,
+    CALENDAR: "/api/sessions/calendar",
   },
   CATEGORY: {
     LIST: "/api/Categories",
