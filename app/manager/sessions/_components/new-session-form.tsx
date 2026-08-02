@@ -54,11 +54,17 @@ interface LocalTemplate extends CreateSessionTemplate {
 
 interface NewSessionFormProps {
   copyFromId: string | null;
+  initialDate?: string;
   onSuccess: (session: { id: string; name: string }) => void;
   onCancel: () => void;
 }
 
-export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: NewSessionFormProps) {
+export function NewSessionForm({
+  copyFromId: copyFrom,
+  initialDate,
+  onSuccess,
+  onCancel,
+}: NewSessionFormProps) {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [existingSessions, setExistingSessions] = useState<SessionListItem[]>([]);
@@ -72,8 +78,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   const [availableFrom, setAvailableFrom] = useState("");
   const [availableTo, setAvailableTo] = useState("");
   const [availableForOrder, setAvailableForOrder] = useState("");
-  const [sessionDate, setSessionDate] = useState("");
-  const [orderOpenDate, setOrderOpenDate] = useState("");
+  const [sessionDate, setSessionDate] = useState(initialDate || "");
+  const [orderOpenDate, setOrderOpenDate] = useState(initialDate || "");
   const [finalizationDeadline, setFinalizationDeadline] = useState("");
   const [autoFinalizePolicy, setAutoFinalizePolicy] = useState(0);
   const [clickedFields, setClickedFields] = useState<Set<string>>(new Set());

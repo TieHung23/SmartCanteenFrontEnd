@@ -11,7 +11,8 @@ import {
   Legend,
 } from "recharts";
 import { TrendingUp } from "lucide-react";
-import type { RevenueDataPoint } from "@/types/report.types";
+import { parseISO, eachDayOfInterval, format as formatDate, isValid } from "date-fns";
+import type { RevenueDataPoint, DateRange } from "@/types/report.types";
 
 function formatVND(amount: number): string {
   return new Intl.NumberFormat("vi-VN", {
@@ -67,9 +68,51 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 interface RevenueChartProps {
   data: RevenueDataPoint[] | undefined;
   loading: boolean;
+  dateRange?: DateRange;
 }
 
-export function RevenueChart({ data, loading }: RevenueChartProps) {
+function processChartData(
+  rawData: RevenueDataPoint[] | undefined,
+  dateRange?: DateRange,
+): RevenueDataPoint[] {
+  if (!rawData) return [];
+  if (!dateRange || !dateRange.from || !dateRange.to) return rawData;
+
+  try {
+    const startDate = parseISO(dateRange.from);
+    const endDate = parseISO(dateRange.to);
+
+    if (!isValid(startDate) || !isValid(endDate) || startDate > endDate) {
+      return rawData;
+    }
+
+    const allDays = eachDayOfInterval({ start: startDate, end: endDate });
+    const dataMap = new Map<string, RevenueDataPoint>();
+
+    rawData.forEach((item) => {
+      if (item.date) {
+        const key = item.date.substring(0, 10);
+        dataMap.set(key, item);
+      }
+    });
+
+    return allDays.map((d) => {
+      const key = formatDate(d, "yyyy-MM-dd");
+      const existing = dataMap.get(key);
+      return {
+        date: key,
+        revenue: existing ? existing.revenue : 0,
+        orders: existing ? existing.orders : 0,
+      };
+    });
+  } catch {
+    return rawData;
+  }
+}
+
+export function RevenueChart({ data, loading, dateRange }: RevenueChartProps) {
+  const chartData = processChartData(data, dateRange);
+
   if (loading) {
     return (
       <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
@@ -84,7 +127,7 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
     );
   }
 
-  if (!data || data.length === 0) {
+  if (!chartData || chartData.length === 0) {
     return (
       <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
@@ -101,19 +144,27 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
-      <div className="flex items-center gap-3 mb-6">
-        <TrendingUp className="w-6 h-6 text-[#D35400]" />
-        <h2 className="text-2xl font-black text-gray-900">Doanh thu theo thời gian</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <TrendingUp className="w-6 h-6 text-[#D35400]" />
+          <h2 className="text-2xl font-black text-gray-900">Doanh thu theo thời gian</h2>
+        </div>
+        {dateRange && (
+          <span className="text-xs font-bold text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+            {chartData.length} ngày
+          </span>
+        )}
       </div>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12, fontWeight: 600 }}
+              tick={{ fontSize: 11, fontWeight: 600 }}
               tickLine={false}
               axisLine={{ stroke: "#e5e7eb" }}
+              minTickGap={20}
               tickFormatter={(val: string) => {
                 if (!val) return "";
                 const parts = val.split("-");
@@ -124,22 +175,27 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
             <YAxis
               yAxisId="left"
               orientation="left"
-              tick={{ fontSize: 12, fontWeight: 600 }}
+              tick={{ fontSize: 11, fontWeight: 600, fill: "#D35400" }}
               tickLine={false}
               axisLine={false}
+              domain={[
+                0,
+                (dataMax: number) => (dataMax === 0 ? 100000 : Math.ceil(dataMax * 1.15)),
+              ]}
               tickFormatter={(val: number) => {
-                if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(0)}M`;
-                if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
-                return val.toString();
+                if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M đ`;
+                if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K đ`;
+                return `${val} đ`;
               }}
             />
             <YAxis
               yAxisId="right"
               orientation="right"
-              tick={{ fontSize: 12, fontWeight: 600 }}
+              tick={{ fontSize: 11, fontWeight: 600, fill: "#2563EB" }}
               tickLine={false}
               axisLine={false}
               allowDecimals={false}
+              domain={[0, (dataMax: number) => (dataMax === 0 ? 5 : Math.max(dataMax + 1, 5))]}
               tickFormatter={(val: number) => `${val}`}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -154,8 +210,8 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
               dataKey="revenue"
               stroke="#D35400"
               strokeWidth={2.5}
-              dot={{ fill: "#D35400", r: 4 }}
-              activeDot={{ r: 7, stroke: "#ffffff", strokeWidth: 2 }}
+              dot={{ fill: "#D35400", r: chartData.length > 20 ? 2 : 4 }}
+              activeDot={{ r: 6, stroke: "#ffffff", strokeWidth: 2 }}
             />
             <Line
               yAxisId="right"
@@ -163,8 +219,8 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
               dataKey="orders"
               stroke="#3B82F6"
               strokeWidth={2.5}
-              dot={{ fill: "#3B82F6", r: 4 }}
-              activeDot={{ r: 7, stroke: "#ffffff", strokeWidth: 2 }}
+              dot={{ fill: "#3B82F6", r: chartData.length > 20 ? 2 : 4 }}
+              activeDot={{ r: 6, stroke: "#ffffff", strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil, Power } from "lucide-react";
+import { Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil, Power } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "sonner";
 import { sessionService } from "@/services/session.service";
@@ -10,6 +10,7 @@ import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
 import Modal from "../_components/modal";
 import { NewSessionForm } from "./_components/new-session-form";
+import { SessionCalendarHeatmap } from "@/components/features/sessions/session-calendar-heatmap";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -34,6 +35,7 @@ export default function ManagerSessionsPage() {
   // Modal & Form States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [copySessionId, setCopySessionId] = useState<string | null>(null);
+  const [createInitialDate, setCreateInitialDate] = useState<string | undefined>(undefined);
 
   const fetchSessions = async () => {
     try {
@@ -161,13 +163,15 @@ export default function ManagerSessionsPage() {
     }
   };
 
-  const handleOpenCreateNew = () => {
+  const handleOpenCreateForDate = (dateStr?: string) => {
     setCopySessionId(null);
+    setCreateInitialDate(dateStr);
     setIsCreateOpen(true);
   };
 
   const handleOpenCopy = (id: string) => {
     setCopySessionId(id);
+    setCreateInitialDate(undefined);
     setIsCreateOpen(true);
   };
 
@@ -192,21 +196,19 @@ export default function ManagerSessionsPage() {
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Header Block */}
-      <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-extrabold text-gray-900">Ca phục vụ</h1>
-          <p className="text-lg text-gray-500 mt-1.5">
-            Quản lý và điều phối các phiên/ca ăn phục vụ.
-          </p>
-        </div>
-        <button
-          onClick={handleOpenCreateNew}
-          className="shrink-0 flex items-center justify-center gap-3 px-6 py-4 bg-[#D35400] text-white rounded-2xl font-black text-base hover:bg-[#b84900] transition-all shadow-md active:scale-95"
-        >
-          <Plus className="w-5 h-5" />
-          Ca phục vụ mới
-        </button>
+      <div className="border-b border-gray-200 pb-6">
+        <h1 className="text-4xl font-extrabold text-gray-900">Ca phục vụ</h1>
+        <p className="text-lg text-gray-500 mt-1.5">
+          Quản lý và điều phối các phiên/ca ăn phục vụ.
+        </p>
       </div>
+
+      {/* Calendar Heatmap & Day Shift Inspector */}
+      <SessionCalendarHeatmap
+        sessions={sessions}
+        onSelectDateToCreate={handleOpenCreateForDate}
+        onOpenSessionDetails={handleOpenDetails}
+      />
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -364,6 +366,7 @@ export default function ManagerSessionsPage() {
       >
         <NewSessionForm
           copyFromId={copySessionId}
+          initialDate={createInitialDate}
           onSuccess={() => {
             setIsCreateOpen(false);
             fetchSessions();

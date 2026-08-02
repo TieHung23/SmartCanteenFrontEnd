@@ -8,7 +8,7 @@ import { AuthProvider } from "@/context/auth-context";
 import { CartProvider } from "@/context/cart-context";
 import CartDrawer from "@/components/features/orders/CartDrawer";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-sans" });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
