@@ -124,11 +124,21 @@ export default function ManagerRobotPage() {
   const [detailArm, setDetailArm] = useState<RobotArmDetail | null>(null);
 
   const handleOpenDetail = async (armId: string) => {
+    const armFromList = arms.find((a) => a.id === armId);
+    if (!armFromList) {
+      toast.error("Không tìm thấy tay máy.");
+      return;
+    }
     try {
       const data = await robotArmService.getById(armId);
       setDetailArm(data);
     } catch {
-      toast.error("Không thể tải chi tiết tay máy robot.");
+      setDetailArm({
+        ...armFromList,
+        lanes: [],
+        createdAtUtc: armFromList.lastHeartbeatUtc ?? "",
+        updatedAtUtc: "",
+      });
     }
   };
 
@@ -179,8 +189,8 @@ export default function ManagerRobotPage() {
       toast.success("Đăng ký tay máy thành công!");
       fetchArms();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Đăng ký thất bại";
-      toast.error(msg);
+      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+      toast.error(data?.message || "Đăng ký thất bại");
     } finally {
       setFormSubmitting(false);
     }
@@ -218,8 +228,8 @@ export default function ManagerRobotPage() {
       toast.success("Cập nhật thành công!");
       fetchArms();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Cập nhật thất bại";
-      toast.error(msg);
+      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+      toast.error(data?.message || "Cập nhật thất bại");
     } finally {
       setFormSubmitting(false);
     }
@@ -244,8 +254,8 @@ export default function ManagerRobotPage() {
         setArms((prev) => prev.filter((a) => a.id !== arm.id));
         toast.success(`Đã xoá "${arm.name}"`);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Xoá thất bại";
-        toast.error(msg);
+        const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+        toast.error(data?.message || "Xoá thất bại");
       }
     });
   };

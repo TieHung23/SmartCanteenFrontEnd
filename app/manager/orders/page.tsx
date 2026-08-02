@@ -14,13 +14,16 @@ import {
   RefreshCw,
   Package,
   Coffee,
+  Eye,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { orderService } from "@/services/order.service";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import type { OrderListItem, OrderDetail, OrderStatus } from "@/types/order.types";
-import { ORDER_STATUS_META } from "@/types/order.types";
+import { ORDER_STATUS_META, ORDER_ITEM_STATUS_META } from "@/types/order.types";
+import Modal from "../_components/modal";
 
 interface EnrichedOrderDetail extends OrderDetail {
   userName?: string;
@@ -55,6 +58,12 @@ export default function ManagerOrdersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10;
 
+  // Detail Modal states
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedDetail, setSelectedDetail] = useState<EnrichedOrderDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
   const isHoveredOrDragging = useRef(false);
@@ -72,7 +81,7 @@ export default function ManagerOrdersPage() {
       const bLive = b.isActive && (!b.availableTo || new Date(b.availableTo) > now);
       if (aLive && !bLive) return -1;
       if (!aLive && bLive) return 1;
-      return 0;
+      return new Date(b.availableFrom || 0).getTime() - new Date(a.availableFrom || 0).getTime();
     });
   }, [sessions]);
 
@@ -206,7 +215,7 @@ export default function ManagerOrdersPage() {
     if (!q) return orders;
     return orders.filter((o) => {
       const detail = detailsMap.get(o.id);
-      const userName = detail?.userName || "";
+      const userName = detail?.userName || detail?.name || "";
       return (
         o.id.toLowerCase().includes(q) ||
         o.userId.toLowerCase().includes(q) ||
@@ -232,6 +241,41 @@ export default function ManagerOrdersPage() {
   );
   const firstItemIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const lastItemIndex = Math.min(currentPage * pageSize, totalCount);
+
+  // Open detail modal with full data fetch
+  const openDetailModal = async (orderId: string, existingDetail?: EnrichedOrderDetail) => {
+    if (existingDetail && existingDetail.items && existingDetail.items.length > 0) {
+      setSelectedDetail(existingDetail);
+      setIsDetailOpen(true);
+    } else {
+      setLoadingDetail(true);
+      setIsDetailOpen(true);
+      try {
+        const detail = await orderService.getManagerOrderById(orderId);
+        setSelectedDetail(detail as EnrichedOrderDetail);
+      } catch {
+        if (existingDetail) setSelectedDetail(existingDetail);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
+  };
+
+  // Update status inside detail modal
+  const handleUpdateStatusInModal = async (newStatus: number) => {
+    if (!selectedDetail) return;
+    setUpdatingStatus(true);
+    try {
+      await orderService.updateManagerOrderStatus(selectedDetail.id, newStatus);
+      const updated = await orderService.getManagerOrderById(selectedDetail.id);
+      setSelectedDetail(updated as EnrichedOrderDetail);
+      fetchOrdersWithDetails(selectedSessionId, currentPage, statusFilter);
+    } catch (err) {
+      console.error("Failed to update status", err);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in pb-16">
@@ -418,23 +462,26 @@ export default function ManagerOrdersPage() {
                 <table className="w-full min-w-[1200px] text-left">
                   <thead className="border-b border-gray-100 bg-gray-50/70">
                     <tr>
-                      <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-16">
+                      <th className="px-6 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-16">
                         #
                       </th>
-                      <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
+                      <th className="px-6 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
                         Khách hàng
                       </th>
-                      <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
+                      <th className="px-6 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
                         Món ăn
                       </th>
-                      <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-32">
+                      <th className="px-6 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-32">
                         Tổng tiền
                       </th>
-                      <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-36">
+                      <th className="px-6 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-36">
                         Trạng thái
                       </th>
-                      <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-32">
+                      <th className="px-6 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-32">
                         Thời gian
+                      </th>
+                      <th className="px-6 py-5 text-center text-sm font-black uppercase tracking-wider text-gray-400 w-28">
+                        Thao tác
                       </th>
                     </tr>
                   </thead>
@@ -443,10 +490,11 @@ export default function ManagerOrdersPage() {
                       const detail = detailsMap.get(order.id);
                       const meta = ORDER_STATUS_META[order.status] || ORDER_STATUS_META[0];
                       const userName =
+                        detail?.name ||
                         detail?.userName ||
                         (order as OrderListItem & { userName?: string }).userName ||
                         order.userId.slice(0, 12);
-                      const userImgUrl = detail?.userImgUrl || null;
+                      const userImgUrl = detail?.imgUrl || detail?.userImgUrl || null;
                       const items = detail?.items || [];
                       return (
                         <tr
@@ -454,12 +502,12 @@ export default function ManagerOrdersPage() {
                           className="transition-all duration-200 hover:bg-orange-50/30 animate-fade-in"
                           style={{ animationDelay: `${idx * 40}ms` } as React.CSSProperties}
                         >
-                          <td className="px-8 py-5">
+                          <td className="px-6 py-5">
                             <span className="font-mono text-sm font-bold text-[#D35400]">
                               #{order.id.slice(0, 8)}
                             </span>
                           </td>
-                          <td className="px-8 py-5">
+                          <td className="px-6 py-5">
                             <div className="flex items-center gap-3.5">
                               <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-[#D35400] border border-orange-100 shrink-0 overflow-hidden">
                                 {userImgUrl ? (
@@ -484,7 +532,7 @@ export default function ManagerOrdersPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-5">
+                          <td className="px-6 py-5">
                             {items.length > 0 ? (
                               <div className="flex flex-col gap-1">
                                 {items.slice(0, 3).map((item, i) => (
@@ -502,20 +550,29 @@ export default function ManagerOrdersPage() {
                               <span className="text-sm text-gray-400">—</span>
                             )}
                           </td>
-                          <td className="px-8 py-5">
-                            <span className="text-base font-black text-[#D35400]">
+                          <td className="px-6 py-5">
+                            <span className="text-base font-black text-[#D35400] inline-flex items-center gap-1">
                               {order.totalPrice.toLocaleString()}
+                              <div className="relative w-4 h-4 opacity-95">
+                                <Image
+                                  src="/logo_point.png"
+                                  alt="P"
+                                  fill
+                                  sizes="16px"
+                                  className="object-contain filter brightness-110"
+                                />
+                              </div>
                             </span>
                           </td>
-                          <td className="px-8 py-5">
+                          <td className="px-6 py-5">
                             <span
-                              className="inline-flex px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider"
+                              className="inline-flex px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
                               style={{ color: meta.color, backgroundColor: meta.bg }}
                             >
                               {meta.label}
                             </span>
                           </td>
-                          <td className="px-8 py-5 text-sm font-semibold text-gray-500 whitespace-nowrap">
+                          <td className="px-6 py-5 text-sm font-semibold text-gray-500 whitespace-nowrap">
                             {new Date(order.createdAtUtc).toLocaleDateString("vi-VN", {
                               day: "2-digit",
                               month: "2-digit",
@@ -524,6 +581,15 @@ export default function ManagerOrdersPage() {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            <button
+                              onClick={() => openDetailModal(order.id, detail)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#D35400] transition-all hover:bg-[#D35400] hover:text-white shadow-2xs"
+                              title="Xem chi tiết đơn hàng"
+                            >
+                              <Eye className="w-4.5 h-4.5" />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -604,6 +670,301 @@ export default function ManagerOrdersPage() {
           )}
         </>
       )}
+
+      {/* ── ORDER DETAIL MODAL ── */}
+      <Modal
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        title={`Chi tiết đơn hàng #${selectedDetail?.id?.slice(0, 8) || ""}`}
+        size="lg"
+      >
+        {loadingDetail ? (
+          <div className="flex h-[40vh] flex-col items-center justify-center gap-3">
+            <Loader2 className="w-10 h-10 animate-spin text-[#D35400]" />
+            <p className="text-sm font-bold text-gray-500">Đang tải chi tiết đơn hàng...</p>
+          </div>
+        ) : selectedDetail ? (
+          <div className="space-y-6 text-gray-800">
+            {/* Header: Customer Info & Status Badge */}
+            <div className="bg-gradient-to-r from-orange-50/70 via-amber-50/50 to-white p-5 rounded-2xl border border-orange-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-[#D35400] border border-orange-200 shadow-sm shrink-0 overflow-hidden">
+                  {selectedDetail.imgUrl || selectedDetail.userImgUrl ? (
+                    <Image
+                      src={(selectedDetail.imgUrl || selectedDetail.userImgUrl)!}
+                      alt={selectedDetail.name || selectedDetail.userName || "Khách hàng"}
+                      width={56}
+                      height={56}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-7 h-7 text-[#D35400]" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-gray-900">
+                    {selectedDetail.name || selectedDetail.userName || "Khách hàng"}
+                  </h4>
+                  <p className="text-xs font-mono text-gray-500">
+                    User ID: {selectedDetail.userId}
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Badge */}
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                {(() => {
+                  const meta = ORDER_STATUS_META[selectedDetail.status] || ORDER_STATUS_META[0];
+                  return (
+                    <span
+                      className="px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-2xs"
+                      style={{ color: meta.color, backgroundColor: meta.bg }}
+                    >
+                      {meta.icon} {meta.label}
+                    </span>
+                  );
+                })()}
+                <span className="text-xs text-gray-400 font-medium">
+                  {selectedDetail.createdAtUtc &&
+                    new Date(selectedDetail.createdAtUtc).toLocaleString("vi-VN")}
+                </span>
+              </div>
+            </div>
+
+            {/* Identifiers Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-gray-50/90 rounded-xl p-3.5 border border-gray-100">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  Mã Đơn (Order ID)
+                </p>
+                <p className="text-xs font-mono font-bold text-gray-800 mt-1 truncate">
+                  {selectedDetail.id}
+                </p>
+              </div>
+
+              <div className="bg-gray-50/90 rounded-xl p-3.5 border border-gray-100">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  Mã Giao Dịch (Transaction ID)
+                </p>
+                <p className="text-xs font-mono font-bold text-gray-800 mt-1 truncate">
+                  {selectedDetail.transactionId || "—"}
+                </p>
+              </div>
+
+              <div className="bg-gray-50/90 rounded-xl p-3.5 border border-gray-100">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  Mã Mẫu Thực Đơn (Meal Template ID)
+                </p>
+                <p className="text-xs font-mono font-bold text-gray-800 mt-1 truncate">
+                  {selectedDetail.mealTemplateId || "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Dishes & Items Table */}
+            <div>
+              <h5 className="text-sm font-black uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-[#D35400]" />
+                Danh sách món ăn ({selectedDetail.items?.length || 0})
+              </h5>
+              <div className="border border-gray-200/80 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-gray-50/90 border-b border-gray-100 text-xs font-black uppercase tracking-wider text-gray-400">
+                    <tr>
+                      <th className="py-3 px-4">Món ăn</th>
+                      <th className="py-3 px-4">Trạng thái món</th>
+                      <th className="py-3 px-4 text-center">Đơn giá</th>
+                      <th className="py-3 px-4 text-center">Số lượng</th>
+                      <th className="py-3 px-4 text-right">Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm">
+                    {selectedDetail.items && selectedDetail.items.length > 0 ? (
+                      selectedDetail.items.map((item, i) => {
+                        const itemMeta =
+                          item.itemStatus !== undefined
+                            ? ORDER_ITEM_STATUS_META[item.itemStatus]
+                            : null;
+                        const subtotal = item.unitPrice * item.quantity;
+                        return (
+                          <tr key={i} className="hover:bg-orange-50/30 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
+                                  {item.imgUrl ? (
+                                    <Image
+                                      src={item.imgUrl}
+                                      alt={item.dishName || "Món ăn"}
+                                      width={40}
+                                      height={40}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Coffee className="w-4 h-4 text-gray-400" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-900">
+                                    {item.dishName || `Món ID: ${item.dishId.slice(0, 8)}`}
+                                  </p>
+                                  <p className="text-[10px] font-mono text-gray-400">
+                                    ID: {item.dishId.slice(0, 12)}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {itemMeta ? (
+                                <span
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                                  style={{ color: itemMeta.color, backgroundColor: itemMeta.bg }}
+                                >
+                                  {itemMeta.label}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center font-bold text-gray-700">
+                              {item.unitPrice.toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4 text-center font-bold text-gray-900">
+                              x{item.quantity}
+                            </td>
+                            <td className="py-3 px-4 text-right font-black text-[#D35400]">
+                              {subtotal.toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-gray-400 font-bold">
+                          Không có thông tin chi tiết món ăn.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  <tfoot className="bg-gray-50/90 border-t-2 border-gray-200 font-black">
+                    <tr>
+                      <td colSpan={4} className="py-3.5 px-4 text-right text-gray-700 uppercase">
+                        Tổng thanh toán:
+                      </td>
+                      <td className="py-3.5 px-4 text-right text-[#D35400] text-base">
+                        <span className="inline-flex items-center gap-1">
+                          {selectedDetail.totalPrice.toLocaleString()}
+                          <div className="relative w-4 h-4 opacity-95">
+                            <Image
+                              src="/logo_point.png"
+                              alt="P"
+                              fill
+                              sizes="16px"
+                              className="object-contain filter brightness-110"
+                            />
+                          </div>
+                        </span>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Status Histories Timeline */}
+            {selectedDetail.statusHistories && selectedDetail.statusHistories.length > 0 && (
+              <div>
+                <h5 className="text-sm font-black uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#D35400]" />
+                  Lịch sử chuyển trạng thái ({selectedDetail.statusHistories.length})
+                </h5>
+                <div className="bg-gray-50/70 rounded-2xl p-4 border border-gray-100 space-y-3">
+                  {selectedDetail.statusHistories.map((h, index) => {
+                    const fromMeta = ORDER_STATUS_META[h.fromStatus] || ORDER_STATUS_META[0];
+                    const toMeta = ORDER_STATUS_META[h.toStatus] || ORDER_STATUS_META[0];
+                    return (
+                      <div
+                        key={h.id || index}
+                        className="bg-white rounded-xl p-3 border border-gray-200/70 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className="px-2 py-0.5 rounded text-[11px] font-bold"
+                              style={{ color: fromMeta.color, backgroundColor: fromMeta.bg }}
+                            >
+                              {fromMeta.label}
+                            </span>
+                            <span className="text-xs text-gray-400 font-bold">➔</span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[11px] font-bold"
+                              style={{ color: toMeta.color, backgroundColor: toMeta.bg }}
+                            >
+                              {toMeta.label}
+                            </span>
+
+                            {h.reasonCode && (
+                              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-mono text-[10px] font-bold border border-blue-100">
+                                {h.reasonCode}
+                              </span>
+                            )}
+                          </div>
+
+                          {h.note && (
+                            <p className="text-xs text-gray-600 font-medium italic">
+                              &quot;{h.note}&quot;
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="text-[11px] text-gray-400 font-semibold">
+                            {new Date(h.createdAtUtc).toLocaleString("vi-VN")}
+                          </p>
+                          {h.createdBy && (
+                            <p className="text-[10px] font-mono text-gray-400">
+                              By: {h.createdBy.slice(0, 8)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Status Update Action */}
+            <div className="pt-2 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-500 uppercase">
+                  Đổi trạng thái nhanh:
+                </span>
+                <select
+                  disabled={updatingStatus}
+                  value={selectedDetail.status}
+                  onChange={(e) => handleUpdateStatusInModal(Number(e.target.value))}
+                  className="h-10 px-3 py-1 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-[#D35400]/20"
+                >
+                  <option value={0}>0 - Pending (Chờ xử lý)</option>
+                  <option value={4}>4 - Preparing (Đang chuẩn bị)</option>
+                  <option value={1}>1 - Ready for Pickup (Sẵn sàng nhận)</option>
+                  <option value={2}>2 - Completed (Hoàn thành)</option>
+                  <option value={3}>3 - Cancelled (Hủy)</option>
+                  <option value={7}>7 - Expired (Hết hạn)</option>
+                </select>
+                {updatingStatus && <Loader2 className="w-4 h-4 animate-spin text-[#D35400]" />}
+              </div>
+
+              <button
+                onClick={() => setIsDetailOpen(false)}
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs hover:bg-gray-800 transition-all self-end sm:self-auto"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

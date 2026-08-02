@@ -53,8 +53,22 @@ export interface OrderListItem {
   createdAtUtc: string;
 }
 
+export interface OrderStatusHistory {
+  id: string;
+  fromStatus: OrderStatus;
+  toStatus: OrderStatus;
+  reasonCode?: string | null;
+  note?: string | null;
+  createdAtUtc: string;
+  createdBy?: string | null;
+}
+
 export interface OrderDetail extends OrderListItem {
+  mealTemplateId?: string | null;
+  name?: string | null;
+  imgUrl?: string | null;
   items: OrderItem[];
+  statusHistories?: OrderStatusHistory[];
   updatedAtUtc: string | null;
 }
 

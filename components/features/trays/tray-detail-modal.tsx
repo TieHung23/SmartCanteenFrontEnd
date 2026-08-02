@@ -22,6 +22,7 @@ import { trayService } from "@/services/tray.service";
 import type { TrayDetail, TrayStatus } from "@/types/tray.types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
 import Link from "next/link";
 
 const STATUS_CONFIG: Record<
@@ -157,7 +158,18 @@ export default function TrayDetailModal({
 
   const handleForceRelease = async () => {
     if (!detail) return;
-    if (!confirm(`Bạn có chắc chắn muốn giải phóng cưỡng chế khay ${detail.code}?`)) return;
+    const res = await Swal.fire({
+      title: "Giải phóng khay cưỡng chế?",
+      html: `Bạn có chắc chắn muốn giải phóng cưỡng chế khay <strong class="text-[#D35400]">${detail.code}</strong>?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#D35400",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Giải phóng ngay",
+      cancelButtonText: "Hủy",
+    });
+    if (!res.isConfirmed) return;
+
     setActionLoading(true);
     try {
       await trayService.forceRelease(detail.id);
@@ -174,7 +186,18 @@ export default function TrayDetailModal({
 
   const handleRetire = async () => {
     if (!detail) return;
-    if (!confirm(`Bạn có chắc chắn muốn ngưng sử dụng khay ${detail.code}?`)) return;
+    const res = await Swal.fire({
+      title: "Ngưng sử dụng khay?",
+      html: `Bạn có chắc chắn muốn ngưng sử dụng khay <strong class="text-[#D35400]">${detail.code}</strong>?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Ngưng sử dụng",
+      cancelButtonText: "Hủy",
+    });
+    if (!res.isConfirmed) return;
+
     setActionLoading(true);
     try {
       await trayService.retire(detail.id);

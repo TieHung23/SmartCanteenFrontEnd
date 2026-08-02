@@ -10,7 +10,7 @@ import {
   ArrowRight,
   CheckCircle2,
   RefreshCw,
-  Cpu,
+  ShieldAlert,
 } from "lucide-react";
 import { logService } from "@/services/log.service";
 
@@ -97,7 +97,7 @@ export default function AdminDashboardPage() {
               <ShieldCheck className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-3xl font-black text-amber-600">An toàn</p>
+          <p className="text-3xl font-black text-amber-[#D35400]">An toàn</p>
           <p className="text-xs text-gray-400 font-bold">Token Bearer Authorize Enabled</p>
         </div>
       </div>
@@ -111,10 +111,11 @@ export default function AdminDashboardPage() {
                 <FileText className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-black text-gray-900 group-hover:text-[#D35400] transition-colors">
-                Xem Nhật Ký API
+                Tất Cả Nhật Ký API
               </h3>
               <p className="text-sm text-gray-500 max-w-sm">
-                Tra cứu các yêu cầu HTTP GET/POST, chi tiết Request, Response Body và Error Trace.
+                Tra cứu danh sách toàn bộ các yêu cầu HTTP GET/POST, chi tiết Request & Response
+                Body.
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-gray-50 group-hover:bg-[#D35400] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
@@ -123,20 +124,20 @@ export default function AdminDashboardPage() {
           </div>
         </Link>
 
-        <Link href="/manager" className="group block">
-          <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-xs hover:shadow-md hover:border-orange-200 transition-all duration-300 flex items-center justify-between">
+        <Link href="/admin/logs" className="group block">
+          <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all duration-300 flex items-center justify-between">
             <div className="space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-                <Cpu className="w-6 h-6" />
+                <ShieldAlert className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-black text-gray-900 group-hover:text-blue-600 transition-colors">
-                Trang Quản Lý Canteen
+              <h3 className="text-xl font-black text-gray-900 group-hover:text-indigo-600 transition-colors">
+                Giám Sát & An Ninh Hệ Thống
               </h3>
               <p className="text-sm text-gray-500 max-w-sm">
-                Truy cập cổng quản lý Menu, Ca phục vụ, Khay, Tay máy Robot và Đơn hàng.
+                Theo dõi phản hồi máy chủ, phân tích tải API và cảnh báo an ninh bảo mật hệ thống.
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gray-50 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-gray-50 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>

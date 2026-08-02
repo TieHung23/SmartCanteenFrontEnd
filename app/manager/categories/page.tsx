@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Search, Trash2, Tag, LayoutGrid, LayoutList, Pencil } from "lucide-react";
+import Swal from "sweetalert2";
+import { toast } from "sonner";
 import { categoryService } from "@/services/category.service";
 import type { Category } from "@/types/category.types";
 import { cn } from "@/lib/utils";
@@ -54,12 +56,34 @@ export default function CategoryListPage() {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Xóa danh mục "${name}"?`)) return;
+    const result = await Swal.fire({
+      title: "Xác nhận xóa danh mục?",
+      html: `Bạn có chắc chắn muốn xóa danh mục <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-gray-500 font-normal mt-1 block">Hành động này không thể hoàn tác.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xóa danh mục",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-2xl p-6",
+        title: "text-xl font-black text-gray-900",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await categoryService.delete(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      console.error(err);
+      toast.success(`Đã xóa danh mục "${name}" thành công!`);
+    } catch (err: unknown) {
+      console.error("Lỗi xóa danh mục:", err);
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Xóa danh mục thất bại. Danh mục có thể đang chứa món ăn.";
+      toast.error(msg);
     }
   };
 
@@ -230,46 +254,47 @@ export default function CategoryListPage() {
           <p className="text-gray-400 font-bold text-lg">Chưa có danh mục nào được khởi tạo.</p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {categories.map((category) => (
             <div
               key={category.id}
-              className="bg-white rounded-3xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 flex flex-col shadow-2xs card-3d"
+              className="bg-white rounded-3xl border border-gray-100 p-3.5 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 flex flex-col shadow-2xs card-3d"
             >
-              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mb-3">
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mb-2.5">
                 {category.imgUrl ? (
                   <Image
                     src={category.imgUrl}
                     alt={category.name}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-300 bg-white">
-                    <Tag className="w-8 h-8" />
+                    <Tag className="w-7 h-7" />
                   </div>
                 )}
               </div>
-              <h3 className="text-lg font-black text-gray-900 mb-1 truncate uppercase tracking-wide">
+              <h3 className="text-base font-black text-gray-900 mb-1 truncate uppercase tracking-wide">
                 {category.name}
               </h3>
-              <p className="text-sm text-gray-500 mb-5 line-clamp-2 min-h-[2.5rem]">
+              <p className="text-xs text-gray-500 mb-4 line-clamp-2 min-h-[2rem]">
                 {category.description || "Chưa có mô tả cho danh mục này."}
               </p>
-              <div className="mt-auto flex items-center gap-3">
+              <div className="mt-auto flex items-center gap-2">
                 <button
                   onClick={() => openEditModal(category)}
-                  className="flex-1 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#D35400]/10 text-[#D35400] rounded-xl text-xs font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center flex items-center justify-center gap-1.5"
+                  title="Sửa danh mục"
                 >
-                  <Pencil className="w-4 h-4" />
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => handleDelete(category.id, category.name)}
-                  className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl border border-transparent hover:border-red-100 transition-all shrink-0"
+                  className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all shrink-0"
                   title="Xóa danh mục"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
