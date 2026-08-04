@@ -9,27 +9,38 @@ import { refundService } from "@/services/refund.service";
 import type { ManagerRefundDetail } from "@/types/refund.types";
 import { cn } from "@/lib/utils";
 
-const getRefundStatusStyle = (status: string | number) => {
+const getRefundStatusStyle = (
+  status: string | number,
+  changeProposalId?: string | null,
+  reviewedBy?: string | null,
+) => {
   const s = String(status).toLowerCase();
   if (s === "pending" || s === "1" || s === "0") {
     return {
-      label: "CHỜ XỬ LÝ",
+      label: "Chờ xử lý",
       color: "text-amber-800",
       bg: "bg-amber-100 border border-amber-200",
     };
   }
   if (s === "approved" || s === "2") {
+    if (changeProposalId || reviewedBy === null) {
+      return {
+        label: "Tự động hoàn tiền",
+        color: "text-blue-800",
+        bg: "bg-blue-100 border border-blue-200",
+      };
+    }
     return {
-      label: "ĐÃ DUYỆT",
+      label: "Đã duyệt",
       color: "text-emerald-800",
       bg: "bg-emerald-100 border border-emerald-200",
     };
   }
   if (s === "rejected" || s === "3") {
-    return { label: "TỪ CHỐI", color: "text-red-800", bg: "bg-red-100 border border-red-200" };
+    return { label: "Từ chối", color: "text-red-800", bg: "bg-red-100 border border-red-200" };
   }
   return {
-    label: "CHỜ XỬ LÝ",
+    label: "Chờ xử lý",
     color: "text-amber-800",
     bg: "bg-amber-100 border border-amber-200",
   };
@@ -115,7 +126,7 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
     );
   }
 
-  const style = getRefundStatusStyle(detail.status);
+  const style = getRefundStatusStyle(detail.status, detail.changeProposalId, detail.reviewedBy);
 
   return (
     <div className="space-y-6">
@@ -220,6 +231,11 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
                 >
                   {style.label}
                 </span>
+                {(detail.changeProposalId || detail.reviewedBy === null) && (
+                  <p className="text-xs font-semibold text-blue-600 mt-1.5 italic">
+                    ⚡ Hệ thống tự động hoàn tiền trực tiếp vào ví người dùng (do sự cố ca phục vụ).
+                  </p>
+                )}
               </div>
               <div className="py-3">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">

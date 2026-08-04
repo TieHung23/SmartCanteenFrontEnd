@@ -41,7 +41,6 @@ import {
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
 
-const AVAILABLE_LANE_CODES = ["S1_L1", "S1_L2", "S1_L3"];
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -78,8 +77,14 @@ export function NewSessionForm({
   const [availableFrom, setAvailableFrom] = useState("");
   const [availableTo, setAvailableTo] = useState("");
   const [availableForOrder, setAvailableForOrder] = useState("");
-  const [sessionDate, setSessionDate] = useState(initialDate || "");
-  const [orderOpenDate, setOrderOpenDate] = useState(initialDate || "");
+  const defaultInitialDate = useMemo(() => {
+    const todayStr = dayjs().format("YYYY-MM-DD");
+    if (!initialDate) return todayStr;
+    return dayjs(initialDate).isBefore(dayjs(), "day") ? todayStr : initialDate;
+  }, [initialDate]);
+
+  const [sessionDate, setSessionDate] = useState(defaultInitialDate);
+  const [orderOpenDate, setOrderOpenDate] = useState(defaultInitialDate);
   const [finalizationDeadline, setFinalizationDeadline] = useState("");
   const [autoFinalizePolicy, setAutoFinalizePolicy] = useState(0);
   const [clickedFields, setClickedFields] = useState<Set<string>>(new Set());
@@ -196,6 +201,19 @@ export function NewSessionForm({
   >({});
   const [robotArms, setRobotArms] = useState<RobotArm[]>([]);
 
+  // Tự động sinh danh sách mã Lane từ các RobotArm hiện có (hoặc mặc định S1, S2, S3 nếu chưa có dữ liệu)
+  const allLaneOptions = useMemo(() => {
+    if (robotArms.length > 0) {
+      const list: string[] = [];
+      robotArms.forEach((arm) => {
+        const code = (arm.code || "S1").toUpperCase();
+        list.push(`${code}_L1`, `${code}_L2`, `${code}_L3`);
+      });
+      return list;
+    }
+    return ["S1_L1", "S1_L2", "S1_L3", "S2_L1", "S2_L2", "S2_L3", "S3_L1", "S3_L2", "S3_L3"];
+  }, [robotArms]);
+
   function toDatetimeLocal(iso: string): string {
     const d = new Date(iso);
     const pad = (n: number) => n.toString().padStart(2, "0");
@@ -206,20 +224,32 @@ export function NewSessionForm({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWizardLaneConfigs((prev) => {
       const next = { ...prev };
-      let idx = 0;
+      const usedLanes = new Set(
+        Object.values(next)
+          .map((c) => c.laneCode)
+          .filter(Boolean),
+      );
+
       selectedDishIds.forEach((dishId) => {
         if (!next[dishId]) {
+          let defaultLane = allLaneOptions.find((l) => !usedLanes.has(l));
+          if (!defaultLane) {
+            const nextIdx = Object.keys(next).length;
+            defaultLane = allLaneOptions[nextIdx % allLaneOptions.length] || "S1_L1";
+          }
+          usedLanes.add(defaultLane);
+          const armPrefix = defaultLane.split("_")[0];
+          const matchingArm = robotArms.find((a) => (a.code || "").toUpperCase() === armPrefix);
           next[dishId] = {
-            laneCode: AVAILABLE_LANE_CODES[idx % 3], // Ưu tiên S1_L1, S1_L2, S1_L3 làm mặc định
+            laneCode: defaultLane,
             capacity: 12,
-            robotArmId: "",
+            robotArmId: matchingArm ? matchingArm.id : "",
           };
-          idx++;
         }
       });
       return next;
     });
-  }, [selectedDishIds]);
+  }, [selectedDishIds, allLaneOptions, robotArms]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -228,7 +258,7 @@ export function NewSessionForm({
           dishService.getDishes({ isActive: true, pageSize: 100 }),
           categoryService.getAll(),
           sessionService
-            .getSessions({ pageSize: 100 })
+            .getSessions({ pageSize: 1000 })
             .catch(() => ({ items: [] as SessionListItem[] })),
           robotArmService.getList().catch(() => [] as RobotArm[]),
         ]);
@@ -246,8 +276,16 @@ export function NewSessionForm({
           setAvailableForOrder(toDatetimeLocal(detail.availableForOrder));
           if (detail.finalizationDeadline)
             setFinalizationDeadline(toDatetimeLocal(detail.finalizationDeadline));
-          setOrderOpenDate(toDatetimeLocal(detail.availableForOrder).split("T")[0]);
-          setSessionDate(toDatetimeLocal(detail.availableFrom).split("T")[0]);
+          const todayStr = dayjs().format("YYYY-MM-DD");
+          const copiedOrderDate = toDatetimeLocal(detail.availableForOrder).split("T")[0];
+          const copiedSessionDate = toDatetimeLocal(detail.availableFrom).split("T")[0];
+
+          setOrderOpenDate(
+            dayjs(copiedOrderDate).isBefore(dayjs(), "day") ? todayStr : copiedOrderDate,
+          );
+          setSessionDate(
+            dayjs(copiedSessionDate).isBefore(dayjs(), "day") ? todayStr : copiedSessionDate,
+          );
           setSelectedDishIds(new Set(detail.dishes.map((d) => d.dishId)));
           setTemplates(
             detail.mealTemplates.map((t, idx) => ({
@@ -663,6 +701,42 @@ export function NewSessionForm({
       ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
     ]);
     if (totalDishes.size === 0) errs.dishes = "Vui lòng chọn ít nhất một món ăn.";
+
+    // 1. Chặn tạo phiên khi chưa tạo cấu hình Lane cho các món ăn
+    const dishIdList = Array.from(totalDishes);
+    const unconfiguredDishes = dishIdList.filter(
+      (dishId) => !wizardLaneConfigs[dishId]?.laneCode?.trim(),
+    );
+    if (totalDishes.size > 0 && unconfiguredDishes.length > 0) {
+      errs.lanes = `Bạn chưa cấu hình Lane cho ${unconfiguredDishes.length} món ăn!`;
+    }
+
+    // 2. Chặn tạo phiên khi có Mã Lane bị gán TRÙNG giữa các món ăn trong cùng 1 ca
+    const laneUsageMap = new Map<string, string[]>();
+    dishIdList.forEach((dishId) => {
+      const code = wizardLaneConfigs[dishId]?.laneCode?.trim()?.toUpperCase();
+      if (code) {
+        const dish = dishes.find((d) => d.id === dishId);
+        const name = dish ? dish.name : "Món ăn";
+        const current = laneUsageMap.get(code) || [];
+        current.push(name);
+        laneUsageMap.set(code, current);
+      }
+    });
+
+    const dupDetails: string[] = [];
+    laneUsageMap.forEach((dishNames, laneCode) => {
+      if (dishNames.length > 1) {
+        dupDetails.push(
+          `Mã Lane "${laneCode}" bị gán trùng cho ${dishNames.length} món (${dishNames.join(", ")})`,
+        );
+      }
+    });
+
+    if (dupDetails.length > 0) {
+      errs.duplicateLanes = dupDetails.join("; ");
+    }
+
     if (templates.some((t) => !t.name.trim()))
       errs.templatesName = "Tên khuôn mẫu không được để trống.";
     for (const t of templates) {
@@ -680,6 +754,20 @@ export function NewSessionForm({
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setError(null);
+
+      // Nếu thiếu cấu hình Lane hoặc bị TRÙNG Mã Lane -> CHẶN NGAY, không tạo session, tự động nhảy sang Bước 2!
+      if (validationErrors.lanes || validationErrors.duplicateLanes) {
+        setWizardStep(2);
+        const title = validationErrors.duplicateLanes
+          ? "Bị trùng mã Lane trong ca!"
+          : "Bạn chưa tạo cấu hình Lane!";
+        const desc = validationErrors.duplicateLanes || validationErrors.lanes;
+        toast.error(title, {
+          description: `${desc}. Vui lòng chỉnh sửa ở Bước 2 để mỗi món có 1 Mã Lane riêng trước khi tạo ca.`,
+          duration: 7000,
+        });
+        return;
+      }
 
       const FIELD_ORDER = [
         "name",
@@ -902,6 +990,24 @@ export function NewSessionForm({
             </div>
           </div>
 
+          {(errors.lanes || errors.duplicateLanes) && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 flex items-center gap-3 text-xs font-bold animate-shake">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              <div>
+                <p className="font-extrabold text-sm text-red-800">
+                  ⚠️{" "}
+                  {errors.duplicateLanes
+                    ? "Mã Lane bị trùng giữa các món!"
+                    : "Chưa chọn Mã Lane cho món ăn!"}
+                </p>
+                <p className="text-red-600 mt-0.5 font-medium leading-relaxed">
+                  {errors.duplicateLanes || errors.lanes} Vui lòng chọn cho mỗi món một Mã Lane
+                  riêng trước khi tạo ca.
+                </p>
+              </div>
+            </div>
+          )}
+
           {selectedDishes.length === 0 ? (
             <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
               <p className="text-sm font-bold text-gray-400">
@@ -941,6 +1047,15 @@ export function NewSessionForm({
                       capacity: 12,
                       robotArmId: "",
                     };
+                    const selectedArm = robotArms.find((a) => a.id === cfg.robotArmId);
+                    const availableLanes = selectedArm
+                      ? [
+                          `${selectedArm.code.toUpperCase()}_L1`,
+                          `${selectedArm.code.toUpperCase()}_L2`,
+                          `${selectedArm.code.toUpperCase()}_L3`,
+                        ]
+                      : allLaneOptions;
+
                     return (
                       <tr key={dish.id} className="hover:bg-orange-50/20">
                         <td className="px-5 py-4 font-bold text-sm text-gray-900">{dish.name}</td>
@@ -949,14 +1064,22 @@ export function NewSessionForm({
                             value={cfg.laneCode}
                             onChange={(e) => {
                               const val = e.target.value;
+                              const armPrefix = val.split("_")[0];
+                              const matchingArm = robotArms.find(
+                                (a) => (a.code || "").toUpperCase() === armPrefix,
+                              );
                               setWizardLaneConfigs((prev) => ({
                                 ...prev,
-                                [dish.id]: { ...cfg, laneCode: val },
+                                [dish.id]: {
+                                  ...cfg,
+                                  laneCode: val,
+                                  robotArmId: matchingArm ? matchingArm.id : cfg.robotArmId,
+                                },
                               }));
                             }}
                             className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl font-mono text-sm font-bold text-gray-900 focus:border-[#D35400] outline-none shadow-xs"
                           >
-                            {AVAILABLE_LANE_CODES.map((lane) => (
+                            {availableLanes.map((lane) => (
                               <option key={lane} value={lane}>
                                 {lane}
                               </option>
@@ -982,10 +1105,18 @@ export function NewSessionForm({
                           <select
                             value={cfg.robotArmId}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              const armId = e.target.value;
+                              const arm = robotArms.find((a) => a.id === armId);
+                              const newLaneCode = arm
+                                ? `${arm.code.toUpperCase()}_L1`
+                                : cfg.laneCode;
                               setWizardLaneConfigs((prev) => ({
                                 ...prev,
-                                [dish.id]: { ...cfg, robotArmId: val },
+                                [dish.id]: {
+                                  ...cfg,
+                                  robotArmId: armId,
+                                  laneCode: newLaneCode,
+                                },
                               }));
                             }}
                             className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:border-[#D35400] outline-none"
@@ -993,7 +1124,7 @@ export function NewSessionForm({
                             <option value="">-- Tự phục vụ --</option>
                             {robotArms.map((arm) => (
                               <option key={arm.id} value={arm.id}>
-                                {arm.name || arm.code}
+                                {arm.name ? `${arm.code} - ${arm.name}` : arm.code}
                               </option>
                             ))}
                           </select>

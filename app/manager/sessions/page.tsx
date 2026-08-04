@@ -2,9 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Calendar, Clock, Trash2, Copy, Coffee, Pencil, Power } from "lucide-react";
+import {
+  Search,
+  Calendar,
+  Clock,
+  Trash2,
+  Copy,
+  Coffee,
+  Pencil,
+  Power,
+  Filter,
+  ChevronDown,
+  X,
+} from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "sonner";
+import dayjs from "dayjs";
 import { sessionService } from "@/services/session.service";
 import type { SessionListItem } from "@/types/session.types";
 import { cn } from "@/lib/utils";
@@ -37,10 +50,17 @@ export default function ManagerSessionsPage() {
   const [copySessionId, setCopySessionId] = useState<string | null>(null);
   const [createInitialDate, setCreateInitialDate] = useState<string | undefined>(undefined);
 
+  // Date Filter States
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+  const [showDateFilterDropdown, setShowDateFilterDropdown] = useState(false);
+
+  const hasActiveDateFilter = Boolean(fromDate || toDate);
+
   const fetchSessions = async () => {
     try {
       const result = await sessionService.getSessions({
-        pageSize: 100,
+        pageSize: 1000,
         ...(showActive !== null && { isActive: showActive }),
       });
       setSessions(result.items);
@@ -53,7 +73,7 @@ export default function ManagerSessionsPage() {
     let cancelled = false;
     sessionService
       .getSessions({
-        pageSize: 100,
+        pageSize: 1000,
         ...(showActive !== null && { isActive: showActive }),
       })
       .then((result) => {
@@ -164,6 +184,10 @@ export default function ManagerSessionsPage() {
   };
 
   const handleOpenCreateForDate = (dateStr?: string) => {
+    if (dateStr && dayjs(dateStr).isBefore(dayjs(), "day")) {
+      toast.error("Không thể tạo ca ăn cho ngày trong quá khứ.");
+      return;
+    }
     setCopySessionId(null);
     setCreateInitialDate(dateStr);
     setIsCreateOpen(true);
@@ -183,7 +207,18 @@ export default function ManagerSessionsPage() {
     .filter((s) => {
       const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
       const matchesActive = showActive === null || isSessionLive(s) === showActive;
-      return matchesSearch && matchesActive;
+
+      let matchesDate = true;
+      if (fromDate) {
+        matchesDate =
+          matchesDate && new Date(s.availableFrom || 0) >= new Date(`${fromDate}T00:00:00Z`);
+      }
+      if (toDate) {
+        matchesDate =
+          matchesDate && new Date(s.availableFrom || 0) <= new Date(`${toDate}T23:59:59Z`);
+      }
+
+      return matchesSearch && matchesActive && matchesDate;
     })
     .sort((a, b) => {
       const aLive = isSessionLive(a);
@@ -211,17 +246,109 @@ export default function ManagerSessionsPage() {
       />
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            placeholder="Tìm kiếm ca ăn..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
-          />
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto flex-1">
+          <div className="relative flex-1 w-full max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              placeholder="Tìm kiếm ca ăn..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
+            />
+          </div>
+
+          {/* Date Filter Dropdown Box Toggle */}
+          <div className="relative shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => setShowDateFilterDropdown(!showDateFilterDropdown)}
+              className={cn(
+                "w-full sm:w-auto px-5 py-3.5 rounded-3xl font-bold text-sm flex items-center justify-center gap-2 border transition-all shadow-xs",
+                hasActiveDateFilter
+                  ? "bg-orange-50 border-orange-300 text-[#D35400]"
+                  : "bg-white border-gray-200 text-gray-700 hover:border-orange-200 hover:text-[#D35400]",
+              )}
+            >
+              <Filter className="w-4 h-4 text-[#D35400]" />
+              <span>Lọc theo ngày</span>
+              {hasActiveDateFilter && <span className="w-2 h-2 rounded-full bg-[#D35400]" />}
+              <ChevronDown
+                className={cn(
+                  "w-4 h-4 transition-transform duration-200",
+                  showDateFilterDropdown && "rotate-180",
+                )}
+              />
+            </button>
+
+            {/* Dropdown Box Panel */}
+            {showDateFilterDropdown && (
+              <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 sm:w-96 bg-white border border-gray-150 rounded-3xl shadow-2xl p-5 z-50 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <span className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-[#D35400]" /> Lọc ngày ca phục vụ
+                  </span>
+                  <button
+                    onClick={() => setShowDateFilterDropdown(false)}
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Date Inputs */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-1">Từ ngày</label>
+                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5">
+                      <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        className="bg-transparent text-xs font-bold text-gray-800 outline-none w-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-1">Đến ngày</label>
+                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5">
+                      <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                        className="bg-transparent text-xs font-bold text-gray-800 outline-none w-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Footer */}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                  <button
+                    onClick={() => {
+                      setFromDate("");
+                      setToDate("");
+                    }}
+                    disabled={!hasActiveDateFilter}
+                    className="text-xs font-bold text-gray-500 hover:text-red-600 disabled:opacity-40 transition-colors"
+                  >
+                    Xóa bộ lọc
+                  </button>
+                  <button
+                    onClick={() => setShowDateFilterDropdown(false)}
+                    className="px-4 py-2 bg-[#D35400] hover:bg-[#b04600] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+                  >
+                    Áp dụng
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Status Pill Tabs */}
         <div className="flex bg-gray-100/80 border border-gray-150 rounded-3xl p-1 shrink-0 w-full sm:w-auto">
           {[
             { label: "Tất cả", value: null },

@@ -45,6 +45,7 @@ export interface OrderItem {
 export interface OrderListItem {
   id: string;
   sessionId: string;
+  sessionName?: string | null;
   transactionId: string | null;
   userId: string;
   status: OrderStatus;
@@ -103,6 +104,7 @@ export const OrderItemSchema = z
 export const OrderListItemSchema = z.object({
   id: z.string(),
   sessionId: z.string(),
+  sessionName: z.string().nullable().optional(),
   transactionId: z.string().nullable(),
   userId: z.string(),
   status: z.union([
@@ -135,11 +137,22 @@ export const CHANGE_PROPOSAL_STATUS_META: Record<
 > = {
   0: { label: "Chờ phản hồi", color: "#f07b2e", bg: "#fff8f4" },
   1: { label: "Đã đổi món", color: "#2db87a", bg: "#e8f8f0" },
-  2: { label: "Chờ hoàn tiền", color: "#f59e0b", bg: "#fffbeb" },
-  3: { label: "Yêu cầu hoàn đơn", color: "#6366f1", bg: "#eef2ff" },
+  2: { label: "Đã hoàn tiền món", color: "#2db87a", bg: "#e8f8f0" },
+  3: { label: "Đã hoàn tiền & hủy đơn", color: "#6366f1", bg: "#eef2ff" },
 };
 
 export type AllowedAction = "SwapItem" | "RefundItem" | "RefundOrder";
+
+export interface GetOrdersParams {
+  pageSize?: number;
+  pageNumber?: number;
+  status?: OrderStatus;
+  sessionId?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  sessionDateFrom?: string;
+  sessionDateTo?: string;
+}
 
 export interface ChangeProposalDetail {
   id: string;

@@ -2,11 +2,53 @@ import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type {
   CreateOrderResponse,
+  GetOrdersParams,
   OrderDetail,
   OrderListItem,
-  OrderStatus,
 } from "@/types/order.types";
 import type { ApiResponse, PaginatedList } from "./session.service";
+
+function buildOrderQueryParams(
+  params?: GetOrdersParams,
+): Record<string, string | number | undefined> {
+  const queryParams: Record<string, string | number | undefined> = {};
+  if (!params) return queryParams;
+
+  if (params.pageSize) {
+    queryParams.pageSize = params.pageSize;
+    queryParams.PageSize = params.pageSize;
+  }
+  if (params.pageNumber) {
+    queryParams.pageNumber = params.pageNumber;
+    queryParams.PageNumber = params.pageNumber;
+  }
+  if (params.status !== undefined) {
+    queryParams.status = params.status;
+    queryParams.Status = params.status;
+  }
+  if (params.sessionId) {
+    queryParams.sessionId = params.sessionId;
+    queryParams.SessionId = params.sessionId;
+  }
+  if (params.createdFrom) {
+    queryParams.createdFrom = params.createdFrom;
+    queryParams.CreatedFrom = params.createdFrom;
+  }
+  if (params.createdTo) {
+    queryParams.createdTo = params.createdTo;
+    queryParams.CreatedTo = params.createdTo;
+  }
+  if (params.sessionDateFrom) {
+    queryParams.sessionDateFrom = params.sessionDateFrom;
+    queryParams.SessionDateFrom = params.sessionDateFrom;
+  }
+  if (params.sessionDateTo) {
+    queryParams.sessionDateTo = params.sessionDateTo;
+    queryParams.SessionDateTo = params.sessionDateTo;
+  }
+
+  return queryParams;
+}
 
 function parsePaginatedResponse(
   response: unknown,
@@ -49,52 +91,16 @@ function parsePaginatedResponse(
 }
 
 export const orderService = {
-  getMyOrders: async (params?: {
-    pageSize?: number;
-    pageNumber?: number;
-    status?: OrderStatus;
-  }): Promise<PaginatedList<OrderListItem>> => {
-    const queryParams: Record<string, string | number | undefined> = {};
-    if (params) {
-      if (params.pageSize) {
-        queryParams.pageSize = params.pageSize;
-        queryParams.PageSize = params.pageSize;
-      }
-      if (params.pageNumber) {
-        queryParams.pageNumber = params.pageNumber;
-        queryParams.PageNumber = params.pageNumber;
-      }
-      if (params.status !== undefined) {
-        queryParams.status = params.status;
-        queryParams.Status = params.status;
-      }
-    }
+  getMyOrders: async (params?: GetOrdersParams): Promise<PaginatedList<OrderListItem>> => {
+    const queryParams = buildOrderQueryParams(params);
     const response = await apiClient.get<unknown>(API_ENDPOINTS.ORDER.LIST, {
       params: queryParams,
     });
     return parsePaginatedResponse(response, params?.pageSize || 10, params?.pageNumber || 1);
   },
 
-  getAll: async (params?: {
-    pageSize?: number;
-    pageNumber?: number;
-    status?: OrderStatus;
-  }): Promise<PaginatedList<OrderListItem>> => {
-    const queryParams: Record<string, string | number | undefined> = {};
-    if (params) {
-      if (params.pageSize) {
-        queryParams.pageSize = params.pageSize;
-        queryParams.PageSize = params.pageSize;
-      }
-      if (params.pageNumber) {
-        queryParams.pageNumber = params.pageNumber;
-        queryParams.PageNumber = params.pageNumber;
-      }
-      if (params.status !== undefined) {
-        queryParams.status = params.status;
-        queryParams.Status = params.status;
-      }
-    }
+  getAll: async (params?: GetOrdersParams): Promise<PaginatedList<OrderListItem>> => {
+    const queryParams = buildOrderQueryParams(params);
     const response = await apiClient.get<unknown>(API_ENDPOINTS.ORDER.LIST, {
       params: queryParams,
     });
@@ -185,27 +191,9 @@ export const orderService = {
 
   getManagerOrdersBySession: async (
     sessionId: string,
-    params?: {
-      pageSize?: number;
-      pageNumber?: number;
-      status?: OrderStatus;
-    },
+    params?: GetOrdersParams,
   ): Promise<PaginatedList<OrderListItem>> => {
-    const queryParams: Record<string, string | number | undefined> = {};
-    if (params) {
-      if (params.pageSize) {
-        queryParams.pageSize = params.pageSize;
-        queryParams.PageSize = params.pageSize;
-      }
-      if (params.pageNumber) {
-        queryParams.pageNumber = params.pageNumber;
-        queryParams.PageNumber = params.pageNumber;
-      }
-      if (params.status !== undefined) {
-        queryParams.status = params.status;
-        queryParams.Status = params.status;
-      }
-    }
+    const queryParams = buildOrderQueryParams(params);
     const response = await apiClient.get<unknown>(
       API_ENDPOINTS.ORDER.MANAGER_BY_SESSION(sessionId),
       { params: queryParams },

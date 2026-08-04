@@ -11,7 +11,9 @@ import {
   ArrowRight,
   UtensilsCrossed,
   Zap,
+  AlertTriangle,
 } from "lucide-react";
+import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
 import type { SessionListItem, SessionCalendarData } from "@/types/session.types";
 import { sessionService } from "@/services/session.service";
@@ -88,10 +90,13 @@ export function SessionCalendarHeatmap({
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [calendarData, setCalendarData] = useState<SessionCalendarData | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().substring(0, 10),
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"));
   const [hoveredDay, setHoveredDay] = useState<{ date: string; count: number } | null>(null);
+
+  const isPastDate = useMemo(() => {
+    if (!selectedDate) return false;
+    return dayjs(selectedDate).isBefore(dayjs(), "day");
+  }, [selectedDate]);
 
   // Fetch calendar summary from API
   useEffect(() => {
@@ -124,7 +129,7 @@ export function SessionCalendarHeatmap({
     // Merge/augment with loaded client sessions
     sessions.forEach((s) => {
       if (s.availableFrom) {
-        const d = s.availableFrom.substring(0, 10);
+        const d = dayjs(s.availableFrom).format("YYYY-MM-DD");
         const currentCount = map.get(d) || 0;
         if (!calendarData?.days || calendarData.days.length === 0) {
           map.set(d, currentCount + 1);
@@ -195,8 +200,10 @@ export function SessionCalendarHeatmap({
     return sessions
       .filter((s) => {
         if (!s.availableFrom) return false;
-        const fromDate = s.availableFrom.substring(0, 10);
-        const toDate = s.availableTo ? s.availableTo.substring(0, 10) : fromDate;
+        const fromDate = dayjs(s.availableFrom).format("YYYY-MM-DD");
+        const toDate = s.availableTo
+          ? dayjs(s.availableTo).subtract(1, "second").format("YYYY-MM-DD")
+          : fromDate;
         return selectedDate >= fromDate && selectedDate <= toDate;
       })
       .sort((a, b) => getMinutesFromISO(a.availableFrom) - getMinutesFromISO(b.availableFrom));
@@ -416,12 +423,25 @@ export function SessionCalendarHeatmap({
 
           <div className="space-y-3 pt-2">
             <button
-              onClick={() => onSelectDateToCreate(selectedDate)}
-              className="w-full flex items-center justify-center gap-2.5 px-5 py-3.5 bg-[#D35400] text-white rounded-2xl font-black text-sm hover:bg-[#b84900] transition-all shadow-md active:scale-95 cursor-pointer"
+              disabled={isPastDate}
+              onClick={() => !isPastDate && onSelectDateToCreate(selectedDate)}
+              className={cn(
+                "w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl font-black text-sm transition-all shadow-md active:scale-95",
+                isPastDate
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none active:scale-100"
+                  : "bg-[#D35400] text-white hover:bg-[#b84900] cursor-pointer",
+              )}
+              title={isPastDate ? "Không thể tạo ca ăn cho ngày trong quá khứ" : undefined}
             >
               <Plus className="w-4 h-4" />
               Tạo ca ăn ngày {formatDateShort(selectedDate)}
             </button>
+            {isPastDate && (
+              <p className="text-[11px] font-bold text-amber-600 text-center flex items-center justify-center gap-1.5 pt-1">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                Không thể tạo ca ăn cho ngày trong quá khứ
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -532,8 +552,15 @@ export function SessionCalendarHeatmap({
               </p>
             </div>
             <button
-              onClick={() => onSelectDateToCreate(selectedDate)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D35400] text-white rounded-xl text-xs font-bold hover:bg-[#b84900] transition-all shadow-xs cursor-pointer"
+              disabled={isPastDate}
+              onClick={() => !isPastDate && onSelectDateToCreate(selectedDate)}
+              className={cn(
+                "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs",
+                isPastDate
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-[#D35400] text-white hover:bg-[#b84900] cursor-pointer",
+              )}
+              title={isPastDate ? "Không thể tạo ca ăn cho ngày trong quá khứ" : undefined}
             >
               <Plus className="w-4 h-4" />
               Tạo ca phục vụ cho ngày này

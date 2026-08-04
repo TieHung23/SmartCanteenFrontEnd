@@ -140,10 +140,6 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
       toast.error("Mã lane không được để trống.");
       return;
     }
-    if (!["S1_L1", "S1_L2", "S1_L3"].includes(formLaneCode.trim().toUpperCase())) {
-      toast.error("Mã lane phải là một trong ba mã: S1_L1, S1_L2 hoặc S1_L3.");
-      return;
-    }
     if (formCapacity <= 0) {
       toast.error("Sức chứa phải lớn hơn 0.");
       return;
@@ -522,70 +518,111 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
             </select>
           </div>
 
-          {/* Lane Code */}
-          <div>
-            <label className="block text-sm font-bold text-gray-800 mb-2">
-              Mã Lane <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={formLaneCode}
-              onChange={(e) => setFormLaneCode(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 font-mono font-bold text-sm transition-all shadow-xs"
-            >
-              <option value="">-- Chọn Mã Lane --</option>
-              {["S1_L1", "S1_L2", "S1_L3"].map((lane) => (
-                <option key={lane} value={lane}>
-                  {lane}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-400 mt-1.5 font-medium">
-              Chọn một trong các Mã Lane cố định được Backend hỗ trợ (S1_L1, S1_L2, S1_L3).
-            </p>
-          </div>
+          {/* Lane Code & Tay Máy */}
+          {(() => {
+            const allLanes =
+              robotArms.length > 0
+                ? robotArms.flatMap((arm) => {
+                    const code = (arm.code || "S1").toUpperCase();
+                    return [`${code}_L1`, `${code}_L2`, `${code}_L3`];
+                  })
+                : ["S1_L1", "S1_L2", "S1_L3", "S2_L1", "S2_L2", "S2_L3", "S3_L1", "S3_L2", "S3_L3"];
 
-          {/* Capacity + Robot Arm */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">
-                Sức chứa <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                min={1}
-                value={formCapacity}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9]/g, "");
-                  if (raw === "") {
-                    setFormCapacity(0);
-                    return;
-                  }
-                  setFormCapacity(parseInt(raw, 10) || 0);
-                }}
-                placeholder="VD: 12, 20"
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 transition-all shadow-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">
-                Tay máy (tùy chọn)
-              </label>
-              <select
-                value={formRobotArmId}
-                onChange={(e) => setFormRobotArmId(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 text-sm font-bold transition-all shadow-xs"
-              >
-                <option value="">-- Không gán --</option>
-                {robotArms.map((arm) => (
-                  <option key={arm.id} value={arm.id}>
-                    {arm.name || arm.code}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+            const selectedArm = robotArms.find((a) => a.id === formRobotArmId);
+            const availableLanes = selectedArm
+              ? [
+                  `${selectedArm.code.toUpperCase()}_L1`,
+                  `${selectedArm.code.toUpperCase()}_L2`,
+                  `${selectedArm.code.toUpperCase()}_L3`,
+                ]
+              : allLanes;
+
+            return (
+              <>
+                {/* Lane Code */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">
+                    Mã Lane <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={formLaneCode}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormLaneCode(val);
+                      const prefix = val.split("_")[0];
+                      const matchingArm = robotArms.find(
+                        (a) => (a.code || "").toUpperCase() === prefix,
+                      );
+                      if (matchingArm) {
+                        setFormRobotArmId(matchingArm.id);
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 font-mono font-bold text-sm transition-all shadow-xs"
+                  >
+                    <option value="">-- Chọn Mã Lane --</option>
+                    {availableLanes.map((lane) => (
+                      <option key={lane} value={lane}>
+                        {lane}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1.5 font-medium">
+                    Tự động gợi ý mã Lane tương ứng theo trạm robot (S1_L1..3, S2_L1..3, S3_L1..3).
+                  </p>
+                </div>
+
+                {/* Capacity + Robot Arm */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-800 mb-2">
+                      Sức chứa <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      min={1}
+                      value={formCapacity}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        if (raw === "") {
+                          setFormCapacity(0);
+                          return;
+                        }
+                        setFormCapacity(parseInt(raw, 10) || 0);
+                      }}
+                      placeholder="VD: 12, 20"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 transition-all shadow-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-800 mb-2">
+                      Tay máy (tùy chọn)
+                    </label>
+                    <select
+                      value={formRobotArmId}
+                      onChange={(e) => {
+                        const armId = e.target.value;
+                        setFormRobotArmId(armId);
+                        const arm = robotArms.find((a) => a.id === armId);
+                        if (arm) {
+                          setFormLaneCode(`${arm.code.toUpperCase()}_L1`);
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#D35400] text-gray-900 text-sm font-bold transition-all shadow-xs"
+                    >
+                      <option value="">-- Không gán --</option>
+                      {robotArms.map((arm) => (
+                        <option key={arm.id} value={arm.id}>
+                          {arm.name ? `${arm.code} - ${arm.name}` : arm.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
