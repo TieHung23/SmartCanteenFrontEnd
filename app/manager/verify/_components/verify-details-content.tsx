@@ -237,13 +237,21 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Họ và tên sinh viên
                 </p>
-                <p className="font-bold text-gray-900 mt-1">{detail.userName}</p>
+                <p className="font-bold text-gray-900 mt-1">
+                  {detail.userName && detail.userName.trim() !== ""
+                    ? detail.userName
+                    : `User #${detail.userId?.slice(0, 8) || detail.id.slice(0, 8)}`}
+                </p>
               </div>
               <div className="py-3">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Địa chỉ Email
                 </p>
-                <p className="font-semibold text-gray-600 mt-1 truncate">{detail.userEmail}</p>
+                <p className="font-semibold text-gray-600 mt-1 truncate">
+                  {detail.userEmail && detail.userEmail.trim() !== ""
+                    ? detail.userEmail
+                    : "Chưa cập nhật email"}
+                </p>
               </div>
               <div className="py-3">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">

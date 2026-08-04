@@ -225,13 +225,34 @@ export default function ManagerVerifyPage() {
                 {displaying.map((req) => {
                   const status = req.status ?? 0;
                   const style = STATUS_STYLES[status] || STATUS_STYLES[0];
+                  const hasUserName = Boolean(req.userName && req.userName.trim() !== "");
+                  const hasUserEmail = Boolean(req.userEmail && req.userEmail.trim() !== "");
+                  const userNameDisplay = hasUserName
+                    ? req.userName
+                    : `User #${req.userId?.slice(0, 8) || req.id.slice(0, 8)}`;
+                  const userEmailDisplay = hasUserEmail ? req.userEmail : "Chưa cập nhật email";
+
                   return (
                     <tr key={req.id} className="hover:bg-orange-50/20 transition-colors">
                       <td className="px-5 py-4">
-                        <p className="text-sm font-bold text-gray-900">{req.userName}</p>
+                        <p
+                          className={cn(
+                            "text-sm font-bold",
+                            hasUserName ? "text-gray-900" : "text-gray-400 italic font-normal",
+                          )}
+                        >
+                          {userNameDisplay}
+                        </p>
                       </td>
                       <td className="px-5 py-4">
-                        <span className="text-sm font-semibold text-gray-500">{req.userEmail}</span>
+                        <span
+                          className={cn(
+                            "text-sm font-semibold",
+                            hasUserEmail ? "text-gray-500" : "text-gray-400 italic font-normal",
+                          )}
+                        >
+                          {userEmailDisplay}
+                        </span>
                       </td>
                       <td className="px-5 py-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-50 text-orange-700 border border-orange-100">

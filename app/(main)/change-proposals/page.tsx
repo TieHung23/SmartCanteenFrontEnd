@@ -10,14 +10,32 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  UtensilsCrossed,
+  Calendar,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { changeProposalService } from "@/services/change-proposal.service";
+import { orderService } from "@/services/order.service";
+import { sessionService } from "@/services/session.service";
 import { CHANGE_PROPOSAL_STATUS_META, type ChangeProposalDetail } from "@/types/order.types";
 
 interface OrderGroup {
   orderId: string;
+  sessionName?: string | null;
+  sessionTime?: string | null;
+  orderCreatedAt?: string | null;
   proposals: ChangeProposalDetail[];
+}
+
+function formatDate(dateStr?: string | null) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("vi-VN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function ChangeProposalsPage() {
@@ -35,9 +53,72 @@ export default function ChangeProposalsPage() {
         list.push(p);
         map.set(p.orderId, list);
       }
+
+      const orderIds = Array.from(map.keys());
+      const orderDetailsMap = new Map<
+        string,
+        { sessionName?: string | null; sessionTime?: string | null; createdAtUtc?: string | null }
+      >();
+
+      await Promise.all(
+        orderIds.map(async (orderId) => {
+          try {
+            const order = await orderService.getOrderById(orderId);
+            let sessionTimeStr = "";
+            let sessionNameStr = order?.sessionName || "";
+
+            if (order?.sessionId) {
+              try {
+                const session = await sessionService.getSessionDetail(order.sessionId);
+                if (session) {
+                  if (!sessionNameStr && session.name) {
+                    sessionNameStr = session.name;
+                  }
+                  if (session.availableFrom && session.availableTo) {
+                    const fromTime = new Date(session.availableFrom).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    const toTime = new Date(session.availableTo).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    const sessionDate = new Date(session.availableFrom).toLocaleDateString(
+                      "vi-VN",
+                      {
+                        day: "2-digit",
+                        month: "2-digit",
+                      },
+                    );
+                    sessionTimeStr = `${fromTime} - ${toTime} (${sessionDate})`;
+                  }
+                }
+              } catch {
+                // Ignore session detail fetch error if session deleted
+              }
+            }
+
+            orderDetailsMap.set(orderId, {
+              sessionName: sessionNameStr,
+              sessionTime: sessionTimeStr,
+              createdAtUtc: order?.createdAtUtc,
+            });
+          } catch {
+            // Ignore order fetch error
+          }
+        }),
+      );
+
       const result: OrderGroup[] = [];
       for (const [orderId, proposals] of map) {
-        result.push({ orderId, proposals });
+        const details = orderDetailsMap.get(orderId);
+        result.push({
+          orderId,
+          sessionName: details?.sessionName,
+          sessionTime: details?.sessionTime,
+          orderCreatedAt: details?.createdAtUtc,
+          proposals,
+        });
       }
       setGroups(result);
     } catch {
@@ -61,7 +142,7 @@ export default function ChangeProposalsPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
@@ -108,18 +189,40 @@ export default function ChangeProposalsPage() {
                     key={group.orderId}
                     className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden"
                   >
-                    <div className="px-6 py-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                          Đơn hàng
-                        </p>
-                        <p className="font-mono font-bold text-gray-800 mt-0.5 text-sm">
-                          {group.orderId.slice(0, 8)}...
-                        </p>
+                    <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/70">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                            Đơn hàng
+                          </p>
+                          <p className="font-mono font-bold text-gray-800 mt-0.5 text-sm">
+                            #{group.orderId.slice(0, 8)}...
+                          </p>
+                        </div>
+
+                        {group.sessionName && (
+                          <div className="flex items-center gap-1.5 bg-orange-100/80 text-orange-950 px-3 py-1.5 rounded-xl text-xs font-extrabold border border-orange-200/60">
+                            <UtensilsCrossed className="w-3.5 h-3.5 text-[#D35400]" />
+                            <span>Ca: {group.sessionName}</span>
+                            {group.sessionTime && (
+                              <span className="text-orange-900 font-semibold border-l border-orange-300/60 pl-2 ml-0.5">
+                                ⏰ {group.sessionTime}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {group.orderCreatedAt && (
+                          <div className="flex items-center gap-1 text-xs text-gray-400 font-semibold">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>{formatDate(group.orderCreatedAt)}</span>
+                          </div>
+                        )}
                       </div>
+
                       <Link
                         href={`/orders/${group.orderId}`}
-                        className="flex items-center gap-1.5 text-xs font-bold text-[#D35400] hover:text-[#b04600] transition-colors"
+                        className="flex items-center gap-1.5 text-xs font-bold text-[#D35400] hover:text-[#b04600] transition-colors bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-2xs hover:border-orange-200"
                       >
                         Xem đơn hàng
                         <ChevronRight className="w-3.5 h-3.5" />
