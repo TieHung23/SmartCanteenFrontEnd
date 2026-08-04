@@ -10,9 +10,19 @@ function formatVND(amount: number): string {
   }).format(amount);
 }
 
-function formatTime(iso: string): string {
+function formatTime(iso?: string | null): string {
+  if (!iso) return "—";
   const d = new Date(iso);
+  if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "—";
   return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function renderTimeRange(fromIso?: string | null, toIso?: string | null): string {
+  const fromStr = formatTime(fromIso);
+  const toStr = formatTime(toIso);
+  if (fromStr === "—" && toStr === "—") return "—";
+  if (fromStr === toStr) return fromStr;
+  return `${fromStr} - ${toStr}`;
 }
 
 interface SessionReportTableProps {
@@ -77,14 +87,36 @@ export function SessionReportTable({ data, loading, error, onRetry }: SessionRep
     );
   }
 
-  const sorted = [...data].sort((a, b) => b.revenue - a.revenue);
+  // Filter out invalid/unassigned test session records (empty sessionName or min-date 0001-01-01)
+  const validSessions = data.filter((s) => {
+    const hasName = Boolean(s.sessionName && s.sessionName.trim() !== "");
+    const hasDate = Boolean(s.availableFrom && new Date(s.availableFrom).getFullYear() >= 2000);
+    return hasName && hasDate;
+  });
+
+  if (validSessions.length === 0) {
+    return (
+      <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <CalendarDays className="w-6 h-6 text-[#D35400]" />
+          <h2 className="text-2xl font-black text-gray-900">Hiệu suất ca phục vụ</h2>
+        </div>
+        <div className="h-64 rounded-3xl bg-gray-50 border border-dashed border-gray-200 flex flex-col items-center justify-center">
+          <CalendarDays className="w-10 h-10 text-gray-300" />
+          <p className="text-sm font-bold text-gray-400 mt-3">Chưa có dữ liệu ca phục vụ hợp lệ</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sorted = [...validSessions].sort((a, b) => b.revenue - a.revenue);
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
       <div className="flex items-center gap-3 mb-6">
         <CalendarDays className="w-6 h-6 text-[#D35400]" />
         <h2 className="text-2xl font-black text-gray-900">Hiệu suất ca phục vụ</h2>
-        <span className="text-sm font-semibold text-gray-400 ml-auto">{data.length} ca</span>
+        <span className="text-sm font-semibold text-gray-400 ml-auto">{sorted.length} ca</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -123,7 +155,7 @@ export function SessionReportTable({ data, loading, error, onRetry }: SessionRep
                   {s.sessionName}
                 </td>
                 <td className="py-3 px-2 text-gray-500 text-xs whitespace-nowrap">
-                  {formatTime(s.availableFrom)} - {formatTime(s.availableTo)}
+                  {renderTimeRange(s.availableFrom, s.availableTo)}
                 </td>
                 <td className="py-3 px-2 text-right font-bold text-gray-700">{s.totalOrders}</td>
                 <td className="py-3 px-2 text-right font-bold text-green-600">

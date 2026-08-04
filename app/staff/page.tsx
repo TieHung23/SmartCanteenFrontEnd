@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   Cpu,
@@ -16,6 +16,8 @@ import {
   Package,
   Route,
   CheckCircle2,
+  Search,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { orderService } from "@/services/order.service";
@@ -57,6 +59,103 @@ export default function StaffOperationsPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<EnrichedOrderDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Session Search & Auto-scroll states
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number | null>(null);
+  const isHoveredOrDragging = useRef(false);
+  const scrollDirection = useRef(1);
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftState = useRef(0);
+
+  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const sessionButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  const selectAndScrollToSession = useCallback((sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    isHoveredOrDragging.current = true;
+
+    setTimeout(() => {
+      const btn = sessionButtonRefs.current.get(sessionId);
+      if (btn) {
+        btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }, 50);
+  }, []);
+
+  const filteredSessionsBySearch = useMemo(() => {
+    const q = sessionSearchQuery.toLowerCase().trim();
+    if (!q) return [];
+    return sessions.filter((s) => s.name.toLowerCase().includes(q));
+  }, [sessions, sessionSearchQuery]);
+
+  const handleSessionSearch = (query: string) => {
+    setSessionSearchQuery(query);
+    if (query.trim()) {
+      const q = query.toLowerCase().trim();
+      const match = sessions.find((s) => s.name.toLowerCase().includes(q));
+      if (match) {
+        selectAndScrollToSession(match.id);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (loading || sessions.length === 0 || !isAutoScrollEnabled) return;
+    const initAutoScroll = () => {
+      const container = tabsContainerRef.current;
+      if (!container) return;
+      const scrollSpeed = 0.5;
+      const scrollLoop = () => {
+        if (!isHoveredOrDragging.current && !sessionSearchQuery.trim() && container) {
+          const maxScrollLeft = container.scrollWidth - container.clientWidth;
+          if (maxScrollLeft <= 0) return;
+          if (container.scrollLeft >= maxScrollLeft - 1 && scrollDirection.current === 1) {
+            scrollDirection.current = -1;
+          } else if (container.scrollLeft <= 0 && scrollDirection.current === -1) {
+            scrollDirection.current = 1;
+          }
+          container.scrollLeft += scrollSpeed * scrollDirection.current;
+        }
+        animationRef.current = requestAnimationFrame(scrollLoop);
+      };
+      animationRef.current = requestAnimationFrame(scrollLoop);
+    };
+    const timerId = setTimeout(initAutoScroll, 300);
+    return () => {
+      clearTimeout(timerId);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [loading, sessions, isAutoScrollEnabled, sessionSearchQuery]);
+
+  const handleMouseEnterTabs = () => {
+    isHoveredOrDragging.current = true;
+  };
+  const handleMouseLeaveTabs = () => {
+    if (!isDown.current) isHoveredOrDragging.current = false;
+  };
+  const handleMouseDownTabs = (e: React.MouseEvent) => {
+    const container = tabsContainerRef.current;
+    if (!container) return;
+    isDown.current = true;
+    isHoveredOrDragging.current = true;
+    startX.current = e.pageX - container.offsetLeft;
+    scrollLeftState.current = container.scrollLeft;
+  };
+  const handleMouseMoveTabs = (e: React.MouseEvent) => {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const container = tabsContainerRef.current;
+    if (!container) return;
+    const x = e.pageX - container.offsetLeft;
+    container.scrollLeft = scrollLeftState.current - (x - startX.current) * 1.8;
+  };
+  const handleMouseUpTabs = () => {
+    isDown.current = false;
+    isHoveredOrDragging.current = false;
+  };
 
   // Fetch Operations Overview (Hardware & Sessions)
   const fetchOperationsOverview = useCallback(async () => {
@@ -359,26 +458,126 @@ export default function StaffOperationsPage() {
 
       {/* ── SECTION 3: PHIÊN PHỤC VỤ & BẢNG ĐƠN HÀNG LỚN ĐỒNG NHẤT ── */}
       <div className="space-y-6">
-        <div className="bg-white border border-gray-100 rounded-3xl p-7 shadow-xs space-y-5">
-          <label className="text-xs font-black text-gray-400 uppercase tracking-wider block">
-            Chọn Ca Phục Vụ Cần Giám Sát
-          </label>
-          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+        <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-2">
+              <Coffee className="w-5 h-5 text-[#D35400]" />
+              <label className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                Chọn Ca Phục Vụ Cần Giám Sát
+              </label>
+              {sessions.length > 0 && (
+                <span className="text-xs font-extrabold text-[#D35400] bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-200">
+                  {sessions.length} ca
+                </span>
+              )}
+            </div>
+
+            {/* Search Input & Auto-scroll Control */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={sessionSearchQuery}
+                  onChange={(e) => handleSessionSearch(e.target.value)}
+                  placeholder="Tìm nhanh ca phục vụ..."
+                  className="w-full h-9 pl-9 pr-8 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#D35400] focus:bg-white transition-all placeholder:text-gray-400"
+                />
+                {sessionSearchQuery && (
+                  <button
+                    onClick={() => handleSessionSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-md hover:bg-gray-200/50"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Toggle Auto Scroll Button */}
+              <button
+                onClick={() => setIsAutoScrollEnabled(!isAutoScrollEnabled)}
+                className={cn(
+                  "h-9 px-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shrink-0 cursor-pointer",
+                  isAutoScrollEnabled
+                    ? "bg-orange-50 border-orange-200 text-[#D35400]"
+                    : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200",
+                )}
+                title={
+                  isAutoScrollEnabled ? "Tạm dừng băng chuyền cuộn tự động" : "Bật cuộn tự động"
+                }
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isAutoScrollEnabled && "animate-spin")} />
+                <span className="hidden sm:inline">
+                  {isAutoScrollEnabled ? "Tự cuộn: Bật" : "Tự cuộn: Tắt"}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search Suggestion Chips */}
+          {sessionSearchQuery.trim() && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs animate-in fade-in">
+              <span className="text-gray-400 font-bold shrink-0">Kết quả tìm thấy:</span>
+              {filteredSessionsBySearch.length === 0 ? (
+                <span className="text-red-500 font-semibold italic">Không tìm thấy ca phù hợp</span>
+              ) : (
+                filteredSessionsBySearch.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => selectAndScrollToSession(s.id)}
+                    className={cn(
+                      "px-3 py-1 rounded-lg font-bold border shrink-0 transition-all cursor-pointer flex items-center gap-1.5 text-xs",
+                      s.id === selectedSessionId
+                        ? "bg-[#D35400] text-white border-[#D35400] shadow-xs"
+                        : "bg-orange-50 hover:bg-orange-100 text-orange-950 border-orange-200",
+                    )}
+                  >
+                    <span>🎯</span>
+                    <span>{s.name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          <div
+            ref={tabsContainerRef}
+            onMouseEnter={handleMouseEnterTabs}
+            onMouseLeave={handleMouseLeaveTabs}
+            onMouseDown={handleMouseDownTabs}
+            onMouseMove={handleMouseMoveTabs}
+            onMouseUp={handleMouseUpTabs}
+            className="flex gap-3 overflow-x-auto pb-2 select-none active:cursor-grabbing cursor-grab scroll-smooth"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             {sessions.map((s) => {
               const isLive = s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date());
               const isSelected = s.id === selectedSessionId;
+              const isMatchedBySearch =
+                sessionSearchQuery.trim() &&
+                s.name.toLowerCase().includes(sessionSearchQuery.toLowerCase().trim());
+
               return (
                 <button
                   key={s.id}
-                  onClick={() => setSelectedSessionId(s.id)}
+                  ref={(el) => {
+                    if (el) sessionButtonRefs.current.set(s.id, el);
+                  }}
+                  onClick={() => {
+                    if (!isDown.current) {
+                      selectAndScrollToSession(s.id);
+                    }
+                  }}
                   className={cn(
-                    "shrink-0 flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-base border-2 transition-all whitespace-nowrap",
+                    "shrink-0 flex items-center gap-3 px-5 py-3 rounded-2xl font-black text-sm border-2 transition-all whitespace-nowrap cursor-pointer",
                     isSelected
-                      ? "bg-[#D35400] text-white border-[#D35400] shadow-md"
-                      : "bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200",
+                      ? "bg-[#D35400] text-white border-[#B04600] shadow-md scale-102"
+                      : isMatchedBySearch
+                        ? "bg-orange-100 text-orange-950 border-orange-400 ring-2 ring-orange-300/50"
+                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200 shadow-2xs",
                   )}
                 >
-                  <Coffee className={cn("w-5 h-5", isSelected ? "text-white" : "text-gray-400")} />
+                  <Coffee className={cn("w-4 h-4", isSelected ? "text-white" : "text-gray-400")} />
                   <span>{s.name}</span>
                   {isLive && (
                     <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />

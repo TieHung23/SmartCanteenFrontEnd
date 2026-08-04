@@ -27,6 +27,9 @@ import {
   RefreshCw,
   Undo2,
   Ban,
+  UtensilsCrossed,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { translateApiMessage } from "@/lib/utils";
@@ -68,6 +71,57 @@ export default function OrderDetailPage() {
   const [isSwapping, setIsSwapping] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [isRefundingOrder, setIsRefundingOrder] = useState(false);
+
+  const [sessionInfo, setSessionInfo] = useState<{
+    name?: string;
+    timeRange?: string;
+    sessionDate?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!order?.sessionId) {
+      if (order?.sessionName) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSessionInfo({ name: order.sessionName });
+      }
+      return;
+    }
+    sessionService
+      .getSessionDetail(order.sessionId)
+      .then((session) => {
+        if (session) {
+          let timeRange = "";
+          let sessionDate = "";
+          if (session.availableFrom && session.availableTo) {
+            const fromTime = new Date(session.availableFrom).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const toTime = new Date(session.availableTo).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            timeRange = `${fromTime} - ${toTime}`;
+            sessionDate = new Date(session.availableFrom).toLocaleDateString("vi-VN", {
+              weekday: "long",
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            });
+          }
+          setSessionInfo({
+            name: session.name || order.sessionName || "Phiên ăn",
+            timeRange,
+            sessionDate,
+          });
+        }
+      })
+      .catch(() => {
+        if (order?.sessionName) {
+          setSessionInfo({ name: order.sessionName });
+        }
+      });
+  }, [order?.sessionId, order?.sessionName]);
 
   const fetchProposals = useCallback(async () => {
     if (!orderId) return;
@@ -351,7 +405,7 @@ export default function OrderDetailPage() {
 
           <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
             {/* Header */}
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
               <div>
                 <h1 className="text-3xl font-black text-gray-800">Chi tiết đơn hàng</h1>
                 <p className="text-sm text-gray-400 font-mono mt-1">ID: {order.id}</p>
@@ -366,6 +420,62 @@ export default function OrderDetailPage() {
                 <p className="text-xs text-gray-400 mt-2 font-semibold">
                   {formatDate(order.createdAtUtc)}
                 </p>
+              </div>
+            </div>
+
+            {/* Session & Order Timing Summary Banner */}
+            <div className="bg-orange-50/70 border border-orange-200/70 rounded-2xl p-5 mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white border border-orange-200 flex items-center justify-center text-[#D35400] shrink-0 shadow-2xs">
+                  <UtensilsCrossed className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                    Ca / Phiên ăn
+                  </p>
+                  <p className="text-sm font-black text-gray-900">
+                    {sessionInfo?.name || order.sessionName || "Chưa có thông tin ca"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 border-t sm:border-t-0 sm:border-l border-orange-200/60 pt-3 sm:pt-0 sm:pl-4">
+                <div className="w-10 h-10 rounded-xl bg-white border border-orange-200 flex items-center justify-center text-[#D35400] shrink-0 shadow-2xs">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                    Giờ phục vụ ca
+                  </p>
+                  <div className="text-sm font-extrabold text-gray-900">
+                    {sessionInfo?.timeRange ? (
+                      <>
+                        <span>{sessionInfo.timeRange}</span>
+                        {sessionInfo.sessionDate && (
+                          <span className="block text-xs font-semibold text-gray-500 capitalize mt-0.5">
+                            {sessionInfo.sessionDate}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      "Đang cập nhật"
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 border-t sm:border-t-0 sm:border-l border-orange-200/60 pt-3 sm:pt-0 sm:pl-4">
+                <div className="w-10 h-10 rounded-xl bg-white border border-orange-200 flex items-center justify-center text-[#D35400] shrink-0 shadow-2xs">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                    Ngày giờ đặt đơn
+                  </p>
+                  <p className="text-sm font-extrabold text-gray-900">
+                    {formatDate(order.createdAtUtc)}
+                  </p>
+                </div>
               </div>
             </div>
 

@@ -69,20 +69,28 @@ export function ExportButton({
     }
 
     if (sessions?.items && sessions.items.length > 0) {
-      const sessionData = [
-        ["Ca", "Từ", "Đến", "Đơn", "Hoàn thành", "Tỷ lệ", "Doanh thu", "Hoàn tiền"],
-        ...sessions.items.map((s) => [
-          s.sessionName,
-          s.availableFrom,
-          s.availableTo,
-          s.totalOrders,
-          s.completedOrders,
-          `${s.completionRate}%`,
-          s.revenue,
-          s.refundAmount,
-        ]),
-      ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sessionData), "Ca phục vụ");
+      const validSessions = sessions.items.filter(
+        (s) =>
+          s.sessionName &&
+          s.sessionName.trim() !== "" &&
+          new Date(s.availableFrom).getFullYear() >= 2000,
+      );
+      if (validSessions.length > 0) {
+        const sessionData = [
+          ["Ca", "Từ", "Đến", "Đơn", "Hoàn thành", "Tỷ lệ", "Doanh thu", "Hoàn tiền"],
+          ...validSessions.map((s) => [
+            s.sessionName,
+            s.availableFrom,
+            s.availableTo,
+            s.totalOrders,
+            s.completedOrders,
+            `${s.completionRate}%`,
+            s.revenue,
+            s.refundAmount,
+          ]),
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sessionData), "Ca phục vụ");
+      }
     }
 
     if (issues) {
