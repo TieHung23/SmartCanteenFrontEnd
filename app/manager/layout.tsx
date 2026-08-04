@@ -59,7 +59,7 @@ const MANAGER_MENU_GROUPS: MenuGroup[] = [
     icon: BarChart3,
     items: [
       { name: "Báo cáo tổng hợp", path: "/manager", icon: BarChart3 },
-      { name: "Báo cáo chi tiết Session", path: "/manager/reports/sessions", icon: TrendingUp },
+      { name: "Báo cáo ca phục vụ", path: "/manager/reports/sessions", icon: TrendingUp },
     ],
   },
   {

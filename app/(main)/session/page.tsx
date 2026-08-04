@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSessions } from "@/lib/hooks/use-sessions";
 import { cn, isSessionExpired } from "@/lib/utils";
 import Navbar from "@/components/layout/Navbar";
 import Image from "next/image";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SessionListItem } from "@/types/session.types";
 
 const generateCalendarDays = () => {
   const dates = [];
-  for (let i = -3; i <= 7; i++) {
+  for (let i = -5; i <= 25; i++) {
     const date = new Date();
     date.setDate(date.getDate() + i);
     dates.push(date);
@@ -96,6 +97,52 @@ export default function SessionPage() {
     const today = new Date();
     return calendarDays.find((d) => isSameDay(d, today)) || calendarDays[3];
   });
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [hasDragged, setHasDragged] = useState(false);
+
+  // Auto-scroll selected date into center view when page loads
+  useEffect(() => {
+    if (scrollRef.current) {
+      const selectedEl = scrollRef.current.querySelector(".selected-date-item");
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsMouseDown(true);
+    setHasDragged(false);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    setIsMouseDown(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDown || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.8;
+    if (Math.abs(walk) > 5) {
+      setHasDragged(true);
+    }
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const scrollNav = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const amount = direction === "left" ? -240 : 240;
+      scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
 
   const { data: sessionsData, isLoading, isSuccess } = useSessions(true);
   const [activePlate, setActivePlate] = useState(0);
@@ -227,10 +274,43 @@ export default function SessionPage() {
 
         {/* ── Body ── */}
         <div className="px-4 md:px-6 lg:px-10 max-w-7xl mx-auto">
-          <p className="text-sm md:text-base font-bold tracking-[0.2em] text-gray-400 uppercase mb-5">
-            Chọn ngày
-          </p>
-          <div className="flex overflow-x-auto gap-3 md:gap-5 mb-12 pb-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+          <div className="flex items-center justify-between mb-5">
+            <p className="text-sm md:text-base font-bold tracking-[0.2em] text-gray-400 uppercase">
+              Chọn ngày
+            </p>
+            {/* Nav Arrows */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => scrollNav("left")}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition-all shadow-xs"
+                title="Cuộn sang trái"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollNav("right")}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition-all shadow-xs"
+                title="Cuộn sang phải"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={scrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeaveOrUp}
+            onMouseUp={handleMouseLeaveOrUp}
+            onMouseMove={handleMouseMove}
+            className={cn(
+              "flex overflow-x-auto gap-3 md:gap-5 mb-12 pb-4 snap-x snap-mandatory scroll-smooth select-none",
+              "[-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden",
+              isMouseDown ? "cursor-grabbing" : "cursor-grab",
+            )}
+          >
             {calendarDays.map((date, index) => {
               const isSelected = isSameDay(date, selectedDate);
               const isToday = isSameDay(date, new Date());
@@ -242,11 +322,16 @@ export default function SessionPage() {
               return (
                 <button
                   key={index}
-                  onClick={() => setSelectedDate(date)}
+                  type="button"
+                  onClick={() => {
+                    if (!hasDragged) {
+                      setSelectedDate(date);
+                    }
+                  }}
                   className={cn(
                     "flex-shrink-0 w-20 md:w-24 flex flex-col items-center justify-center py-5 md:py-6 rounded-3xl transition-all duration-300 gap-1.5 border-2 snap-center",
                     isSelected
-                      ? "bg-[#D35400] text-white shadow-[0_10px_30px_rgba(211,84,0,0.3)] border-[#D35400] scale-105"
+                      ? "selected-date-item bg-[#D35400] text-white shadow-[0_10px_30px_rgba(211,84,0,0.3)] border-[#D35400] scale-105"
                       : "bg-white text-gray-700 border-gray-100 hover:border-orange-200 hover:bg-orange-50/50 hover:shadow-sm",
                   )}
                 >

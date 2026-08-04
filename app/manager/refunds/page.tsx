@@ -12,18 +12,18 @@ import { RefundDetailsContent } from "./_components/refund-details-content";
 const getRefundStatusStyle = (status: string | number, changeProposalId?: string | null) => {
   const s = String(status).toLowerCase();
   if (s === "pending" || s === "1" || s === "0") {
-    return { label: "CHỜ XỬ LÝ", bg: "bg-amber-100 text-amber-800 border border-amber-200" };
+    return { label: "Chờ xử lý", bg: "bg-amber-100 text-amber-800 border border-amber-200" };
   }
   if (s === "approved" || s === "2") {
     if (changeProposalId) {
-      return { label: "TỰ ĐỘNG HOÀN", bg: "bg-blue-100 text-blue-800 border border-blue-200" };
+      return { label: "Tự động hoàn", bg: "bg-blue-100 text-blue-800 border border-blue-200" };
     }
-    return { label: "ĐÃ DUYỆT", bg: "bg-emerald-100 text-emerald-800 border border-emerald-200" };
+    return { label: "Đã duyệt", bg: "bg-emerald-100 text-emerald-800 border border-emerald-200" };
   }
   if (s === "rejected" || s === "3") {
-    return { label: "TỪ CHỐI", bg: "bg-red-100 text-red-800 border border-red-200" };
+    return { label: "Từ chối", bg: "bg-red-100 text-red-800 border border-red-200" };
   }
-  return { label: "CHỜ XỬ LÝ", bg: "bg-amber-100 text-amber-800 border border-amber-200" };
+  return { label: "Chờ xử lý", bg: "bg-amber-100 text-amber-800 border border-amber-200" };
 };
 
 export default function ManagerRefundsPage() {

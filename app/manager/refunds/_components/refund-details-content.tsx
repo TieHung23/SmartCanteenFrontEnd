@@ -17,7 +17,7 @@ const getRefundStatusStyle = (
   const s = String(status).toLowerCase();
   if (s === "pending" || s === "1" || s === "0") {
     return {
-      label: "CHỜ XỬ LÝ",
+      label: "Chờ xử lý",
       color: "text-amber-800",
       bg: "bg-amber-100 border border-amber-200",
     };
@@ -25,22 +25,22 @@ const getRefundStatusStyle = (
   if (s === "approved" || s === "2") {
     if (changeProposalId || reviewedBy === null) {
       return {
-        label: "TỰ ĐỘNG HOÀN TIỀN (SỰ CỐ CA)",
+        label: "Tự động hoàn tiền",
         color: "text-blue-800",
         bg: "bg-blue-100 border border-blue-200",
       };
     }
     return {
-      label: "ĐÃ DUYỆT BỞI QUẢN LÝ",
+      label: "Đã duyệt",
       color: "text-emerald-800",
       bg: "bg-emerald-100 border border-emerald-200",
     };
   }
   if (s === "rejected" || s === "3") {
-    return { label: "TỪ CHỐI", color: "text-red-800", bg: "bg-red-100 border border-red-200" };
+    return { label: "Từ chối", color: "text-red-800", bg: "bg-red-100 border border-red-200" };
   }
   return {
-    label: "CHỜ XỬ LÝ",
+    label: "Chờ xử lý",
     color: "text-amber-800",
     bg: "bg-amber-100 border border-amber-200",
   };

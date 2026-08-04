@@ -997,12 +997,12 @@ export function NewSessionForm({
                 <p className="font-extrabold text-sm text-red-800">
                   ⚠️{" "}
                   {errors.duplicateLanes
-                    ? "Trùng mã Lane giữa các món ăn!"
-                    : "Bạn chưa tạo cấu hình Lane!"}
+                    ? "Mã Lane bị trùng giữa các món!"
+                    : "Chưa chọn Mã Lane cho món ăn!"}
                 </p>
                 <p className="text-red-600 mt-0.5 font-medium leading-relaxed">
-                  {errors.duplicateLanes || errors.lanes}. Mỗi món ăn trong ca phải được gán 1 Mã
-                  Lane riêng biệt!
+                  {errors.duplicateLanes || errors.lanes} Vui lòng chọn cho mỗi món một Mã Lane
+                  riêng trước khi tạo ca.
                 </p>
               </div>
             </div>

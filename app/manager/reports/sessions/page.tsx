@@ -173,10 +173,10 @@ export default function SessionReportSelectPage() {
           </div>
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900">
-              Báo cáo chi tiết Session
+              Báo cáo ca phục vụ
             </h1>
             <p className="text-base text-gray-500 mt-0.5">
-              Phân tích doanh thu, số đơn, timeline & xu hướng đặt món 30 phút theo ca phục vụ.
+              Theo dõi doanh thu, số lượng đơn hàng và xu hướng đặt món theo từng ca.
             </p>
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function SessionReportSelectPage() {
             className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15"
           >
             <option value="all">Tất cả ca phục vụ</option>
-            <option value="active">Đang phục vụ (Live)</option>
+            <option value="active">Đang phục vụ</option>
             <option value="ended">Đã đóng ca</option>
             <option value="finalized">Đã chốt ca</option>
           </select>
@@ -233,10 +233,10 @@ export default function SessionReportSelectPage() {
             onChange={(e) => setSortBy(e.target.value as SortField)}
             className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15"
           >
-            <option value="newest">Mới nhất xếp đầu ⚡</option>
-            <option value="oldest">Cũ nhất trước</option>
+            <option value="newest">Mới nhất</option>
+            <option value="oldest">Cũ nhất</option>
             <option value="revenue">Doanh thu cao nhất</option>
-            <option value="orders">Số đơn nhiều nhất</option>
+            <option value="orders">Nhiều đơn nhất</option>
           </select>
 
           {/* Page size dropdown */}
