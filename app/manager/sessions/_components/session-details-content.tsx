@@ -187,7 +187,7 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
           .getDishes({ isActive: true, pageSize: 200 })
           .catch(() => ({ items: [] as Dish[] })),
         sessionService
-          .getSessions({ pageSize: 100 })
+          .getSessions({ pageSize: 1000 })
           .catch(() => ({ items: [] as SessionListItem[] })),
       ]);
       setSession(sessionData);

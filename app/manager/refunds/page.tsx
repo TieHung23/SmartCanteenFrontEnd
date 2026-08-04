@@ -9,12 +9,15 @@ import { cn } from "@/lib/utils";
 import Modal from "../_components/modal";
 import { RefundDetailsContent } from "./_components/refund-details-content";
 
-const getRefundStatusStyle = (status: string | number) => {
+const getRefundStatusStyle = (status: string | number, changeProposalId?: string | null) => {
   const s = String(status).toLowerCase();
   if (s === "pending" || s === "1" || s === "0") {
     return { label: "CHỜ XỬ LÝ", bg: "bg-amber-100 text-amber-800 border border-amber-200" };
   }
   if (s === "approved" || s === "2") {
+    if (changeProposalId) {
+      return { label: "TỰ ĐỘNG HOÀN", bg: "bg-blue-100 text-blue-800 border border-blue-200" };
+    }
     return { label: "ĐÃ DUYỆT", bg: "bg-emerald-100 text-emerald-800 border border-emerald-200" };
   }
   if (s === "rejected" || s === "3") {
@@ -174,7 +177,7 @@ export default function ManagerRefundsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((req) => {
-                  const style = getRefundStatusStyle(req.status);
+                  const style = getRefundStatusStyle(req.status, req.changeProposalId);
                   const dishName =
                     req.dishName || req.currentDishName || req.selectedDishName || "Toàn bộ đơn";
                   const userName =

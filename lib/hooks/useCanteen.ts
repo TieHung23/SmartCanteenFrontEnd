@@ -5,7 +5,7 @@ import { dishService } from "@/services/dish.service";
 import { categoryService } from "@/services/category.service";
 import { sessionService, type PaginatedList } from "@/services/session.service";
 import { orderService } from "@/services/order.service";
-import type { OrderListItem, OrderStatus } from "@/types/order.types";
+import type { GetOrdersParams, OrderListItem } from "@/types/order.types";
 import { getAccessToken } from "@/lib/auth-token-storage";
 
 const EMPTY_PAGE = <T>(): PaginatedList<T> => ({
@@ -52,10 +52,19 @@ export function useCategories() {
     retryDelay: RETRY_DELAY,
   });
 }
-
-export function useMyOrders(params?: { pageSize?: number; status?: OrderStatus }) {
+export function useMyOrders(params?: GetOrdersParams) {
   return useQuery({
-    queryKey: ["my-orders", params?.pageSize, params?.status],
+    queryKey: [
+      "my-orders",
+      params?.pageSize,
+      params?.pageNumber,
+      params?.status,
+      params?.sessionId,
+      params?.createdFrom,
+      params?.createdTo,
+      params?.sessionDateFrom,
+      params?.sessionDateTo,
+    ],
     queryFn: () => orderService.getMyOrders(params),
     enabled: !!getAccessToken(),
     staleTime: 10_000,

@@ -125,10 +125,10 @@ export default function StaffChangeProposalsPage() {
     setProcessingId(proposalId);
     try {
       await changeProposalService.requestRefund(proposalId);
-      toast.success("Yêu cầu hoàn tiền món thành công");
+      toast.success("Hoàn tiền món thành công! Số tiền đã được tự động cộng vào ví.");
       fetchProposals();
     } catch {
-      toast.error("Không thể thực hiện yêu cầu hoàn tiền");
+      toast.error("Không thể thực hiện hoàn tiền món.");
     } finally {
       setProcessingId(null);
     }

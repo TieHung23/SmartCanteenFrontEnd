@@ -6,11 +6,20 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/layout/Navbar";
 import { useMyOrders } from "@/lib/hooks/useCanteen";
-import { ORDER_STATUS_META, type OrderStatus } from "@/types/order.types";
+import { ORDER_STATUS_META, type OrderStatus, type OrderListItem } from "@/types/order.types";
 import { refundService } from "@/services/refund.service";
 import { REFUND_STATUS_META, normalizeRefundStatus } from "@/types/refund.types";
 import { ROUTES } from "@/config/routes";
-import { ClipboardList, ChevronRight, ShoppingBag, Clock } from "lucide-react";
+import {
+  ClipboardList,
+  ChevronRight,
+  ShoppingBag,
+  Clock,
+  Calendar,
+  Filter,
+  X,
+  ChevronDown,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSignalr } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
@@ -41,7 +50,26 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState<OrderStatus | null>(null);
   const [refundMap, setRefundMap] = useState<Record<string, number>>({});
 
-  const { data: ordersData, isLoading } = useMyOrders({ pageSize: 100 });
+  // Filter States
+  const [dateFilterType, setDateFilterType] = useState<"created" | "sessionDate">("sessionDate");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+  const [showDateFilterDropdown, setShowDateFilterDropdown] = useState(false);
+
+  const hasActiveDateFilter = Boolean(fromDate || toDate);
+
+  const { data: ordersData, isLoading } = useMyOrders({
+    pageSize: 100,
+    ...(dateFilterType === "created"
+      ? {
+          createdFrom: fromDate ? `${fromDate}T00:00:00Z` : undefined,
+          createdTo: toDate ? `${toDate}T23:59:59Z` : undefined,
+        }
+      : {
+          sessionDateFrom: fromDate ? `${fromDate}T00:00:00Z` : undefined,
+          sessionDateTo: toDate ? `${toDate}T23:59:59Z` : undefined,
+        }),
+  });
 
   useSignalr(
     useCallback(
@@ -64,20 +92,7 @@ export default function OrdersPage() {
     ),
   );
 
-  const responseData = ordersData as unknown as {
-    items?: Array<{
-      id: string;
-      sessionId: string;
-      transactionId: string | null;
-      userId: string;
-      status: number;
-      totalPrice: number;
-      itemCount: number;
-      createdAtUtc: string;
-    }>;
-  };
-
-  const allOrders = responseData?.items || [];
+  const allOrders: OrderListItem[] = (ordersData?.items as OrderListItem[]) || [];
   const orders = activeTab !== null ? allOrders.filter((o) => o.status === activeTab) : allOrders;
 
   useEffect(() => {
@@ -93,18 +108,136 @@ export default function OrdersPage() {
       .catch(() => {});
   }, []);
 
+  const handleClearDateFilters = () => {
+    setFromDate("");
+    setToDate("");
+  };
+
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6 font-sans">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 mb-8">
-            <ClipboardList className="w-7 h-7 text-[#D35400]" />
-            <h1 className="text-3xl font-extrabold text-gray-800">Đơn hàng của tôi</h1>
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <ClipboardList className="w-7 h-7 text-[#D35400]" />
+              <h1 className="text-3xl font-extrabold text-gray-800">Đơn hàng của tôi</h1>
+            </div>
+
+            {/* Filter Dropdown Toggle Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDateFilterDropdown(!showDateFilterDropdown)}
+                className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all shadow-xs ${
+                  hasActiveDateFilter
+                    ? "bg-orange-50 border-orange-300 text-[#D35400]"
+                    : "bg-white border-gray-200 text-gray-700 hover:border-orange-200 hover:text-[#D35400]"
+                }`}
+              >
+                <Filter className="w-4 h-4 text-[#D35400]" />
+                <span>Lọc theo thời gian</span>
+                {hasActiveDateFilter && <span className="w-2 h-2 rounded-full bg-[#D35400]" />}
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    showDateFilterDropdown ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown Box Panel */}
+              {showDateFilterDropdown && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-gray-150 rounded-2xl shadow-xl p-5 z-50 space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Filter className="w-3.5 h-3.5 text-[#D35400]" /> Bộ lọc ngày
+                    </span>
+                    <button
+                      onClick={() => setShowDateFilterDropdown(false)}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Filter Type Radio/Segment */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600">Loại ngày lọc</label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-gray-100 p-1 rounded-xl">
+                      <button
+                        onClick={() => setDateFilterType("sessionDate")}
+                        className={`py-1.5 px-2 text-xs font-bold rounded-lg transition-all ${
+                          dateFilterType === "sessionDate"
+                            ? "bg-white text-[#D35400] shadow-xs"
+                            : "text-gray-500 hover:text-gray-800"
+                        }`}
+                      >
+                        Ngày phục vụ (Ca)
+                      </button>
+                      <button
+                        onClick={() => setDateFilterType("created")}
+                        className={`py-1.5 px-2 text-xs font-bold rounded-lg transition-all ${
+                          dateFilterType === "created"
+                            ? "bg-white text-[#D35400] shadow-xs"
+                            : "text-gray-500 hover:text-gray-800"
+                        }`}
+                      >
+                        Ngày đặt đơn
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Date Inputs */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 block mb-1">Từ ngày</label>
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                        <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                        <input
+                          type="date"
+                          value={fromDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                          className="bg-transparent text-xs font-bold text-gray-800 outline-none w-full cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 block mb-1">Đến ngày</label>
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                        <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                        <input
+                          type="date"
+                          value={toDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                          className="bg-transparent text-xs font-bold text-gray-800 outline-none w-full cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Footer */}
+                  <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                    <button
+                      onClick={handleClearDateFilters}
+                      disabled={!hasActiveDateFilter}
+                      className="text-xs font-bold text-gray-500 hover:text-red-600 disabled:opacity-40 transition-colors"
+                    >
+                      Xóa bộ lọc
+                    </button>
+                    <button
+                      onClick={() => setShowDateFilterDropdown(false)}
+                      className="px-4 py-2 bg-[#D35400] hover:bg-[#b04600] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+                    >
+                      Áp dụng
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+          {/* Status Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
             {TABS.map((tab) => (
               <button
                 key={tab.label}
@@ -133,11 +266,13 @@ export default function OrdersPage() {
           ) : orders.length === 0 ? (
             <div className="text-center py-24 bg-white rounded-[2rem] border-2 border-dashed border-gray-100 shadow-sm">
               <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-500 mb-2">Không có đơn hàng</h3>
+              <h3 className="text-lg font-bold text-gray-500 mb-2">Không có đơn hàng nào</h3>
               <p className="text-sm text-gray-400 mb-6">
-                {activeTab !== null
-                  ? `Không có đơn hàng với trạng thái "${ORDER_STATUS_META[activeTab]?.label}".`
-                  : "Bạn chưa đặt đơn hàng nào."}
+                {fromDate || toDate
+                  ? "Không tìm thấy đơn hàng phù hợp với khoảng thời gian đã chọn."
+                  : activeTab !== null
+                    ? `Không có đơn hàng với trạng thái "${ORDER_STATUS_META[activeTab]?.label}".`
+                    : "Bạn chưa đặt đơn hàng nào."}
               </p>
               <Link
                 href={ROUTES.SESSION}
@@ -172,6 +307,11 @@ export default function OrdersPage() {
                             >
                               {meta.label}
                             </span>
+                            {order.sessionName && (
+                              <span className="text-xs font-extrabold text-orange-950 bg-orange-50/90 border border-orange-200/60 px-3 py-1 rounded-lg">
+                                🍱 {order.sessionName}
+                              </span>
+                            )}
                             {refundMap[order.id] !== undefined && (
                               <span
                                 className="text-xs font-black px-3 py-1 rounded-lg flex items-center gap-1.5"

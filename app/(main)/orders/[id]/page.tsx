@@ -175,13 +175,13 @@ export default function OrderDetailPage() {
 
   const handleRequestRefund = async (proposal: ChangeProposalDetail) => {
     const result = await Swal.fire({
-      title: "Yêu cầu hoàn tiền món này?",
-      text: "Số tiền sẽ được hoàn vào ví khi quản lý duyệt.",
+      title: "Hoàn tiền món ăn này?",
+      text: "Số tiền món ăn sẽ được tự động hoàn trực tiếp vào ví của bạn ngay lập tức.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#D35400",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Đồng ý",
+      confirmButtonText: "Xác nhận hoàn tiền",
       cancelButtonText: "Hủy",
       background: "#ffffff",
       customClass: {
@@ -194,7 +194,7 @@ export default function OrderDetailPage() {
     setIsRefunding(true);
     try {
       await changeProposalService.requestRefund(proposal.id);
-      toast.success("Yêu cầu hoàn tiền thành công!");
+      toast.success("Hoàn tiền món thành công! Số tiền đã được tự động cộng vào ví.");
       fetchProposals();
       fetchRefunds();
       queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
@@ -210,7 +210,7 @@ export default function OrderDetailPage() {
   const handleRequestOrderRefund = async (proposal: ChangeProposalDetail) => {
     const result = await Swal.fire({
       title: "Hủy đơn & hoàn tiền toàn bộ?",
-      text: "Đơn hàng sẽ bị hủy và toàn bộ số tiền sẽ được hoàn vào ví khi quản lý duyệt.",
+      text: "Đơn hàng sẽ bị hủy và toàn bộ số tiền (các món chưa hoàn) sẽ được tự động hoàn trực tiếp vào ví của bạn ngay lập tức.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -228,7 +228,7 @@ export default function OrderDetailPage() {
     setIsRefundingOrder(true);
     try {
       await changeProposalService.requestOrderRefund(proposal.id);
-      toast.success("Đã gửi yêu cầu hủy đơn & hoàn tiền!");
+      toast.success("Hủy đơn & hoàn tiền thành công! Số tiền đã được tự động cộng vào ví.");
       fetchProposals();
       fetchRefunds();
       queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
@@ -327,7 +327,7 @@ export default function OrderDetailPage() {
   const refundStatusNum = orderRefund ? normalizeRefundStatus(orderRefund.status) : null;
   const isOrderRefundRejected = order.status === 3 && refundStatusNum === 2;
   const isOrderRefundPending =
-    (order.status === 3 && refundStatusNum === 0) || proposals.some((p) => p.proposalStatus === 3);
+    orderRefund && !orderRefund.changeProposalId && refundStatusNum === 0;
 
   const rawMeta = ORDER_STATUS_META[order.status as OrderStatus] || ORDER_STATUS_META[0];
   const meta = isOrderRefundRejected
@@ -446,45 +446,57 @@ export default function OrderDetailPage() {
                     {showProposalPanel && (
                       <div
                         className={`p-4 rounded-xl flex flex-col gap-3 w-full border ${
-                          isOrderRefundPending || proposal?.proposalStatus === 3
-                            ? "bg-amber-50/70 border-amber-200"
-                            : "bg-orange-50 border-orange-100"
+                          proposal?.proposalStatus === 3
+                            ? "bg-purple-50/80 border-purple-200"
+                            : proposal?.proposalStatus === 2
+                              ? "bg-green-50/80 border-green-200"
+                              : "bg-orange-50 border-orange-100"
                         }`}
                       >
                         <div className="flex items-start gap-2.5">
                           <AlertCircle
                             className={`w-5 h-5 shrink-0 mt-0.5 ${
-                              isOrderRefundPending || proposal?.proposalStatus === 3
-                                ? "text-amber-600"
-                                : "text-orange-600"
+                              proposal?.proposalStatus === 3
+                                ? "text-purple-600"
+                                : proposal?.proposalStatus === 2
+                                  ? "text-green-600"
+                                  : "text-orange-600"
                             }`}
                           />
                           <div>
                             <p
                               className={`text-sm font-extrabold ${
-                                isOrderRefundPending || proposal?.proposalStatus === 3
-                                  ? "text-amber-950"
-                                  : "text-orange-950"
+                                proposal?.proposalStatus === 3
+                                  ? "text-purple-950"
+                                  : proposal?.proposalStatus === 2
+                                    ? "text-green-950"
+                                    : "text-orange-950"
                               }`}
                             >
-                              {isOrderRefundPending || proposal?.proposalStatus === 3
-                                ? "Đang chờ quản lý duyệt hủy đơn"
+                              {proposal?.proposalStatus === 3
+                                ? "Đã hoàn tiền toàn bộ & hủy đơn"
                                 : proposal?.proposalStatus === 2
-                                  ? "Yêu cầu hoàn tiền món"
-                                  : "Món này bị thiếu số lượng!"}
+                                  ? "Đã hoàn tiền món ăn vào ví"
+                                  : proposal?.proposalStatus === 1
+                                    ? "Đã đổi món"
+                                    : "Món này bị thiếu số lượng!"}
                             </p>
                             <p
                               className={`text-xs font-semibold mt-0.5 ${
-                                isOrderRefundPending || proposal?.proposalStatus === 3
-                                  ? "text-amber-700"
-                                  : "text-orange-700"
+                                proposal?.proposalStatus === 3
+                                  ? "text-purple-700"
+                                  : proposal?.proposalStatus === 2
+                                    ? "text-green-700"
+                                    : "text-orange-700"
                               }`}
                             >
-                              {isOrderRefundPending || proposal?.proposalStatus === 3
-                                ? "Yêu cầu hủy toàn bộ đơn hàng đã được gửi và đang chờ Quản lý xem xét."
-                                : proposal?.suggestedDishName
-                                  ? `Gợi ý: ${proposal.suggestedDishName}. Vui lòng chọn món khác thay thế.`
-                                  : "Vui lòng chọn món khác thay thế."}
+                              {proposal?.proposalStatus === 3
+                                ? "Đơn hàng đã được hủy và tiền đã được tự động hoàn trả vào ví của bạn."
+                                : proposal?.proposalStatus === 2
+                                  ? "Số tiền cho món này đã được tự động cộng trực tiếp vào ví của bạn."
+                                  : proposal?.suggestedDishName
+                                    ? `Gợi ý: ${proposal.suggestedDishName}. Vui lòng chọn hành động thay thế.`
+                                    : "Vui lòng chọn hành động thay thế."}
                             </p>
                             {proposal?.responseDeadlineUtc && proposal.proposalStatus === 0 && (
                               <p className="text-[11px] font-bold text-amber-800 mt-1.5 flex items-center gap-1 bg-amber-100/80 px-2 py-0.5 rounded-md w-fit">
@@ -537,27 +549,21 @@ export default function OrderDetailPage() {
                           </div>
                         )}
 
-                        {/* Status badge when proposal is not in WaitingResponse (0) or full order refund is pending */}
-                        {(proposal?.proposalStatus !== 0 || isOrderRefundPending) && (
+                        {/* Status badge when proposal is not in WaitingResponse (0) */}
+                        {proposal && proposal.proposalStatus !== 0 && (
                           <span
                             className="text-xs font-bold px-2.5 py-1 rounded-lg w-fit"
                             style={{
                               color:
-                                isOrderRefundPending || proposal?.proposalStatus === 3
-                                  ? "#d97706"
-                                  : CHANGE_PROPOSAL_STATUS_META[proposal?.proposalStatus || 0]
-                                      ?.color || "#f07b2e",
+                                CHANGE_PROPOSAL_STATUS_META[proposal.proposalStatus]?.color ||
+                                "#f07b2e",
                               backgroundColor:
-                                isOrderRefundPending || proposal?.proposalStatus === 3
-                                  ? "#fffbeb"
-                                  : CHANGE_PROPOSAL_STATUS_META[proposal?.proposalStatus || 0]
-                                      ?.bg || "#fff8f4",
+                                CHANGE_PROPOSAL_STATUS_META[proposal.proposalStatus]?.bg ||
+                                "#fff8f4",
                             }}
                           >
-                            {isOrderRefundPending || proposal?.proposalStatus === 3
-                              ? "Chờ duyệt hủy đơn"
-                              : CHANGE_PROPOSAL_STATUS_META[proposal?.proposalStatus || 0]?.label ||
-                                "Chờ xử lý"}
+                            {CHANGE_PROPOSAL_STATUS_META[proposal.proposalStatus]?.label ||
+                              "Chờ xử lý"}
                           </span>
                         )}
                       </div>
@@ -634,7 +640,7 @@ export default function OrderDetailPage() {
                     ? "bg-amber-50 border-amber-200"
                     : isOrderRefundPending
                       ? "bg-orange-50 border-orange-200"
-                      : "bg-red-50 border-red-100"
+                      : "bg-purple-50 border-purple-200"
                 }`}
               >
                 <AlertCircle
@@ -643,7 +649,7 @@ export default function OrderDetailPage() {
                       ? "text-amber-600"
                       : isOrderRefundPending
                         ? "text-orange-600"
-                        : "text-[#ef4444]"
+                        : "text-purple-600"
                   }`}
                 />
                 <div>
@@ -653,14 +659,14 @@ export default function OrderDetailPage() {
                         ? "text-amber-900"
                         : isOrderRefundPending
                           ? "text-orange-950"
-                          : "text-red-700"
+                          : "text-purple-950"
                     }`}
                   >
                     {isOrderRefundRejected
                       ? "Yêu cầu hủy đơn & hoàn tiền đã bị từ chối"
                       : isOrderRefundPending
-                        ? "Yêu cầu hủy đơn & hoàn tiền đang chờ quản lý duyệt"
-                        : "Đơn hàng đã hủy"}
+                        ? "Yêu cầu hoàn tiền đang chờ quản lý duyệt"
+                        : "Đơn hàng đã hủy & tự động hoàn tiền vào ví"}
                   </p>
                   <p
                     className={`text-xs font-semibold mt-1 ${
@@ -668,14 +674,14 @@ export default function OrderDetailPage() {
                         ? "text-amber-700"
                         : isOrderRefundPending
                           ? "text-orange-700"
-                          : "text-red-500"
+                          : "text-purple-700"
                     }`}
                   >
                     {isOrderRefundRejected
                       ? "Vui lòng chọn đổi món thay thế cho các món chưa hoàn tất ở trên."
                       : isOrderRefundPending
-                        ? "Yêu cầu hủy toàn bộ đơn hàng đã được gửi tới Quản lý và đang chờ phê duyệt."
-                        : "Đơn hàng này đã bị hủy và sẽ không được xử lý."}
+                        ? "Yêu cầu hoàn tiền đơn hàng đã được gửi tới Quản lý và đang chờ phê duyệt."
+                        : "Đơn hàng này đã bị hủy và tiền đã được hệ thống tự động hoàn trực tiếp vào ví của bạn."}
                   </p>
                 </div>
               </div>

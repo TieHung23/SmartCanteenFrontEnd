@@ -29,6 +29,8 @@ export interface RefundRequest {
   status: RefundStatus;
   createdAtUtc: string;
   updatedAtUtc: string | null;
+  changeProposalId?: string | null;
+  orderItemId?: number | null;
 }
 
 export type RefundStatus = 0 | 1 | 2;
