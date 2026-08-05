@@ -38,16 +38,12 @@ function formatMoney(amount?: number) {
   return amount.toLocaleString("vi-VN") + " đ";
 }
 
-type SortField = "newest" | "oldest" | "revenue" | "orders";
-
 export default function SessionReportSelectPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<SortField>("newest");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const pageSize = 15;
 
   const sessionsQuery = useQuery({
     queryKey: ["report-sessions-list"],
@@ -105,46 +101,22 @@ export default function SessionReportSelectPage() {
     }));
   }, [sessionsQuery.data, sessionListQuery.data]);
 
-  // 1. FILTERING
+  // 1. FILTERING & SORTING (NEWEST ON TOP)
   const filteredSessions = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return rawSessions.filter((session) => {
-      const matchSearch =
-        !q || session.name.toLowerCase().includes(q) || session.id.toLowerCase().includes(q);
-
-      let matchStatus = true;
-      if (statusFilter === "active") matchStatus = session.isActive;
-      if (statusFilter === "ended") matchStatus = !session.isActive;
-      if (statusFilter === "finalized") matchStatus = session.isFinalized;
-
-      return matchSearch && matchStatus;
+    const list = rawSessions.filter((session) => {
+      return !q || session.name.toLowerCase().includes(q) || session.id.toLowerCase().includes(q);
     });
-  }, [rawSessions, search, statusFilter]);
-
-  // 2. SORTING (NEWEST SESSIONS ON TOP BY DEFAULT)
-  const sortedSessions = useMemo(() => {
-    return [...filteredSessions].sort((a, b) => {
-      if (sortBy === "newest") {
-        const timeA = new Date(a.availableFrom || 0).getTime();
-        const timeB = new Date(b.availableFrom || 0).getTime();
-        return timeB - timeA; // Mới nhất lên đầu
-      }
-      if (sortBy === "oldest") {
-        const timeA = new Date(a.availableFrom || 0).getTime();
-        const timeB = new Date(b.availableFrom || 0).getTime();
-        return timeA - timeB;
-      }
-      if (sortBy === "revenue") {
-        return b.revenue - a.revenue;
-      }
-      if (sortBy === "orders") {
-        return b.totalOrders - a.totalOrders;
-      }
-      return 0;
+    return list.sort((a, b) => {
+      const timeA = new Date(a.availableFrom || 0).getTime();
+      const timeB = new Date(b.availableFrom || 0).getTime();
+      return timeB - timeA;
     });
-  }, [filteredSessions, sortBy]);
+  }, [rawSessions, search]);
 
-  // 3. PAGINATION
+  const sortedSessions = filteredSessions;
+
+  // 2. PAGINATION
   const totalCount = sortedSessions.length;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
   const paginatedSessions = useMemo(() => {
@@ -154,13 +126,6 @@ export default function SessionReportSelectPage() {
 
   const handleSelectSession = (id: string) => {
     router.push(`/manager/reports/sessions/${id}`);
-  };
-
-  const clearFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
-    setSortBy("newest");
-    setPageNumber(1);
   };
 
   return (
@@ -196,105 +161,81 @@ export default function SessionReportSelectPage() {
       </div>
 
       {/* ── Form Ngang: Toolbar & Controls ── */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs space-y-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Search bar */}
-          <div className="relative flex-1 min-w-[280px]">
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPageNumber(1);
+          }}
+          className="flex flex-col sm:flex-row items-center gap-3"
+        >
+          {/* Search Bar Pill */}
+          <div className="relative flex-1 w-full">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
+              type="text"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPageNumber(1);
               }}
-              placeholder="Tìm theo tên ca phục vụ, ID..."
-              className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 pl-11 pr-4 text-sm font-semibold text-gray-800 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+              placeholder="Tìm kiếm danh mục..."
+              className="h-12 w-full rounded-full border border-gray-200 bg-gray-50/80 pl-11 pr-10 text-sm font-semibold text-gray-800 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setPageNumber(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          {/* Status Filter Dropdown */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPageNumber(1);
-            }}
-            className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15"
+          {/* Dark Search Pill Button (HÌNH 2) */}
+          <button
+            type="submit"
+            className="w-full sm:w-auto h-12 px-8 rounded-full bg-[#0B132B] hover:bg-gray-800 text-white font-bold text-sm transition-all shadow-xs active:scale-95 shrink-0 flex items-center justify-center cursor-pointer"
           >
-            <option value="all">Tất cả ca phục vụ</option>
-            <option value="active">Đang phục vụ</option>
-            <option value="ended">Đã đóng ca</option>
-            <option value="finalized">Đã chốt ca</option>
-          </select>
-
-          {/* Sort Order Dropdown (Newest on top default) */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortField)}
-            className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15"
-          >
-            <option value="newest">Mới nhất</option>
-            <option value="oldest">Cũ nhất</option>
-            <option value="revenue">Doanh thu cao nhất</option>
-            <option value="orders">Nhiều đơn nhất</option>
-          </select>
-
-          {/* Page size dropdown */}
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPageNumber(1);
-            }}
-            className="h-12 rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15"
-          >
-            <option value={15}>15 dòng / trang</option>
-            <option value={30}>30 dòng / trang</option>
-            <option value={50}>50 dòng / trang</option>
-            <option value={100}>100 dòng / trang</option>
-          </select>
-
-          {/* Clear Filter button */}
-          {(search || statusFilter !== "all" || sortBy !== "newest") && (
-            <button
-              onClick={clearFilters}
-              className="h-12 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center gap-1.5 shrink-0"
-              title="Xóa bộ lọc"
-            >
-              <X className="w-4 h-4" /> Xóa lọc
-            </button>
-          )}
+            Tìm kiếm
+          </button>
 
           {/* View mode toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/60 shrink-0">
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-full border border-gray-200/60 shrink-0 ml-auto sm:ml-0">
             <button
+              type="button"
               onClick={() => setViewMode("table")}
               className={cn(
-                "p-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                "px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
                 viewMode === "table"
                   ? "bg-white text-[#D35400] shadow-xs"
                   : "text-gray-500 hover:text-gray-800",
               )}
-              title="Xem dạng Bảng Ngang (Tối ưu xem hàng trăm ca)"
+              title="Xem dạng Bảng"
             >
               <LayoutList className="w-4 h-4" />
               <span className="hidden sm:inline">Bảng</span>
             </button>
             <button
+              type="button"
               onClick={() => setViewMode("grid")}
               className={cn(
-                "p-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                "px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
                 viewMode === "grid"
                   ? "bg-white text-[#D35400] shadow-xs"
                   : "text-gray-500 hover:text-gray-800",
               )}
-              title="Xem dạng Thẻ Grid"
+              title="Xem dạng Thẻ"
             >
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">Thẻ</span>
             </button>
           </div>
-        </div>
+        </form>
       </div>
 
       {/* ── Content View ── */}
