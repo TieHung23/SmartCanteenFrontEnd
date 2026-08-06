@@ -6,7 +6,7 @@ import { cn, isSessionExpired } from "@/lib/utils";
 import Navbar from "@/components/layout/Navbar";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import type { SessionListItem } from "@/types/session.types";
 
 const generateCalendarDays = () => {
@@ -221,16 +221,22 @@ export default function SessionPage() {
           <div className="absolute top-1/2 left-[70%] -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] md:w-[600px] md:h-[600px] bg-orange-200/40 rounded-full blur-[80px] pointer-events-none" />
 
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center gap-8 lg:gap-12 min-h-[24rem] lg:min-h-[30rem] px-6 md:px-12 relative z-10">
-            <div className="flex flex-col items-center md:items-start text-center md:text-left w-full md:w-5/12 mb-16 md:mb-0">
-              <span className="text-[#A03D14] font-bold tracking-[0.25em] uppercase text-sm md:text-base mb-5">
-                Trải nghiệm ẩm thực
-              </span>
-              <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black tracking-tight text-[#1a0a00] leading-[1.15] mb-6 drop-shadow-sm">
-                Nâng tầm <br />
-                <span className="text-[#D35400]">Bữa ăn hàng ngày</span>
+            <div className="flex flex-col items-center md:items-start text-center md:text-left w-full md:w-5/12 mb-16 md:mb-0 space-y-4">
+              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white dark:bg-card border border-orange-500/15 shadow-sm text-xs font-semibold text-orange-600 dark:text-orange-400">
+                <Sparkles className="w-4 h-4 text-orange-500" />
+                <span className="tracking-wide uppercase font-bold">
+                  Trải Nghiệm Ẩm Thực Smart 4.0
+                </span>
+              </div>
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-foreground leading-[1.05]">
+                Nâng Tầm{" "}
+                <span className="italic font-medium text-orange-600 dark:text-orange-400">
+                  Bữa Ăn Hàng Ngày
+                </span>
               </h1>
-              <p className="text-gray-600 font-medium text-base md:text-lg max-w-md leading-relaxed">
-                Khám phá thực đơn được tuyển chọn bởi các đầu bếp. Chọn một phiên ăn để bắt đầu.
+              <p className="text-muted-foreground font-normal text-base md:text-lg max-w-md leading-relaxed">
+                Khám phá thực đơn phong phú được chế biến tươi sạch. Chọn một phiên ăn để bắt đầu
+                đặt món.
               </p>
             </div>
 
@@ -275,9 +281,9 @@ export default function SessionPage() {
         {/* ── Body ── */}
         <div className="px-4 md:px-6 lg:px-10 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-5">
-            <p className="text-sm md:text-base font-bold tracking-[0.2em] text-gray-400 uppercase">
-              Chọn ngày
-            </p>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-card border border-orange-500/15 text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+              <span>Chọn Ngày Phiên Ăn</span>
+            </div>
             {/* Nav Arrows */}
             <div className="flex items-center gap-2">
               <button

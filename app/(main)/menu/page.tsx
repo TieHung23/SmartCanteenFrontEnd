@@ -231,7 +231,7 @@ function MenuContent() {
   const [isDishDragging, setIsDishDragging] = useState(false);
 
   const heroImages = useMemo(
-    () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img6.png"],
+    () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img8.jpg"],
     [],
   );
   const [heroImageIdx, setHeroImageIdx] = useState(0);
@@ -510,7 +510,7 @@ function MenuContent() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-white pb-32 font-sans overflow-x-hidden w-full px-8">
+      <main className="min-h-screen bg-[#FAF8F5] dark:bg-background pb-32 font-sans overflow-x-hidden w-full px-4 sm:px-8">
         {/* ── HERO: CAROUSEL OF CANTEEN IMAGES ── */}
         <div className="w-full pt-6">
           <div className="relative w-full min-h-[220px] md:min-h-[300px] rounded-[2.5rem] overflow-hidden shadow-lg">
@@ -543,37 +543,37 @@ function MenuContent() {
               ))}
             </div>
 
-            <div className="relative z-10 px-10 md:px-16 py-12 md:py-16 text-white">
-              <div className="flex flex-wrap items-center gap-2 text-white/80 text-xs font-medium mb-3">
-                <span className="bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm font-bold">
+            <div className="relative z-10 px-8 md:px-16 py-12 md:py-16 text-white space-y-4">
+              <div className="flex flex-wrap items-center gap-2.5 text-xs font-bold">
+                <span className="bg-white/20 backdrop-blur-md border border-white/25 px-4 py-1.5 rounded-full text-white font-extrabold uppercase tracking-wider shadow-sm">
                   {mealDetail?.availableForOrder
-                    ? `Mở đặt ${new Date(mealDetail.availableForOrder).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
-                    : "dang chon"}
+                    ? `Mở đặt từ ${new Date(mealDetail.availableForOrder).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+                    : "Đang mở chọn món"}
                 </span>
                 {expired && (
-                  <span className="bg-red-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-red-100 font-bold">
+                  <span className="bg-red-500/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white font-extrabold tracking-wider shadow-sm">
                     {mealDetail?.isFinalized ? "ĐÃ CHỐT ĐƠN" : "ĐÃ HẾT PHIÊN"}
                   </span>
                 )}
                 {upcoming && (
-                  <span className="bg-blue-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-blue-100 font-bold">
+                  <span className="bg-blue-500/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white font-extrabold tracking-wider shadow-sm">
                     SẮP DIỄN RA
                   </span>
                 )}
               </div>
 
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight drop-shadow-sm">
-                {mealDetail?.name || "Dang tai thuc don..."}
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] drop-shadow-md text-white">
+                {mealDetail?.name || "Đang tải thực đơn..."}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-5 text-white/90 text-base font-bold">
-                <span className="flex items-center gap-1.5 drop-shadow-sm bg-black/20 px-4 py-1.5 rounded-xl">
+              <div className="flex flex-wrap items-center gap-4 pt-2 text-white/95 text-sm md:text-base font-bold">
+                <span className="flex items-center gap-2 drop-shadow bg-black/30 backdrop-blur-md border border-white/15 px-4 py-2 rounded-2xl">
                   <Clock className="w-5 h-5 text-orange-400" />
                   {mealDetail
                     ? formatTimeRange(mealDetail.availableFrom, mealDetail.availableTo)
                     : "--:--"}
                 </span>
-                <span className="flex items-center gap-1.5 drop-shadow-sm bg-black/20 px-4 py-1.5 rounded-xl">
+                <span className="flex items-center gap-2 drop-shadow bg-black/30 backdrop-blur-md border border-white/15 px-4 py-2 rounded-2xl">
                   <CalendarDays className="w-5 h-5 text-orange-400" />
                   {mealDetail ? formatDate(mealDetail.availableFrom) : "--"}
                 </span>
