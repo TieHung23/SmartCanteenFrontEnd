@@ -297,24 +297,31 @@ export default function ManagerTraysPage() {
       )}
 
       {/* ── Search ── */}
-      <div className="rounded-2xl border border-gray-100/80 bg-white p-6 shadow-xs">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-gray-400" />
+      {/* ── Search Bar ── */}
+      <div className="flex items-center gap-4 w-full sm:w-auto flex-1 max-w-lg">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             placeholder="Tìm theo mã khay, trạng thái, đơn hàng..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-14 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-14 pr-12 text-base font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+            className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
+        <button
+          onClick={() => {}}
+          className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
+        >
+          Tìm kiếm
+        </button>
       </div>
 
       {/* ── Content ── */}
@@ -417,7 +424,8 @@ export default function ManagerTraysPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        {tray.currentOrderId ? (
+                        {tray.currentOrderId &&
+                        tray.currentOrderId !== "00000000-0000-0000-0000-000000000000" ? (
                           <code className="text-xs font-mono text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
                             {tray.currentOrderId.slice(0, 8)}...
                           </code>
@@ -614,6 +622,7 @@ export default function ManagerTraysPage() {
       {/* ── DETAIL MODAL ── */}
       <TrayDetailModal
         trayId={selectedTrayId}
+        initialCurrentOrderId={trays.find((t) => t.id === selectedTrayId)?.currentOrderId}
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         onRefreshPool={fetchPool}

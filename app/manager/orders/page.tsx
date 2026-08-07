@@ -10,7 +10,6 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
-  User,
   RefreshCw,
   Package,
   Coffee,
@@ -525,43 +524,47 @@ export default function ManagerOrdersPage() {
           </div>
 
           {/* Search + filter */}
-          <div className="rounded-2xl border border-gray-100/80 bg-white p-6 shadow-xs">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+            <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
               <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-gray-400" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Tìm theo mã đơn, tên hoặc user ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-14 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-14 pr-5 text-base font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+                  className="w-full pl-12 pr-5 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
                 />
               </div>
-              <div className="flex gap-3">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="h-14 rounded-2xl border border-gray-200/80 bg-white px-5 text-base font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 w-full lg:w-56"
-                >
-                  {STATUS_FILTER_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() =>
-                    fetchOrdersWithDetails(selectedSessionId, currentPage, statusFilter)
-                  }
-                  disabled={loadingOrders}
-                  className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200/80 bg-white text-gray-500 transition-all hover:bg-[#D35400]/5 hover:text-[#D35400] shrink-0"
-                >
-                  <RefreshCw className={`w-6 h-6 ${loadingOrders ? "animate-spin" : ""}`} />
-                </button>
-              </div>
+              <button
+                onClick={() => fetchOrdersWithDetails(selectedSessionId, currentPage, statusFilter)}
+                className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
+              >
+                Tìm kiếm
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-12 rounded-3xl border border-gray-200 bg-white px-5 text-base font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 w-full lg:w-56 shadow-2xs"
+              >
+                {STATUS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => fetchOrdersWithDetails(selectedSessionId, currentPage, statusFilter)}
+                disabled={loadingOrders}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-3xl border border-gray-200 bg-white text-gray-500 transition-all hover:bg-[#D35400]/5 hover:text-[#D35400] shrink-0 shadow-2xs"
+              >
+                <RefreshCw className={`w-5 h-5 ${loadingOrders ? "animate-spin" : ""}`} />
+              </button>
             </div>
           </div>
 
@@ -632,17 +635,17 @@ export default function ManagerOrdersPage() {
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-3.5">
                               <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-[#D35400] border border-orange-100 shrink-0 overflow-hidden">
-                                {userImgUrl ? (
-                                  <Image
-                                    src={userImgUrl}
-                                    alt={userName}
-                                    width={44}
-                                    height={44}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <User className="w-5 h-5" />
-                                )}
+                                <Image
+                                  src={
+                                    userImgUrl && userImgUrl.trim() !== ""
+                                      ? userImgUrl
+                                      : `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(userName || order.userId)}`
+                                  }
+                                  alt={userName}
+                                  width={44}
+                                  height={44}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
                               <div className="min-w-0">
                                 <p className="text-base font-bold text-gray-900 truncate max-w-[180px]">
@@ -810,18 +813,19 @@ export default function ManagerOrdersPage() {
             {/* Header: Customer Info & Status Badge */}
             <div className="bg-gradient-to-r from-orange-50/70 via-amber-50/50 to-white p-5 rounded-2xl border border-orange-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-[#D35400] border border-orange-200 shadow-sm shrink-0 overflow-hidden">
-                  {selectedDetail.imgUrl || selectedDetail.userImgUrl ? (
-                    <Image
-                      src={(selectedDetail.imgUrl || selectedDetail.userImgUrl)!}
-                      alt={selectedDetail.name || selectedDetail.userName || "Khách hàng"}
-                      width={56}
-                      height={56}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-7 h-7 text-[#D35400]" />
-                  )}
+                <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-[#D35400] border border-orange-200 shadow-xs shrink-0 overflow-hidden">
+                  <Image
+                    src={
+                      (selectedDetail.imgUrl || selectedDetail.userImgUrl) &&
+                      (selectedDetail.imgUrl || selectedDetail.userImgUrl)!.trim() !== ""
+                        ? (selectedDetail.imgUrl || selectedDetail.userImgUrl)!
+                        : `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(selectedDetail.name || selectedDetail.userName || selectedDetail.userId || "default")}`
+                    }
+                    alt={selectedDetail.name || selectedDetail.userName || "Khách hàng"}
+                    width={56}
+                    height={56}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <h4 className="text-lg font-black text-gray-900">

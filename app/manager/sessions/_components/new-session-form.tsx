@@ -1275,6 +1275,8 @@ export function NewSessionForm({
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={availableForOrder ? dayjs(availableForOrder) : null}
                         onChange={(v) => handleTimeSelect("order", v)}
                         shouldDisableTime={(value, view) => {
@@ -1387,6 +1389,8 @@ export function NewSessionForm({
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={finalizationDeadline ? dayjs(finalizationDeadline) : null}
                         onChange={(v) => handleTimeSelect("deadline", v)}
                         shouldDisableTime={(value, view) => {
@@ -1439,6 +1443,8 @@ export function NewSessionForm({
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={availableFrom ? dayjs(availableFrom) : null}
                         onChange={(v) => handleTimeSelect("start", v)}
                         shouldDisableTime={(value, view) => {
@@ -1491,6 +1497,8 @@ export function NewSessionForm({
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={availableTo ? dayjs(availableTo) : null}
                         onChange={(v) => handleTimeSelect("end", v)}
                         shouldDisableTime={(value, view) => {

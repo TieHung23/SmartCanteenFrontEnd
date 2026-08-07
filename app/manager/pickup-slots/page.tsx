@@ -1,17 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Plus,
-  Search,
-  X,
-  Grid3X3,
-  LayoutGrid,
-  Lock,
-  RefreshCw,
-  Layers,
-  AlertTriangle,
-} from "lucide-react";
+import { Plus, Search, X, Grid3X3, LayoutGrid, Lock, RefreshCw, AlertTriangle } from "lucide-react";
 import { pickupSlotService } from "@/services/pickup-slot.service";
 import type { PickupSlotSummary, PickupSlotStatus } from "@/types/pickup-slot.types";
 import Modal from "../_components/modal";
@@ -46,11 +36,7 @@ export default function ManagerPickupSlotsPage() {
   const [search, setSearch] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<"single" | "bulk">("single");
   const [singleCode, setSingleCode] = useState("");
-  const [bulkPrefix, setBulkPrefix] = useState("SLOT");
-  const [bulkFrom, setBulkFrom] = useState(1);
-  const [bulkTo, setBulkTo] = useState(12);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,63 +73,30 @@ export default function ManagerPickupSlotsPage() {
   }, []);
 
   const openCreateModal = () => {
-    setCreateMode("single");
     setSingleCode("");
-    setBulkPrefix("SLOT");
-    setBulkFrom(1);
-    setBulkTo(12);
     setFormSubmitting(false);
     setIsCreateOpen(true);
   };
 
   const handleCreateSubmit = async () => {
+    if (!singleCode.trim()) {
+      toast.error("Mã ô kệ không được để trống.");
+      return;
+    }
+    const currentSlots = summary?.slots || [];
+    if (currentSlots.some((s) => s.code.toLowerCase() === singleCode.trim().toLowerCase())) {
+      toast.error("Mã ô kệ đã tồn tại. Vui lòng dùng mã khác.");
+      return;
+    }
     setFormSubmitting(true);
     try {
-      let result;
-      if (createMode === "single") {
-        if (!singleCode.trim()) {
-          toast.error("Mã ô kệ không được để trống.");
-          setFormSubmitting(false);
-          return;
-        }
-        if (slots.some((s) => s.code.toLowerCase() === singleCode.trim().toLowerCase())) {
-          toast.error("Mã ô kệ đã tồn tại. Vui lòng dùng mã khác.");
-          setFormSubmitting(false);
-          return;
-        }
-        result = await pickupSlotService.createSingle({ code: singleCode.trim() });
-      } else {
-        if (!bulkPrefix.trim()) {
-          toast.error("Prefix không được để trống.");
-          setFormSubmitting(false);
-          return;
-        }
-        if (bulkTo < bulkFrom) {
-          toast.error("Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.");
-          setFormSubmitting(false);
-          return;
-        }
-        if (bulkTo - bulkFrom + 1 > 100) {
-          toast.error("Tối đa 100 ô kệ mỗi lần.");
-          setFormSubmitting(false);
-          return;
-        }
-        result = await pickupSlotService.createBulk({
-          prefix: bulkPrefix.trim(),
-          from: bulkFrom,
-          to: bulkTo,
-        });
-      }
-
+      const result = await pickupSlotService.createSingle({ code: singleCode.trim() });
       setIsCreateOpen(false);
       const created = result.createdCodes.length;
-      const skipped = result.skippedCodes.length;
-      if (created > 0 && skipped > 0) {
-        toast.success(`Tạo ${created} ô kệ thành công, bỏ qua ${skipped} ô trùng.`);
-      } else if (created > 0) {
-        toast.success(`Tạo ${created} ô kệ thành công!`);
+      if (created > 0) {
+        toast.success(`Tạo ô kệ ${singleCode.trim()} thành công!`);
       } else {
-        toast.info(`Tất cả ${skipped} ô kệ đã tồn tại, không có ô mới.`);
+        toast.info("Mã ô kệ đã tồn tại.");
       }
       fetchData();
     } catch (err: unknown) {
@@ -231,25 +184,31 @@ export default function ManagerPickupSlotsPage() {
         </div>
       )}
 
-      {/* ── Search ── */}
-      <div className="rounded-2xl border border-gray-100/80 bg-white p-6 shadow-xs">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-gray-400" />
+      {/* ── Search Bar ── */}
+      <div className="flex items-center gap-4 w-full sm:w-auto flex-1 max-w-lg">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             placeholder="Tìm theo mã ô, trạng thái, đơn hàng..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-14 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-14 pr-12 text-base font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+            className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
+        <button
+          onClick={() => {}}
+          className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
+        >
+          Tìm kiếm
+        </button>
       </div>
 
       {/* ── Content ── */}
@@ -402,113 +361,20 @@ export default function ManagerPickupSlotsPage() {
         size="lg"
       >
         <div className="space-y-6">
-          {/* Mode toggle */}
-          <div className="flex rounded-2xl border border-gray-200/60 bg-gray-50/50 p-1">
-            <button
-              onClick={() => setCreateMode("single")}
-              className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
-                createMode === "single"
-                  ? "bg-white text-gray-900 shadow-sm border border-gray-200/60"
-                  : "text-gray-500 hover:text-gray-700",
-              )}
-            >
-              <span className="flex items-center justify-center gap-2">
-                <Grid3X3 className="w-4 h-4" />
-                Đơn lẻ
-              </span>
-            </button>
-            <button
-              onClick={() => setCreateMode("bulk")}
-              className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
-                createMode === "bulk"
-                  ? "bg-white text-gray-900 shadow-sm border border-gray-200/60"
-                  : "text-gray-500 hover:text-gray-700",
-              )}
-            >
-              <span className="flex items-center justify-center gap-2">
-                <Layers className="w-4 h-4" />
-                Hàng loạt
-              </span>
-            </button>
+          <div>
+            <label className="block text-sm font-bold text-gray-800 mb-2">
+              Mã ô kệ <span className="text-red-400">*</span>
+            </label>
+            <input
+              value={singleCode}
+              onChange={(e) => setSingleCode(e.target.value)}
+              placeholder="VD: SLOT01"
+              className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs"
+            />
+            <p className="text-xs text-gray-400 mt-1.5 font-medium">
+              Nhập mã ô kệ mới cần đăng ký (Ví dụ: SLOT01).
+            </p>
           </div>
-
-          {/* Single mode */}
-          {createMode === "single" && (
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">
-                Mã ô kệ <span className="text-red-400">*</span>
-              </label>
-              <input
-                value={singleCode}
-                onChange={(e) => setSingleCode(e.target.value)}
-                placeholder="VD: SLOT01"
-                className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs"
-              />
-              <p className="text-xs text-gray-400 mt-1.5 font-medium">
-                Nhập mã ô kệ cần đăng ký. Ô trùng sẽ được bỏ qua.
-              </p>
-            </div>
-          )}
-
-          {/* Bulk mode */}
-          {createMode === "bulk" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-2">
-                  Prefix <span className="text-red-400">*</span>
-                </label>
-                <input
-                  value={bulkPrefix}
-                  onChange={(e) => setBulkPrefix(e.target.value)}
-                  placeholder="VD: SLOT"
-                  className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-2">
-                    Từ <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={bulkFrom}
-                    onChange={(e) => setBulkFrom(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all shadow-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-2">
-                    Đến <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={bulkTo}
-                    onChange={(e) => setBulkTo(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all shadow-xs"
-                  />
-                </div>
-              </div>
-              <div className="bg-gray-50 border border-gray-200/60 rounded-xl px-4 py-3">
-                <p className="text-sm text-gray-600">
-                  Sẽ tạo:{" "}
-                  <span className="font-mono font-bold text-gray-900">
-                    {bulkPrefix}
-                    {bulkFrom}
-                  </span>{" "}
-                  →{" "}
-                  <span className="font-mono font-bold text-gray-900">
-                    {bulkPrefix}
-                    {bulkTo}
-                  </span>{" "}
-                  <span className="text-gray-400">({Math.max(0, bulkTo - bulkFrom + 1)} ô kệ)</span>
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4 border-t border-gray-100 pt-6">

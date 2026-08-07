@@ -101,31 +101,37 @@ export default function ManagerRefundsPage() {
       </div>
 
       {/* Search + Filter */}
-      <div className="rounded-2xl border border-gray-100/80 bg-white p-6 shadow-xs">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm theo user ID, tên khách, chính sách..."
-              className="h-14 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-14 pr-5 text-base font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+              className="w-full pl-12 pr-5 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPageNumber(1);
-            }}
-            className="h-14 rounded-2xl border border-gray-200/80 bg-white px-5 text-base font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 w-full lg:w-56"
+          <button
+            onClick={() => refundsQuery.refetch()}
+            className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
           >
-            <option value="">Tất cả trạng thái</option>
-            <option value="1">Chờ xử lý</option>
-            <option value="2">Đã duyệt</option>
-            <option value="3">Từ chối</option>
-          </select>
+            Tìm kiếm
+          </button>
         </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPageNumber(1);
+          }}
+          className="h-12 rounded-3xl border border-gray-200 bg-white px-5 text-base font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 w-full lg:w-56 shadow-2xs"
+        >
+          <option value="">Tất cả trạng thái</option>
+          <option value="1">Chờ xử lý</option>
+          <option value="2">Đã duyệt</option>
+          <option value="3">Từ chối</option>
+        </select>
       </div>
 
       {/* Table */}

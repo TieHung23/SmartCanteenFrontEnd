@@ -11,6 +11,7 @@ import { getAccessToken } from "@/lib/auth-token-storage";
 import { useSignalr } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver";
+import { getSafeUserAvatar } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function Navbar() {
@@ -98,9 +99,8 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
-  const getSafeAvatar = (url: string | null | undefined, id: string) => {
-    if (url && url.trim() !== "") return url;
-    return `https://api.dicebear.com/9.x/adventurer/svg?seed=${id || "default"}`;
+  const getSafeAvatar = (url: string | null | undefined, id?: string, name?: string) => {
+    return getSafeUserAvatar(url, id || name);
   };
   return (
     <header className="w-full px-3 sm:px-6 py-3 bg-[#ffefe7]">
@@ -185,7 +185,7 @@ export default function Navbar() {
               </span>
               <Image
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                src={getSafeAvatar(userData.imgUrl, userData.id)}
+                src={getSafeAvatar(userData.imgUrl, userData.id, userData.name)}
                 alt={userData.name || "Ảnh đại diện"}
                 width={36}
                 height={36}
