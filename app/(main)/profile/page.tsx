@@ -38,6 +38,8 @@ import { useCurrency } from "@/lib/hooks/use-currency";
 import { useSignalr } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 
+import { getSafeUserAvatar } from "@/lib/utils";
+
 const getRoleName = (roleId: number) => {
   switch (roleId) {
     case 1:
@@ -53,18 +55,8 @@ const getRoleName = (roleId: number) => {
   }
 };
 
-const getSafeImageUrl = (
-  url: string | null | undefined,
-  fallback = "/placeholder-user.png",
-): string => {
-  if (!url || url.trim() === "") return fallback;
-  if (url.startsWith("/")) return url;
-  try {
-    new URL(url);
-    return url;
-  } catch {
-    return fallback;
-  }
+const getSafeImageUrl = (url: string | null | undefined, identifier?: string | null): string => {
+  return getSafeUserAvatar(url, identifier);
 };
 
 const normalizeProfile = (data: UserProfileResponse): UserProfileResponse => ({
@@ -486,7 +478,7 @@ export default function ProfilePage() {
               >
                 <div className="relative w-full h-full rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-md">
                   <Image
-                    src={previewUrl || getSafeImageUrl(profile.imgUrl)}
+                    src={previewUrl || getSafeImageUrl(profile.imgUrl, profile.id || profile.name)}
                     alt="Profile Avatar"
                     fill
                     sizes="112px"

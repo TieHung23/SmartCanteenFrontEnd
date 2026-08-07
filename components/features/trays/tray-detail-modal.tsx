@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Unlock,
-  ArchiveX,
+  Lock,
 } from "lucide-react";
 import Modal from "@/app/manager/_components/modal";
 import { trayService } from "@/services/tray.service";
@@ -44,7 +44,7 @@ const STATUS_CONFIG: Record<
     text: "text-emerald-700",
     border: "border-emerald-200/60",
     icon: PackageCheck,
-    description: "Khay rỗng, đang trong pool chờ gán cho đơn hàng mới.",
+    description: "Khay trống, sẵn sàng để gán cho đơn hàng mới.",
   },
   Reserved: {
     label: "Đang giữ đơn",
@@ -53,7 +53,7 @@ const STATUS_CONFIG: Record<
     text: "text-amber-700",
     border: "border-amber-200/60",
     icon: ShieldCheck,
-    description: "Khay đã được giữ cho một đơn hàng đang chuẩn bị/gắp món.",
+    description: "Khay đang được giữ cho một đơn hàng đang chuẩn bị hoặc xếp món.",
   },
   InUse: {
     label: "Đang sử dụng",
@@ -62,12 +62,13 @@ const STATUS_CONFIG: Record<
     text: "text-blue-700",
     border: "border-blue-200/60",
     icon: PackageOpen,
-    description: "Khay đang được đặt tại ô nhận hàng hoặc học sinh đang sử dụng.",
+    description: "Khay đang đặt tại ô nhận hàng hoặc khách hàng đang sử dụng.",
   },
 };
 
 interface TrayDetailModalProps {
   trayId: string | null;
+  initialCurrentOrderId?: string | null;
   isOpen: boolean;
   onClose: () => void;
   onRefreshPool?: () => void;
@@ -75,6 +76,7 @@ interface TrayDetailModalProps {
 
 export default function TrayDetailModal({
   trayId,
+  initialCurrentOrderId,
   isOpen,
   onClose,
   onRefreshPool,
@@ -96,7 +98,7 @@ export default function TrayDetailModal({
       console.error("Failed to fetch tray details:", err);
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 404) {
-        setError("Không tìm thấy thông tin khay (404). Khay có thể đã bị xóa.");
+        setError("Không tìm thấy thông tin khay. Khay có thể đã bị xóa.");
       } else {
         setError("Không thể tải thông tin chi tiết khay. Vui lòng thử lại.");
       }
@@ -121,7 +123,7 @@ export default function TrayDetailModal({
             console.error("Failed to fetch tray details:", err);
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 404) {
-              setError("Không tìm thấy thông tin khay (404). Khay có thể đã bị xóa.");
+              setError("Không tìm thấy thông tin khay. Khay có thể đã bị xóa.");
             } else {
               setError("Không thể tải thông tin chi tiết khay. Vui lòng thử lại.");
             }
@@ -159,13 +161,13 @@ export default function TrayDetailModal({
   const handleForceRelease = async () => {
     if (!detail) return;
     const res = await Swal.fire({
-      title: "Giải phóng khay cưỡng chế?",
-      html: `Bạn có chắc chắn muốn giải phóng cưỡng chế khay <strong class="text-[#D35400]">${detail.code}</strong>?`,
+      title: "Mở khay?",
+      html: `Đưa khay <strong class="text-[#D35400]">${detail.code}</strong> về lại trạng thái Sẵn sàng?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#D35400",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Giải phóng ngay",
+      confirmButtonText: "Mở khay",
       cancelButtonText: "Hủy",
     });
     if (!res.isConfirmed) return;
@@ -173,7 +175,7 @@ export default function TrayDetailModal({
     setActionLoading(true);
     try {
       await trayService.forceRelease(detail.id);
-      toast.success(`Giải phóng khay ${detail.code} thành công`);
+      toast.success(`Đã giải phóng khay ${detail.code} thành công`);
       fetchDetail(detail.id);
       if (onRefreshPool) onRefreshPool();
     } catch (err: unknown) {
@@ -187,13 +189,13 @@ export default function TrayDetailModal({
   const handleRetire = async () => {
     if (!detail) return;
     const res = await Swal.fire({
-      title: "Ngưng sử dụng khay?",
-      html: `Bạn có chắc chắn muốn ngưng sử dụng khay <strong class="text-[#D35400]">${detail.code}</strong>?`,
+      title: "Khóa khay này?",
+      html: `Bạn có chắc muốn tạm khóa khay <strong class="text-[#D35400]">${detail.code}</strong>? Khay sẽ không thể gán cho các đơn hàng mới.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Ngưng sử dụng",
+      confirmButtonText: "Khóa khay",
       cancelButtonText: "Hủy",
     });
     if (!res.isConfirmed) return;
@@ -201,7 +203,7 @@ export default function TrayDetailModal({
     setActionLoading(true);
     try {
       await trayService.retire(detail.id);
-      toast.success(`Đã ngưng sử dụng khay ${detail.code}`);
+      toast.success(`Đã khóa khay ${detail.code}`);
       fetchDetail(detail.id);
       if (onRefreshPool) onRefreshPool();
     } catch (err: unknown) {
@@ -215,6 +217,22 @@ export default function TrayDetailModal({
   const statusConfig = detail ? (STATUS_CONFIG[detail.status] ?? STATUS_CONFIG.Available) : null;
   const StatusIcon = statusConfig?.icon ?? Package;
 
+  // Flexible check for current order ID across API fields or fallback prop (ignoring Guid.Empty)
+  const rawOrderId =
+    detail?.currentOrderId ||
+    ((detail as unknown as Record<string, unknown>)?.orderId as string) ||
+    ((detail as unknown as Record<string, unknown>)?.activeOrderId as string) ||
+    ((detail as unknown as Record<string, unknown>)?.orderCode as string) ||
+    ((detail as unknown as Record<string, unknown>)?.CurrentOrderId as string) ||
+    ((detail as unknown as Record<string, unknown>)?.OrderId as string) ||
+    ((detail as unknown as Record<string, unknown>)?.ActiveOrderId as string) ||
+    ((detail as unknown as Record<string, unknown>)?.OrderCode as string) ||
+    initialCurrentOrderId ||
+    null;
+
+  const displayOrderId =
+    rawOrderId && rawOrderId !== "00000000-0000-0000-0000-000000000000" ? rawOrderId : null;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết khay" size="lg">
       <div className="space-y-6">
@@ -224,7 +242,7 @@ export default function TrayDetailModal({
               <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
               <Package className="w-5 h-5 text-orange-500 absolute inset-0 m-auto animate-pulse" />
             </div>
-            <p className="text-sm font-semibold text-gray-500">Đang tải dữ liệu chi tiết khay...</p>
+            <p className="text-sm font-semibold text-gray-500">Đang tải chi tiết khay...</p>
           </div>
         ) : error ? (
           <div className="rounded-2xl border border-red-100 bg-red-50/50 p-8 text-center space-y-3">
@@ -244,7 +262,7 @@ export default function TrayDetailModal({
           </div>
         ) : detail ? (
           <>
-            {/* Header Hero Banner */}
+            {/* Header Banner */}
             <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 text-white px-5 py-4 shadow-md shadow-orange-500/15">
               <div className="absolute right-0 top-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
 
@@ -303,7 +321,7 @@ export default function TrayDetailModal({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                     <QrCode className="w-3.5 h-3.5 text-gray-500" />
-                    ID Khay (UUID)
+                    Mã định danh (UUID)
                   </span>
                   <button
                     onClick={() => handleCopy(detail.id, "id")}
@@ -334,10 +352,10 @@ export default function TrayDetailModal({
                     <FileText className="w-3.5 h-3.5 text-gray-500" />
                     Đơn hàng gắn khay
                   </span>
-                  {detail.currentOrderId && (
+                  {displayOrderId && (
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleCopy(detail.currentOrderId!, "orderId")}
+                        onClick={() => handleCopy(displayOrderId, "orderId")}
                         className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors"
                       >
                         {copiedOrderId ? (
@@ -353,7 +371,7 @@ export default function TrayDetailModal({
                         )}
                       </button>
                       <Link
-                        href={`/manager/orders?search=${detail.currentOrderId}`}
+                        href={`/manager/orders?search=${displayOrderId}`}
                         className="text-xs text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-0.5"
                       >
                         <ExternalLink className="w-3 h-3" />
@@ -361,9 +379,9 @@ export default function TrayDetailModal({
                     </div>
                   )}
                 </div>
-                {detail.currentOrderId ? (
+                {displayOrderId ? (
                   <p className="text-xs font-mono text-blue-700 bg-blue-50/60 p-2.5 rounded-xl border border-blue-200/60 break-all font-semibold">
-                    {detail.currentOrderId}
+                    {displayOrderId}
                   </p>
                 ) : (
                   <div className="p-2.5 rounded-xl border border-dashed border-gray-200 bg-white text-gray-400 text-xs italic">
@@ -396,7 +414,7 @@ export default function TrayDetailModal({
               <div className="bg-gray-50/70 border border-gray-200/60 rounded-2xl p-4 space-y-1.5 md:col-span-2 flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-gray-500" />
-                  Thời gian cập nhật gần nhất
+                  Cập nhật lần cuối
                 </span>
                 <span className="text-xs font-semibold text-gray-700">
                   {detail.updatedAtUtc
@@ -413,7 +431,7 @@ export default function TrayDetailModal({
               </div>
             </div>
 
-            {/* Quick Actions */}
+            {/* Actions */}
             <div className="border-t border-gray-100 pt-5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 {detail.status !== "Available" && (
@@ -421,10 +439,10 @@ export default function TrayDetailModal({
                     onClick={handleForceRelease}
                     disabled={actionLoading}
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100 transition-all active:scale-95 disabled:opacity-50"
-                    title="Cưỡng chế giải phóng khay về trạng thái Sẵn sàng"
+                    title="Đưa khay về trạng thái Sẵn sàng"
                   >
                     <Unlock className="w-3.5 h-3.5" />
-                    Giải phóng cưỡng chế
+                    Giải phóng khay
                   </button>
                 )}
 
@@ -432,10 +450,10 @@ export default function TrayDetailModal({
                   onClick={handleRetire}
                   disabled={actionLoading}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-all active:scale-95 disabled:opacity-50"
-                  title="Ngưng sử dụng khay"
+                  title="Tạm khóa khay này"
                 >
-                  <ArchiveX className="w-3.5 h-3.5" />
-                  Ngưng sử dụng
+                  <Lock className="w-3.5 h-3.5" />
+                  Khóa khay
                 </button>
               </div>
 

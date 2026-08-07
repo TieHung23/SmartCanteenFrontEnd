@@ -161,82 +161,80 @@ export default function SessionReportSelectPage() {
       </div>
 
       {/* ── Form Ngang: Toolbar & Controls ── */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setPageNumber(1);
-          }}
-          className="flex flex-col sm:flex-row items-center gap-3"
-        >
-          {/* Search Bar Pill */}
-          <div className="relative flex-1 w-full">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPageNumber(1);
+        }}
+        className="flex flex-col sm:flex-row items-center gap-3"
+      >
+        {/* Search Bar Pill */}
+        <div className="relative flex-1 w-full">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPageNumber(1);
+            }}
+            placeholder="Tìm kiếm ca phục vụ..."
+            className="h-12 w-full rounded-full border border-gray-200 bg-white pl-11 pr-10 text-sm font-semibold text-gray-800 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400 shadow-2xs"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
                 setPageNumber(1);
               }}
-              placeholder="Tìm kiếm danh mục..."
-              className="h-12 w-full rounded-full border border-gray-200 bg-gray-50/80 pl-11 pr-10 text-sm font-semibold text-gray-800 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setPageNumber(1);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-          {/* Dark Search Pill Button (HÌNH 2) */}
+        {/* Dark Search Pill Button (HÌNH 2) */}
+        <button
+          type="submit"
+          className="w-full sm:w-auto h-12 px-8 rounded-full bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm transition-all shadow-xs active:scale-95 shrink-0 flex items-center justify-center cursor-pointer"
+        >
+          Tìm kiếm
+        </button>
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-full border border-gray-200/60 shrink-0 ml-auto sm:ml-0 shadow-2xs">
           <button
-            type="submit"
-            className="w-full sm:w-auto h-12 px-8 rounded-full bg-[#0B132B] hover:bg-gray-800 text-white font-bold text-sm transition-all shadow-xs active:scale-95 shrink-0 flex items-center justify-center cursor-pointer"
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+              viewMode === "table"
+                ? "bg-white text-[#D35400] shadow-xs"
+                : "text-gray-500 hover:text-gray-800",
+            )}
+            title="Xem dạng Bảng"
           >
-            Tìm kiếm
+            <LayoutList className="w-4 h-4" />
+            <span className="hidden sm:inline">Bảng</span>
           </button>
-
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-full border border-gray-200/60 shrink-0 ml-auto sm:ml-0">
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
-                viewMode === "table"
-                  ? "bg-white text-[#D35400] shadow-xs"
-                  : "text-gray-500 hover:text-gray-800",
-              )}
-              title="Xem dạng Bảng"
-            >
-              <LayoutList className="w-4 h-4" />
-              <span className="hidden sm:inline">Bảng</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
-                viewMode === "grid"
-                  ? "bg-white text-[#D35400] shadow-xs"
-                  : "text-gray-500 hover:text-gray-800",
-              )}
-              title="Xem dạng Thẻ"
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">Thẻ</span>
-            </button>
-          </div>
-        </form>
-      </div>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+              viewMode === "grid"
+                ? "bg-white text-[#D35400] shadow-xs"
+                : "text-gray-500 hover:text-gray-800",
+            )}
+            title="Xem dạng Thẻ"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span className="hidden sm:inline">Thẻ</span>
+          </button>
+        </div>
+      </form>
 
       {/* ── Content View ── */}
       {isLoading ? (

@@ -48,3 +48,17 @@ export function isSessionExpired(availableTo: string): boolean {
 export function isSessionUpcoming(availableFrom: string): boolean {
   return new Date(availableFrom) > new Date();
 }
+
+export function getSafeUserAvatar(url?: string | null, identifier?: string | null): string {
+  if (url && url.trim() !== "") {
+    if (url.startsWith("/")) return url;
+    try {
+      new URL(url);
+      return url;
+    } catch {
+      // invalid URL string, fall back to seed
+    }
+  }
+  const seed = identifier && identifier.trim() !== "" ? identifier.trim() : "default";
+  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
+}
