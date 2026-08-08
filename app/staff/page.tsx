@@ -8,7 +8,6 @@ import {
   Coffee,
   ShoppingBag,
   Eye,
-  User,
   History,
   Loader2,
   Calendar,
@@ -19,7 +18,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getSafeUserAvatar } from "@/lib/utils";
 import { orderService } from "@/services/order.service";
 import { sessionService } from "@/services/session.service";
 import { robotArmService } from "@/services/robot-arm.service";
@@ -66,6 +65,7 @@ export default function StaffOperationsPage() {
   const isHoveredOrDragging = useRef(false);
   const scrollDirection = useRef(1);
   const isDown = useRef(false);
+  const hasDragged = useRef(false);
   const startX = useRef(0);
   const scrollLeftState = useRef(0);
 
@@ -140,17 +140,22 @@ export default function StaffOperationsPage() {
     const container = tabsContainerRef.current;
     if (!container) return;
     isDown.current = true;
+    hasDragged.current = false;
     isHoveredOrDragging.current = true;
     startX.current = e.pageX - container.offsetLeft;
     scrollLeftState.current = container.scrollLeft;
   };
   const handleMouseMoveTabs = (e: React.MouseEvent) => {
     if (!isDown.current) return;
-    e.preventDefault();
     const container = tabsContainerRef.current;
     if (!container) return;
     const x = e.pageX - container.offsetLeft;
-    container.scrollLeft = scrollLeftState.current - (x - startX.current) * 1.8;
+    const walk = (x - startX.current) * 1.8;
+    if (Math.abs(walk) > 5) {
+      hasDragged.current = true;
+      e.preventDefault();
+      container.scrollLeft = scrollLeftState.current - walk;
+    }
   };
   const handleMouseUpTabs = () => {
     isDown.current = false;
@@ -564,7 +569,7 @@ export default function StaffOperationsPage() {
                     if (el) sessionButtonRefs.current.set(s.id, el);
                   }}
                   onClick={() => {
-                    if (!isDown.current) {
+                    if (!hasDragged.current) {
                       selectAndScrollToSession(s.id);
                     }
                   }}
@@ -658,7 +663,10 @@ export default function StaffOperationsPage() {
                       detail?.userName ||
                       (order as OrderListItem & { userName?: string }).userName ||
                       order.userId.slice(0, 12);
-                    const userImgUrl = detail?.imgUrl || detail?.userImgUrl || null;
+                    const userImgUrl = getSafeUserAvatar(
+                      detail?.imgUrl || detail?.userImgUrl,
+                      order.userId || userName,
+                    );
                     const items = detail?.items || [];
 
                     return (
@@ -668,18 +676,14 @@ export default function StaffOperationsPage() {
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3.5">
-                            <div className="w-11 h-11 rounded-2xl bg-orange-50 flex items-center justify-center text-[#D35400] border border-orange-100 overflow-hidden shrink-0">
-                              {userImgUrl ? (
-                                <Image
-                                  src={userImgUrl}
-                                  alt={userName}
-                                  width={44}
-                                  height={44}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <User className="w-5 h-5" />
-                              )}
+                            <div className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200 overflow-hidden shrink-0">
+                              <Image
+                                src={userImgUrl}
+                                alt={userName}
+                                width={44}
+                                height={44}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                             <div className="min-w-0">
                               <p className="font-black text-base text-gray-900 truncate max-w-[180px]">
@@ -773,19 +777,23 @@ export default function StaffOperationsPage() {
             {/* Customer Info Header */}
             <div className="bg-gradient-to-r from-orange-50/80 via-amber-50/50 to-white p-6 rounded-2xl border border-orange-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-[#D35400] border border-orange-200 shadow-sm shrink-0 overflow-hidden">
-                  {selectedDetail.imgUrl || selectedDetail.userImgUrl ? (
-                    <Image
-                      src={(selectedDetail.imgUrl || selectedDetail.userImgUrl)!}
-                      alt={selectedDetail.name || selectedDetail.userName || "Khách hàng"}
-                      width={64}
-                      height={64}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-8 h-8 text-[#D35400]" />
-                  )}
-                </div>
+                {(() => {
+                  const avatarSrc = getSafeUserAvatar(
+                    selectedDetail.imgUrl || selectedDetail.userImgUrl,
+                    selectedDetail.userId || selectedDetail.name || selectedDetail.userName,
+                  );
+                  return (
+                    <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center border border-gray-200 shadow-xs shrink-0 overflow-hidden">
+                      <Image
+                        src={avatarSrc}
+                        alt={selectedDetail.name || selectedDetail.userName || "Khách hàng"}
+                        width={64}
+                        height={64}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  );
+                })()}
                 <div>
                   <h4 className="text-xl font-black text-gray-900">
                     {selectedDetail.name || selectedDetail.userName || "Khách hàng"}
