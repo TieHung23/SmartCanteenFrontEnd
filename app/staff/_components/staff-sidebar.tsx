@@ -13,7 +13,7 @@ import {
   Package,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getSafeUserAvatar } from "@/lib/utils";
 import { useUser } from "@/lib/stores/use-user";
 import { clearAuthTokens } from "@/lib/auth-token-storage";
 
@@ -44,7 +44,7 @@ export const StaffSidebar = memo(function StaffSidebar({
 
   const displayName = profile?.name || "Nhân Viên";
   const displayEmail = profile?.email || "staff@canteen.vn";
-  const avatarUrl = profile?.imgUrl || null;
+  const avatarUrl = getSafeUserAvatar(profile?.imgUrl, profile?.id || profile?.name);
 
   return (
     <aside
@@ -119,20 +119,14 @@ export const StaffSidebar = memo(function StaffSidebar({
       {/* ── FOOTER ── */}
       <div className="border-t border-gray-100 pt-5 bg-white shrink-0">
         <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-50/80 border border-gray-100/50">
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#D35400]/10 border border-[#D35400]/20 flex items-center justify-center shrink-0 shadow-xs">
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={displayName}
-                width={48}
-                height={48}
-                className="object-cover w-full h-full"
-              />
-            ) : (
-              <span className="text-[#D35400] font-bold text-lg">
-                {displayName.charAt(0).toUpperCase()}
-              </span>
-            )}
+          <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
+            <Image
+              src={avatarUrl}
+              alt={displayName}
+              width={48}
+              height={48}
+              className="object-cover w-full h-full"
+            />
           </div>
           <div className="flex-1 min-w-0 space-y-0.5">
             <p className="text-base font-bold text-gray-900 truncate">{displayName}</p>

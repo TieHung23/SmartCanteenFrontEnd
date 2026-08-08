@@ -18,6 +18,7 @@ import {
   FileText,
   Package,
   Search,
+  PlayCircle,
 } from "lucide-react";
 import { sessionService } from "@/services/session.service";
 import { categoryService } from "@/services/category.service";
@@ -417,6 +418,69 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       await loadSession();
     } catch {
       toast.error("Lỗi khi thực hiện chốt đơn ca phục vụ.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFinalizeNow = async () => {
+    if (!session) return;
+
+    const result = await Swal.fire({
+      title: "Bắt đầu ca & Phục vụ ngay?",
+      text: "Bạn có chắc chắn muốn chốt ca và BẮT ĐẦU PHỤC VỤ NGAY LẬP TỨC? Thời gian bắt đầu ca ăn sẽ được đẩy về thời điểm hiện tại để Robot có thể đi gắp món ngay.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#059669",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Bắt đầu ca ngay",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-md",
+        title: "text-lg font-bold text-gray-900",
+      },
+    });
+    if (!result.isConfirmed) return;
+
+    setIsSubmitting(true);
+    try {
+      const preparedDishes = (session.dishes || []).map((d) => ({
+        dishId: d.dishId,
+        preparedQuantity: preparedQuantities[d.dishId] ?? 0,
+      }));
+
+      await sessionService.finalizeSessionNow(session.id, preparedDishes);
+      toast.success("Đã chốt ca và kích hoạt phục vụ ngay thành công! Robot sẵn sàng gắp món.");
+      await loadSession();
+    } catch (err: unknown) {
+      const rawMsg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : "Lỗi khi thực hiện bắt đầu ca phục vụ.");
+
+      let friendlyMsg = rawMsg;
+      if (rawMsg.includes("would overlap with another session")) {
+        friendlyMsg = "Khung giờ ca ăn này khi bắt đầu ngay sẽ bị đè/trùng lặp với một ca ăn khác!";
+      } else if (rawMsg.includes("already ended")) {
+        friendlyMsg = "Thời gian ca ăn đã kết thúc trong quá khứ, không thể bắt đầu phục vụ ngay.";
+      } else if (rawMsg.includes("deadline has passed")) {
+        friendlyMsg = "Hạn chốt món ăn của ca này đã trôi qua.";
+      } else if (rawMsg.includes("already finalized")) {
+        friendlyMsg = "Ca phục vụ này đã được chốt từ trước.";
+      }
+
+      Swal.fire({
+        title: "Không thể bắt đầu ca ngay!",
+        text: friendlyMsg,
+        icon: "error",
+        confirmButtonColor: "#D35400",
+        confirmButtonText: "Đã hiểu",
+        customClass: {
+          popup: "rounded-3xl border border-gray-200 shadow-md",
+          title: "text-lg font-bold text-gray-900",
+        },
+      });
+      toast.error(friendlyMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -885,31 +949,53 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                 ))}
               </div>
               {!session.isFinalized && (
-                <div className="mt-6 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="mt-6 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-2.5">
                     <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-extrabold text-gray-800">
-                        Chốt số lượng chuẩn bị nấu
+                        Chốt số lượng chuẩn bị nấu & Bắt đầu phục vụ
                       </p>
                       <p className="text-xs text-gray-500 font-semibold mt-0.5 leading-relaxed">
-                        Nhập số lượng thực tế. Khi chốt đơn, ca ăn sẽ được khóa và hệ thống sẽ tự
-                        động tạo đề xuất đổi/hoàn tiền cho khách hàng nếu thiếu số lượng món đã đặt.
+                        Nhập số lượng thực tế. Bạn có thể chọn{" "}
+                        <span className="text-emerald-700 font-bold">&quot;Bắt đầu ca&quot;</span>{" "}
+                        để Robot đi gắp món ngay lập tức, hoặc{" "}
+                        <span className="text-[#D35400] font-bold">&quot;Chốt đơn ca ăn&quot;</span>{" "}
+                        theo lịch trình chuẩn.
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleFinalize}
-                    disabled={isSubmitting}
-                    className="px-5 py-3 bg-[#D35400] hover:bg-[#b04600] disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-sm shrink-0 uppercase tracking-wider active:scale-95"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      "Chốt đơn ca ăn"
-                    )}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
+                    <button
+                      type="button"
+                      onClick={handleFinalizeNow}
+                      disabled={isSubmitting}
+                      className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-xs shrink-0 uppercase tracking-wider active:scale-95 flex items-center gap-2 cursor-pointer"
+                      title="Chốt số lượng và kích hoạt ca phục vụ ngay lập tức cho Robot gắp món"
+                    >
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <PlayCircle className="w-4 h-4" />
+                          <span>Bắt đầu ca</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFinalize}
+                      disabled={isSubmitting}
+                      className="px-5 py-3 bg-[#D35400] hover:bg-[#b04600] disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-xs shrink-0 uppercase tracking-wider active:scale-95 cursor-pointer"
+                      title="Chốt số lượng chuẩn bị theo lịch ban đầu"
+                    >
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        "Chốt đơn ca ăn"
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

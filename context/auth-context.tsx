@@ -81,11 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (status === 429) {
+        consecutiveFailures.current = MAX_CONSECUTIVE_FAILURES;
+        console.warn("[Auth] 429 Too Many Requests. Polling paused.");
+        return;
+      }
+
       if (!hasResponse) {
         consecutiveFailures.current += 1;
         if (consecutiveFailures.current === 1) {
           console.warn(
-            "[Auth] Server unreachable,暂停 polling sau",
+            "[Auth] Server unreachable, tạm dừng polling sau",
             MAX_CONSECUTIVE_FAILURES,
             "lần thất bại",
           );
@@ -121,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       fetchProfile();
-    }, 15000);
+    }, 60000);
 
     return () => window.clearInterval(interval);
   }, [fetchProfile, token]);
