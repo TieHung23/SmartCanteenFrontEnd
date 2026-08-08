@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Sessions/${id}`,
     DELETE: (id: string) => `/api/Sessions/${id}`,
     FINALIZE: (id: string) => `/api/Sessions/${id}/finalize`,
+    FINALIZE_NOW: (id: string) => `/api/Sessions/${id}/finalize-now`,
     CALENDAR: "/api/sessions/calendar",
   },
   CATEGORY: {

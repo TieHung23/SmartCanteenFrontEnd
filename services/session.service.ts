@@ -105,11 +105,23 @@ export const sessionService = {
 
   finalizeSession: async (
     id: string,
-    preparedDishes: { dishId: string; preparedQuantity: number }[],
+    preparedDishes: { dishId: string; preparedQuantity: number; suggestedDishId?: string | null }[],
   ): Promise<ApiResponse<{ message: string }>> => {
     const response = (await apiClient.post<ApiResponse<{ message: string }>>(
       API_ENDPOINTS.SESSION.FINALIZE(id),
       { sessionId: id, preparedDishes },
+    )) as unknown as ApiResponse<{ message: string }>;
+
+    return response;
+  },
+
+  finalizeSessionNow: async (
+    id: string,
+    preparedDishes: { dishId: string; preparedQuantity: number; suggestedDishId?: string | null }[],
+  ): Promise<ApiResponse<{ message: string }>> => {
+    const response = (await apiClient.post<ApiResponse<{ message: string }>>(
+      API_ENDPOINTS.SESSION.FINALIZE_NOW(id),
+      { preparedDishes },
     )) as unknown as ApiResponse<{ message: string }>;
 
     return response;
