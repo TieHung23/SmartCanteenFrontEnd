@@ -430,7 +430,17 @@ export default function StaffOperationsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {robotArms.map((bot) => {
-                const isOk = bot.status === "Idle" || bot.status === "Busy";
+                const statusMap: Record<string, { label: string; className: string }> = {
+                  Idle: { label: "Sẵn sàng", className: "bg-green-100 text-green-800" },
+                  Busy: { label: "Đang gắp món", className: "bg-amber-100 text-amber-800" },
+                  Error: { label: "Gặp sự cố", className: "bg-red-100 text-red-800" },
+                  Maintenance: { label: "Bảo trì", className: "bg-gray-100 text-gray-700" },
+                  Offline: { label: "Ngoại tuyến", className: "bg-red-100 text-red-800" },
+                };
+                const statusInfo = statusMap[bot.status] || {
+                  label: bot.status || "Ngoại tuyến",
+                  className: "bg-red-100 text-red-800",
+                };
                 return (
                   <div
                     key={bot.id}
@@ -443,10 +453,10 @@ export default function StaffOperationsPage() {
                       <span
                         className={cn(
                           "text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider",
-                          isOk ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800",
+                          statusInfo.className,
                         )}
                       >
-                        {bot.status || "Hoạt động"}
+                        {statusInfo.label}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 font-medium">
