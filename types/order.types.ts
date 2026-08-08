@@ -8,12 +8,12 @@ export const ORDER_STATUS_META: Record<
   OrderStatus,
   { label: string; color: string; bg: string; icon: string }
 > = {
-  0: { label: "Pending", color: "#f07b2e", bg: "#fff8f4", icon: "📋" },
-  1: { label: "Ready for Pickup", color: "#2db87a", bg: "#e8f8f0", icon: "✅" },
-  2: { label: "Completed", color: "#6366f1", bg: "#eef2ff", icon: "🎉" },
-  3: { label: "Cancelled", color: "#ef4444", bg: "#fef2f2", icon: "❌" },
-  4: { label: "Preparing", color: "#3b82f6", bg: "#eff6ff", icon: "⚙️" },
-  7: { label: "Expired", color: "#6b7280", bg: "#f3f4f6", icon: "⏰" },
+  0: { label: "Chờ xử lý", color: "#f07b2e", bg: "#fff8f4", icon: "📋" },
+  1: { label: "Sẵn sàng", color: "#2db87a", bg: "#e8f8f0", icon: "✅" },
+  2: { label: "Đã hoàn thành", color: "#6366f1", bg: "#eef2ff", icon: "🎉" },
+  3: { label: "Đã hủy", color: "#ef4444", bg: "#fef2f2", icon: "❌" },
+  4: { label: "Đang chế biến", color: "#3b82f6", bg: "#eff6ff", icon: "⚙️" },
+  7: { label: "Đã hết hạn", color: "#6b7280", bg: "#f3f4f6", icon: "⏰" },
 };
 
 // 0 = Pending | 1 = Confirmed | 2 = ChangePending | 3 = Swapped | 4 = Refunded | 5 = RefundPending

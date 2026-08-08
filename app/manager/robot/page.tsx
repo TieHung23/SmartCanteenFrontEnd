@@ -34,7 +34,7 @@ const STATUS_CONFIG: Record<
   { label: string; dot: string; bg: string; text: string; border: string; icon: typeof Cpu }
 > = {
   Idle: {
-    label: "Rảnh",
+    label: "Sẵn sàng",
     dot: "bg-emerald-400",
     bg: "bg-emerald-50",
     text: "text-emerald-700",
@@ -42,7 +42,7 @@ const STATUS_CONFIG: Record<
     icon: Zap,
   },
   Busy: {
-    label: "Đang hoạt động",
+    label: "Đang gắp món",
     dot: "bg-amber-400",
     bg: "bg-amber-50",
     text: "text-amber-700",
@@ -50,7 +50,7 @@ const STATUS_CONFIG: Record<
     icon: Clock,
   },
   Error: {
-    label: "Lỗi",
+    label: "Gặp sự cố",
     dot: "bg-red-400",
     bg: "bg-red-50",
     text: "text-red-700",
@@ -66,7 +66,7 @@ const STATUS_CONFIG: Record<
     icon: Wrench,
   },
   Offline: {
-    label: "Mất kết nối",
+    label: "Ngoại tuyến",
     dot: "bg-gray-300",
     bg: "bg-gray-50",
     text: "text-gray-500",
