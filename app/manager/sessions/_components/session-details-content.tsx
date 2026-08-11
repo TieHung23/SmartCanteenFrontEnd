@@ -133,6 +133,10 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
   const [editAutoFinalizePolicy, setEditAutoFinalizePolicy] = useState(0);
 
   const [preparedQuantities, setPreparedQuantities] = useState<Record<string, number>>({});
+  // null = ordered quantities unavailable → fail open, no minimum enforced.
+  const [orderedQuantities, setOrderedQuantities] = useState<Record<string, number> | null>(null);
+  const [quantitiesError, setQuantitiesError] = useState(false);
+  const [loadingQuantities, setLoadingQuantities] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "config" | "orders">("info");
 
@@ -181,24 +185,37 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
 
   const loadSession = useCallback(async () => {
     try {
-      const [sessionData, catResult, dishResult, sessionResult] = await Promise.all([
-        sessionService.getSessionDetail(sessionId),
-        categoryService.getAll().catch(() => ({ items: [] as Category[] })),
-        dishService
-          .getDishes({ isActive: true, pageSize: 200 })
-          .catch(() => ({ items: [] as Dish[] })),
-        sessionService
-          .getSessions({ pageSize: 1000 })
-          .catch(() => ({ items: [] as SessionListItem[] })),
-      ]);
+      const [sessionData, catResult, dishResult, sessionResult, quantitiesData] = await Promise.all(
+        [
+          sessionService.getSessionDetail(sessionId),
+          categoryService.getAll().catch(() => ({ items: [] as Category[] })),
+          dishService
+            .getDishes({ isActive: true, pageSize: 200 })
+            .catch(() => ({ items: [] as Dish[] })),
+          sessionService
+            .getSessions({ pageSize: 1000 })
+            .catch(() => ({ items: [] as SessionListItem[] })),
+          sessionService.getSessionDishQuantities(sessionId).catch(() => null),
+        ],
+      );
       setSession(sessionData);
       setCategories(catResult.items);
       setAllDishes(dishResult.items);
       setExistingSessions(sessionResult.items || []);
 
+      const qtyMap: Record<string, number> | null = quantitiesData
+        ? Object.fromEntries(quantitiesData.dishes.map((d) => [d.dishId, d.orderedQuantity]))
+        : null;
+      setOrderedQuantities(qtyMap);
+      setQuantitiesError(qtyMap === null);
+
+      // Seed each input at or above the ordered quantity so the form starts valid.
       const initialQs: Record<string, number> = {};
       (sessionData.dishes || []).forEach((d) => {
-        initialQs[d.dishId] = d.preparedQuantity ?? 0;
+        const saved = d.preparedQuantity ?? 0;
+        initialQs[d.dishId] = sessionData.isFinalized
+          ? saved
+          : Math.max(saved, qtyMap?.[d.dishId] ?? 0);
       });
       setPreparedQuantities(initialQs);
 
@@ -228,10 +245,44 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
     }
   }, [sessionId]);
 
+  /**
+   * Re-fetches only the ordered quantities after a failed load. Deliberately does not
+   * re-prefill the inputs — validation flags anything too low without clobbering typed values.
+   */
+  const retryLoadQuantities = useCallback(async () => {
+    setLoadingQuantities(true);
+    try {
+      const data = await sessionService.getSessionDishQuantities(sessionId);
+      setOrderedQuantities(
+        Object.fromEntries(data.dishes.map((d) => [d.dishId, d.orderedQuantity])),
+      );
+      setQuantitiesError(false);
+    } catch {
+      setQuantitiesError(true);
+      toast.error("Vẫn không tải được số lượng đã đặt.");
+    } finally {
+      setLoadingQuantities(false);
+    }
+  }, [sessionId]);
+
   const editOverlappingSessions = useMemo(
     () => checkSessionOverlap(editAvailableFrom, editAvailableTo, existingSessions, sessionId),
     [editAvailableFrom, editAvailableTo, existingSessions, sessionId],
   );
+
+  const shortfalls = useMemo(() => {
+    if (!session || !orderedQuantities || session.isFinalized) return [];
+    return (session.dishes || [])
+      .map((d) => ({
+        dishId: d.dishId,
+        dishName: d.dishName || d.dishId.slice(0, 8),
+        prepared: preparedQuantities[d.dishId] ?? 0,
+        ordered: orderedQuantities[d.dishId] ?? 0,
+      }))
+      .filter((r) => r.prepared < r.ordered);
+  }, [session, orderedQuantities, preparedQuantities]);
+
+  const hasShortfall = shortfalls.length > 0;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -388,6 +439,10 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
 
   const handleFinalize = async () => {
     if (!session) return;
+    if (hasShortfall) {
+      toast.error("Số lượng chuẩn bị không được thấp hơn số lượng đã đặt.");
+      return;
+    }
 
     const result = await Swal.fire({
       title: "Chốt ca phục vụ?",
@@ -416,8 +471,8 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       await sessionService.finalizeSession(session.id, preparedDishes);
       toast.success("Chốt số lượng món ăn phục vụ thành công!");
       await loadSession();
-    } catch {
-      toast.error("Lỗi khi thực hiện chốt đơn ca phục vụ.");
+    } catch (err: unknown) {
+      toast.error(extractApiErrorMessage(err, "Lỗi khi thực hiện chốt đơn ca phục vụ."));
     } finally {
       setIsSubmitting(false);
     }
@@ -425,6 +480,10 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
 
   const handleFinalizeNow = async () => {
     if (!session) return;
+    if (hasShortfall) {
+      toast.error("Số lượng chuẩn bị không được thấp hơn số lượng đã đặt.");
+      return;
+    }
 
     const result = await Swal.fire({
       title: "Bắt đầu ca & Phục vụ ngay?",
@@ -873,128 +932,215 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                 </h2>
               </div>
               <div className="flex flex-col gap-2 max-h-[35rem] overflow-y-auto pr-1">
-                {session.dishes?.map((d) => (
-                  <div
-                    key={d.id}
-                    className="bg-white rounded-xl border border-gray-200 hover:border-orange-200 transition-all flex items-center gap-3 px-3 py-2.5 hover:bg-orange-50/30"
-                  >
-                    <div className="relative w-10 h-10 shrink-0 rounded-lg bg-gray-50 overflow-hidden">
-                      {d.imgUrl ? (
-                        <Image
-                          src={d.imgUrl}
-                          alt={d.dishName || ""}
-                          fill
-                          className="object-cover"
-                          sizes="40px"
-                        />
+                {session.dishes?.map((d) => {
+                  const minQty = orderedQuantities?.[d.dishId] ?? 0;
+                  const isShort =
+                    !session.isFinalized &&
+                    orderedQuantities !== null &&
+                    (preparedQuantities[d.dishId] ?? 0) < minQty;
+                  return (
+                    <div
+                      key={d.id}
+                      className={cn(
+                        "bg-white rounded-xl border transition-all flex items-center gap-3 px-3 py-2.5",
+                        isShort
+                          ? "border-red-300 bg-red-50/40"
+                          : "border-gray-200 hover:border-orange-200 hover:bg-orange-50/30",
+                      )}
+                    >
+                      <div className="relative w-10 h-10 shrink-0 rounded-lg bg-gray-50 overflow-hidden">
+                        {d.imgUrl ? (
+                          <Image
+                            src={d.imgUrl}
+                            alt={d.dishName || ""}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                            🍽️
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-gray-900 truncate">
+                          {d.dishName || d.dishId.slice(0, 8)}
+                        </p>
+                        {d.priceAmount !== undefined && (
+                          <span className="text-[10px] font-bold text-[#D35400] flex items-center gap-0.5">
+                            {d.priceAmount}
+                            <div className="relative w-3 h-3">
+                              <Image
+                                src="/logo_point.png"
+                                alt="pts"
+                                fill
+                                sizes="12px"
+                                className="object-contain"
+                              />
+                            </div>
+                          </span>
+                        )}
+                      </div>
+                      {session.isFinalized &&
+                      d.preparedQuantity !== null &&
+                      d.preparedQuantity !== undefined ? (
+                        <span className="text-xs font-bold text-emerald-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-lg shrink-0">
+                          Đã CB: {d.preparedQuantity}
+                        </span>
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-                          🍽️
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <div className="flex items-center gap-2">
+                            {orderedQuantities !== null && (
+                              <span
+                                className={cn(
+                                  "text-[10px] font-black px-2 py-1 rounded-md border whitespace-nowrap",
+                                  isShort
+                                    ? "text-red-700 bg-red-50 border-red-200"
+                                    : "text-gray-500 bg-gray-100 border-gray-200",
+                                )}
+                                title="Số suất khách đã đặt — không được chuẩn bị ít hơn"
+                              >
+                                Đã đặt: {minQty}
+                              </span>
+                            )}
+                            <span className="text-[11px] font-bold text-gray-400">CB:</span>
+                            <input
+                              type="number"
+                              min={orderedQuantities !== null ? minQty : 0}
+                              value={
+                                preparedQuantities[d.dishId] === undefined ||
+                                preparedQuantities[d.dishId] === null
+                                  ? 0
+                                  : preparedQuantities[d.dishId]
+                              }
+                              onChange={(e) => handleQuantityChange(d.dishId, e.target.value)}
+                              onFocus={(e) => e.target.select()}
+                              onBlur={() => {
+                                if (
+                                  preparedQuantities[d.dishId] === ("" as unknown as number) ||
+                                  isNaN(Number(preparedQuantities[d.dishId]))
+                                ) {
+                                  setPreparedQuantities((prev) => ({ ...prev, [d.dishId]: 0 }));
+                                }
+                              }}
+                              disabled={isSubmitting}
+                              className={cn(
+                                "w-16 px-2 py-1.5 text-center border rounded-lg outline-none text-sm font-bold shadow-xs transition-colors",
+                                isShort
+                                  ? "border-red-300 text-red-700 focus:ring-1 focus:ring-red-500 focus:border-red-500"
+                                  : "border-gray-200 hover:border-orange-300 focus:ring-1 focus:ring-[#D35400] focus:border-[#D35400]",
+                              )}
+                            />
+                          </div>
+                          {isShort && (
+                            <span className="text-[10px] text-red-600 font-bold">
+                              Tối thiểu {minQty}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-gray-900 truncate">
-                        {d.dishName || d.dishId.slice(0, 8)}
-                      </p>
-                      {d.priceAmount !== undefined && (
-                        <span className="text-[10px] font-bold text-[#D35400] flex items-center gap-0.5">
-                          {d.priceAmount}
-                          <div className="relative w-3 h-3">
-                            <Image
-                              src="/logo_point.png"
-                              alt="pts"
-                              fill
-                              sizes="12px"
-                              className="object-contain"
-                            />
-                          </div>
-                        </span>
-                      )}
-                    </div>
-                    {session.isFinalized &&
-                    d.preparedQuantity !== null &&
-                    d.preparedQuantity !== undefined ? (
-                      <span className="text-xs font-bold text-emerald-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-lg shrink-0">
-                        Đã CB: {d.preparedQuantity}
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[11px] font-bold text-gray-400">CB:</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={
-                            preparedQuantities[d.dishId] === undefined ||
-                            preparedQuantities[d.dishId] === null
-                              ? 0
-                              : preparedQuantities[d.dishId]
-                          }
-                          onChange={(e) => handleQuantityChange(d.dishId, e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          onBlur={() => {
-                            if (
-                              preparedQuantities[d.dishId] === ("" as unknown as number) ||
-                              isNaN(Number(preparedQuantities[d.dishId]))
-                            ) {
-                              setPreparedQuantities((prev) => ({ ...prev, [d.dishId]: 0 }));
-                            }
-                          }}
-                          disabled={isSubmitting}
-                          className="w-16 px-2 py-1.5 text-center border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-[#D35400] focus:border-[#D35400] text-sm font-bold shadow-xs hover:border-orange-300 transition-colors"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {!session.isFinalized && (
-                <div className="mt-6 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-2.5">
-                    <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-extrabold text-gray-800">
-                        Chốt số lượng chuẩn bị nấu & Bắt đầu phục vụ
-                      </p>
-                      <p className="text-xs text-gray-500 font-semibold mt-0.5 leading-relaxed">
-                        Nhập số lượng thực tế. Bạn có thể chọn{" "}
-                        <span className="text-emerald-700 font-bold">&quot;Bắt đầu ca&quot;</span>{" "}
-                        để Robot đi gắp món ngay lập tức, hoặc{" "}
-                        <span className="text-[#D35400] font-bold">&quot;Chốt đơn ca ăn&quot;</span>{" "}
-                        theo lịch trình chuẩn.
-                      </p>
+                <div className="mt-6 space-y-3">
+                  {hasShortfall && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-extrabold text-red-800">
+                          {shortfalls.length} món đang thấp hơn số lượng đã đặt
+                        </p>
+                        <p className="text-xs text-red-700 font-semibold mt-0.5 leading-relaxed">
+                          Không thể chốt ca cho tới khi số lượng chuẩn bị của tất cả các món đạt mức
+                          tối thiểu:{" "}
+                          <span className="font-bold">
+                            {shortfalls
+                              .map((s) => `${s.dishName} (${s.prepared}/${s.ordered})`)
+                              .join(", ")}
+                          </span>
+                          .
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
-                    <button
-                      type="button"
-                      onClick={handleFinalizeNow}
-                      disabled={isSubmitting}
-                      className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-xs shrink-0 uppercase tracking-wider active:scale-95 flex items-center gap-2 cursor-pointer"
-                      title="Chốt số lượng và kích hoạt ca phục vụ ngay lập tức cho Robot gắp món"
-                    >
-                      {isSubmitting ? (
-                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <PlayCircle className="w-4 h-4" />
-                          <span>Bắt đầu ca</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleFinalize}
-                      disabled={isSubmitting}
-                      className="px-5 py-3 bg-[#D35400] hover:bg-[#b04600] disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-xs shrink-0 uppercase tracking-wider active:scale-95 cursor-pointer"
-                      title="Chốt số lượng chuẩn bị theo lịch ban đầu"
-                    >
-                      {isSubmitting ? (
-                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        "Chốt đơn ca ăn"
-                      )}
-                    </button>
+                  )}
+                  {quantitiesError && (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-600 font-semibold leading-relaxed">
+                          Không tải được số lượng đã đặt — tạm thời không kiểm tra tối thiểu.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={retryLoadQuantities}
+                        disabled={loadingQuantities}
+                        className="px-3 py-1.5 text-xs font-black text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors shrink-0 cursor-pointer"
+                      >
+                        {loadingQuantities ? "Đang tải..." : "Thử lại"}
+                      </button>
+                    </div>
+                  )}
+                  <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-[#D35400] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-extrabold text-gray-800">
+                          Chốt số lượng chuẩn bị nấu & Bắt đầu phục vụ
+                        </p>
+                        <p className="text-xs text-gray-500 font-semibold mt-0.5 leading-relaxed">
+                          Nhập số lượng thực tế. Bạn có thể chọn{" "}
+                          <span className="text-emerald-700 font-bold">&quot;Bắt đầu ca&quot;</span>{" "}
+                          để Robot đi gắp món ngay lập tức, hoặc{" "}
+                          <span className="text-[#D35400] font-bold">
+                            &quot;Chốt đơn ca ăn&quot;
+                          </span>{" "}
+                          theo lịch trình chuẩn.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
+                      <button
+                        type="button"
+                        onClick={handleFinalizeNow}
+                        disabled={isSubmitting || hasShortfall}
+                        className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-black rounded-xl transition-all shadow-xs shrink-0 uppercase tracking-wider active:scale-95 flex items-center gap-2 cursor-pointer"
+                        title={
+                          hasShortfall
+                            ? "Số lượng chuẩn bị đang thấp hơn số lượng đã đặt"
+                            : "Chốt số lượng và kích hoạt ca phục vụ ngay lập tức cho Robot gắp món"
+                        }
+                      >
+                        {isSubmitting ? (
+                          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <PlayCircle className="w-4 h-4" />
+                            <span>Bắt đầu ca</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFinalize}
+                        disabled={isSubmitting || hasShortfall}
+                        className="px-5 py-3 bg-[#D35400] hover:bg-[#b04600] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-black rounded-xl transition-all shadow-xs shrink-0 uppercase tracking-wider active:scale-95 cursor-pointer"
+                        title={
+                          hasShortfall
+                            ? "Số lượng chuẩn bị đang thấp hơn số lượng đã đặt"
+                            : "Chốt số lượng chuẩn bị theo lịch ban đầu"
+                        }
+                      >
+                        {isSubmitting ? (
+                          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          "Chốt đơn ca ăn"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

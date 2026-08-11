@@ -127,3 +127,18 @@ export interface SessionCalendarData {
   totalSessions: number;
   days: SessionCalendarDay[];
 }
+
+/** Portions currently on order for a single dish in a session. */
+export interface SessionDishQuantity {
+  dishId: string;
+  dishName: string;
+  orderedQuantity: number;
+}
+
+/** Response of GET /api/sessions/{id}/dish-quantities (Manager only). */
+export interface SessionDishQuantities {
+  sessionId: string;
+  sessionName: string;
+  totalOrderedQuantity: number;
+  dishes: SessionDishQuantity[];
+}
