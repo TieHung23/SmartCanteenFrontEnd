@@ -15,17 +15,17 @@ export default function ForgotPasswordPage() {
       </div>
 
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-16 bg-white">
-        <div className="w-full max-w-xl flex flex-col items-center">
-          <div className="mb-6 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+        <div className="w-full max-w-xl flex flex-col items-center -mt-12 sm:-mt-16">
+          <div className="mb-3 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
               alt="Mascot"
-              className="w-48 h-48 object-contain drop-shadow-2xl"
+              className="w-40 h-40 object-contain drop-shadow-2xl"
             />
           </div>
 
-          <div className="w-full mb-6">
+          <div className="w-full mb-4">
             <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Quên mật khẩu</h1>
             <p className="text-sm text-gray-400">
               Nhập email của bạn để nhận liên kết đặt lại mật khẩu.

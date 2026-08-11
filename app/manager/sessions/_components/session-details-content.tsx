@@ -177,6 +177,11 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
   }, [sessionId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSessionOrders();
+  }, [fetchSessionOrders]);
+
+  useEffect(() => {
     if (activeTab === "orders") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchSessionOrders();
