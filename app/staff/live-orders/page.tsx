@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import {
   Clock,
@@ -25,6 +25,11 @@ import { orderService } from "@/services/order.service";
 import { sessionService } from "@/services/session.service";
 import { pickupService } from "@/services/pickup.service";
 import { robotService } from "@/services/robot.service";
+import {
+  useOrderStatusSignalr,
+  getOrderStatusLabelVi,
+  type OrderStatusChangedPayload,
+} from "@/lib/hooks/use-signalr";
 
 interface OrderItemDisplay {
   dishName?: string;
@@ -103,7 +108,7 @@ export default function LiveOrdersPage() {
   const [countdown, setCountdown] = useState(10);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchOrders = () => {
+  const fetchOrders = useCallback(() => {
     setLoading(true);
     orderService
       .getAll({ pageSize: 100, pageNumber: 1 })
@@ -156,7 +161,27 @@ export default function LiveOrdersPage() {
         setLoading(false);
         setCountdown(10);
       });
-  };
+  }, []);
+
+  useOrderStatusSignalr(
+    useCallback(
+      (evt: OrderStatusChangedPayload) => {
+        const labelVi = getOrderStatusLabelVi(evt.status, evt.statusName);
+        const shortId = evt.orderId ? evt.orderId.slice(0, 8) : "";
+        toast.info(`[Realtime] Đơn #${shortId} chuyển sang: ${labelVi}`);
+        setOrders((prev) =>
+          prev.map((o) => {
+            if (o.id && o.id.toLowerCase() === evt.orderId.toLowerCase()) {
+              return { ...o, status: evt.status };
+            }
+            return o;
+          }),
+        );
+        fetchOrders();
+      },
+      [fetchOrders],
+    ),
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -173,7 +198,7 @@ export default function LiveOrdersPage() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [fetchOrders]);
 
   const filteredOrders = orders.filter((o) => {
     const q = searchQuery.toLowerCase().trim();
