@@ -6,6 +6,7 @@ import {
   type SessionListItem,
   type CreateSessionRequest,
   type SessionCalendarData,
+  type SessionDishQuantities,
 } from "@/types/session.types";
 import { SessionDetailSchema } from "@/types/session.types";
 
@@ -125,6 +126,18 @@ export const sessionService = {
     )) as unknown as ApiResponse<{ message: string }>;
 
     return response;
+  },
+
+  /**
+   * Portions currently on order per dish — the minimum the kitchen must prepare.
+   * Throws on failure so callers can tell "no orders" apart from "could not load".
+   */
+  getSessionDishQuantities: async (id: string): Promise<SessionDishQuantities> => {
+    const response = (await apiClient.get<ApiResponse<SessionDishQuantities>>(
+      API_ENDPOINTS.SESSION.DISH_QUANTITIES(id),
+    )) as unknown as ApiResponse<SessionDishQuantities>;
+
+    return response.value;
   },
 
   getAllDishes: async (): Promise<Dish[]> => {
