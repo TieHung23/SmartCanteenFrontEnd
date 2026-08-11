@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { notificationService } from "@/services/notification.service";
 import type { NotificationItem } from "@/types/notification.types";
+import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver";
 import Navbar from "@/components/layout/Navbar";
 import { getAccessToken } from "@/lib/auth-token-storage";
 import { ROUTES } from "@/config/routes";
@@ -75,6 +76,13 @@ export default function NotificationsPage() {
   const handleMarkAllRead = async () => {
     await notificationService.markAllAsRead();
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const handleNotificationClick = async (n: NotificationItem) => {
+    if (!n.isRead) handleMarkRead(n.id);
+    if (!n.referenceId) return;
+    const targetUrl = await resolveNotificationTargetUrl(n);
+    router.push(targetUrl);
   };
 
   return (
@@ -152,7 +160,7 @@ export default function NotificationsPage() {
               {notifications.map((n) => (
                 <button
                   key={n.id}
-                  onClick={() => !n.isRead && handleMarkRead(n.id)}
+                  onClick={() => handleNotificationClick(n)}
                   className={`w-full text-left border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-all ${
                     !n.isRead ? "bg-orange-50/40" : ""
                   }`}

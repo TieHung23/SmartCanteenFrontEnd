@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import {
   Clock,
@@ -22,11 +22,17 @@ import {
 import { toast } from "sonner";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 import { orderService } from "@/services/order.service";
+import { sessionService } from "@/services/session.service";
 import { pickupService } from "@/services/pickup.service";
 import { robotService } from "@/services/robot.service";
+import {
+  useOrderStatusSignalr,
+  getOrderStatusLabelVi,
+  type OrderStatusChangedPayload,
+} from "@/lib/hooks/use-signalr";
 
 interface OrderItemDisplay {
-  dishName: string;
+  dishName?: string;
   quantity: number;
   unitPrice?: number;
 }
@@ -102,13 +108,51 @@ export default function LiveOrdersPage() {
   const [countdown, setCountdown] = useState(10);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchOrders = () => {
+  const fetchOrders = useCallback(() => {
     setLoading(true);
     orderService
-      .getMyOrders({ pageSize: 100, pageNumber: 1 })
-      .then((data) => {
-        const items = (data?.items || []) as unknown as LiveOrder[];
-        setOrders(items);
+      .getAll({ pageSize: 100, pageNumber: 1 })
+      .then(async (data) => {
+        let rawItems = (data?.items || []) as unknown as LiveOrder[];
+
+        if (rawItems.length === 0) {
+          try {
+            const activeSessions = await sessionService.getSessions({ pageSize: 10 });
+            const currentSession =
+              activeSessions.items.find(
+                (s) => s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date()),
+              ) || activeSessions.items[0];
+            if (currentSession) {
+              const sessionOrdersData = await orderService.getManagerOrdersBySession(
+                currentSession.id,
+                { pageSize: 100, pageNumber: 1 },
+              );
+              rawItems = (sessionOrdersData?.items || []) as unknown as LiveOrder[];
+            }
+          } catch {
+            // Keep empty
+          }
+        }
+
+        const enriched = await Promise.all(
+          rawItems.map(async (o) => {
+            if (o.items && Array.isArray(o.items) && o.items.length > 0) {
+              return o;
+            }
+            try {
+              const detail = await orderService
+                .getManagerOrderById(o.id)
+                .catch(() => orderService.getOrderById(o.id));
+              return {
+                ...o,
+                items: detail?.items || [],
+              };
+            } catch {
+              return { ...o, items: o.items || [] };
+            }
+          }),
+        );
+        setOrders(enriched);
       })
       .catch(() => {
         setOrders([]);
@@ -117,7 +161,27 @@ export default function LiveOrdersPage() {
         setLoading(false);
         setCountdown(10);
       });
-  };
+  }, []);
+
+  useOrderStatusSignalr(
+    useCallback(
+      (evt: OrderStatusChangedPayload) => {
+        const labelVi = getOrderStatusLabelVi(evt.status, evt.statusName);
+        const shortId = evt.orderId ? evt.orderId.slice(0, 8) : "";
+        toast.info(`[Realtime] Đơn #${shortId} chuyển sang: ${labelVi}`);
+        setOrders((prev) =>
+          prev.map((o) => {
+            if (o.id && o.id.toLowerCase() === evt.orderId.toLowerCase()) {
+              return { ...o, status: evt.status };
+            }
+            return o;
+          }),
+        );
+        fetchOrders();
+      },
+      [fetchOrders],
+    ),
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -134,7 +198,7 @@ export default function LiveOrdersPage() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [fetchOrders]);
 
   const filteredOrders = orders.filter((o) => {
     const q = searchQuery.toLowerCase().trim();
@@ -155,13 +219,29 @@ export default function LiveOrdersPage() {
     failed: orders.filter((o) => o.status === 3).length,
   };
 
+  const handleUpdateStatus = async (orderId: string, status: number) => {
+    try {
+      if (status === 2) {
+        await orderService.confirmReceived(orderId);
+      } else {
+        await orderService.updateOrderStatus(orderId, status);
+      }
+      toast.success("Cập nhật trạng thái đơn thành công!");
+      setSelectedOrder(null);
+      fetchOrders();
+    } catch {
+      toast.error("Không thể cập nhật trạng thái đơn.");
+    }
+  };
+
   const handleAssignPickup = async (orderId: string) => {
     try {
       await pickupService.assign({ orderId });
       toast.success(`Đã gán pickup cho đơn #${orderId.slice(0, 8)}`);
       fetchOrders();
     } catch {
-      toast.error("Không thể gán pickup slot.");
+      // Fallback: update status to 1 directly
+      handleUpdateStatus(orderId, 1);
     }
   };
 
@@ -171,7 +251,8 @@ export default function LiveOrdersPage() {
       toast.success(`Robot job đã tạo cho đơn #${orderId.slice(0, 8)}`);
       fetchOrders();
     } catch {
-      toast.error("Không thể tạo robot serving job.");
+      // Fallback: update status to 1 directly
+      handleUpdateStatus(orderId, 1);
     }
   };
 
@@ -182,7 +263,8 @@ export default function LiveOrdersPage() {
       setSelectedOrder(null);
       fetchOrders();
     } catch {
-      toast.error("Không thể thu món.");
+      // Fallback to confirmReceived or updateOrderStatus
+      handleUpdateStatus(orderId, 2);
     }
   };
 
@@ -203,10 +285,10 @@ export default function LiveOrdersPage() {
     const token = manualQrInput.trim();
     if (!token) return;
     const found = orders.find((o) => o.id.toLowerCase() === token.toLowerCase());
-    if (found && found.status === 1) {
+    if (found && (found.status === 1 || found.status === 0)) {
       await handleCollect(found.id);
       setManualQrInput("");
-    } else if (found && found.status !== 1) {
+    } else if (found && found.status !== 1 && found.status !== 0) {
       toast.error("Đơn chưa sẵn sàng để bàn giao");
     } else {
       toast.error("Không tìm thấy mã đơn");
@@ -390,7 +472,7 @@ export default function LiveOrdersPage() {
                           )}
                           <span className="flex items-center gap-1.5">
                             <ShoppingBag className="w-4 h-4" />
-                            {order.items.reduce((s, i) => s + i.quantity, 0)} món
+                            {(order.items || []).reduce((s, i) => s + i.quantity, 0)} món
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Clock className="w-4 h-4" />
@@ -398,7 +480,7 @@ export default function LiveOrdersPage() {
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">
-                          {order.items.map((item, idx) => (
+                          {(order.items || []).map((item, idx) => (
                             <span
                               key={idx}
                               className="text-sm bg-gray-100 text-gray-600 font-medium px-3 py-1 rounded-lg"
@@ -421,7 +503,25 @@ export default function LiveOrdersPage() {
                           className="object-contain inline-block"
                         />
                       </span>
-                      <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        {order.status === 0 && (
+                          <button
+                            onClick={() => handleUpdateStatus(order.id, 1)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-xs"
+                          >
+                            <BellRing className="w-4 h-4" />
+                            Sẵn sàng nhận
+                          </button>
+                        )}
+                        {(order.status === 1 || order.status === 0) && (
+                          <button
+                            onClick={() => handleCollect(order.id)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-xs"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Thu món (Hoàn thành)
+                          </button>
+                        )}
                         <button
                           onClick={() => setSelectedOrder(order)}
                           className="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-sm font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2"
@@ -429,15 +529,6 @@ export default function LiveOrdersPage() {
                           <Eye className="w-4 h-4" />
                           Chi tiết
                         </button>
-                        {order.status === 1 && (
-                          <button
-                            onClick={() => handleCollect(order.id)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            Thu món
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -493,7 +584,7 @@ export default function LiveOrdersPage() {
                   Món ăn trong đơn
                 </h4>
                 <div className="border border-gray-200 rounded-xl divide-y divide-gray-100">
-                  {selectedOrder.items.map((item, idx) => (
+                  {(selectedOrder.items || []).map((item, idx) => (
                     <div key={idx} className="p-3.5 flex justify-between items-center">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 font-bold text-xs">
@@ -554,31 +645,38 @@ export default function LiveOrdersPage() {
                     Nghiệp vụ quầy
                   </p>
 
-                  {selectedOrder.status === 0 && (
-                    <>
-                      <button
-                        onClick={() => handleAssignPickup(selectedOrder.id)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs"
-                      >
-                        Gán Pickup Slot
-                      </button>
-                      <button
-                        onClick={() => handleCreateRobotJob(selectedOrder.id)}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs"
-                      >
-                        Tạo Robot Serving
-                      </button>
-                    </>
-                  )}
-
-                  {selectedOrder.status === 1 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 1)}
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-2"
+                    >
+                      <BellRing className="w-4 h-4" />
+                      Sẵn sàng nhận
+                    </button>
                     <button
                       onClick={() => handleCollect(selectedOrder.id)}
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-2"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      Thu món (Collect)
+                      Thu món (Hoàn thành)
                     </button>
+                  </div>
+
+                  {selectedOrder.status === 0 && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => handleAssignPickup(selectedOrder.id)}
+                        className="bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs py-2.5 rounded-xl transition"
+                      >
+                        Gán Pickup Slot
+                      </button>
+                      <button
+                        onClick={() => handleCreateRobotJob(selectedOrder.id)}
+                        className="bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-xs py-2.5 rounded-xl transition"
+                      >
+                        Tạo Robot Serving
+                      </button>
+                    </div>
                   )}
 
                   <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 space-y-3">

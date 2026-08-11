@@ -7,8 +7,22 @@ import { categoryService } from "@/services/category.service";
 import { sessionService } from "@/services/session.service";
 import type { Dish } from "@/types/dish.types";
 import type { Category } from "@/types/category.types";
-import type { CreateSessionRequest, CreateSessionTemplate } from "@/types/session.types";
+import type {
+  CreateSessionRequest,
+  CreateSessionTemplate,
+  SessionListItem,
+} from "@/types/session.types";
 import { cn } from "@/lib/utils";
+import {
+  checkSessionOverlap,
+  extractApiErrorMessage,
+  formatSessionOverlapMessage,
+  formatSessionRange,
+  getSessionsForDate,
+} from "@/lib/session-overlap";
+import { slotConfigurationService } from "@/services/slot-configuration.service";
+import { robotArmService } from "@/services/robot-arm.service";
+import type { RobotArm } from "@/types/robot-arm.types";
 import {
   Search,
   GripVertical,
@@ -20,9 +34,13 @@ import {
   Lock,
   Trash2,
   Hourglass,
+  Clock,
+  AlertTriangle,
+  Route,
 } from "lucide-react";
 import { animate, stagger } from "animejs";
 import { spring } from "animejs";
+
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -35,13 +53,20 @@ interface LocalTemplate extends CreateSessionTemplate {
 
 interface NewSessionFormProps {
   copyFromId: string | null;
+  initialDate?: string;
   onSuccess: (session: { id: string; name: string }) => void;
   onCancel: () => void;
 }
 
-export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: NewSessionFormProps) {
+export function NewSessionForm({
+  copyFromId: copyFrom,
+  initialDate,
+  onSuccess,
+  onCancel,
+}: NewSessionFormProps) {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [existingSessions, setExistingSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +77,14 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   const [availableFrom, setAvailableFrom] = useState("");
   const [availableTo, setAvailableTo] = useState("");
   const [availableForOrder, setAvailableForOrder] = useState("");
-  const [sessionDate, setSessionDate] = useState("");
-  const [orderOpenDate, setOrderOpenDate] = useState("");
+  const defaultInitialDate = useMemo(() => {
+    const todayStr = dayjs().format("YYYY-MM-DD");
+    if (!initialDate) return todayStr;
+    return dayjs(initialDate).isBefore(dayjs(), "day") ? todayStr : initialDate;
+  }, [initialDate]);
+
+  const [sessionDate, setSessionDate] = useState(defaultInitialDate);
+  const [orderOpenDate, setOrderOpenDate] = useState(defaultInitialDate);
   const [finalizationDeadline, setFinalizationDeadline] = useState("");
   const [autoFinalizePolicy, setAutoFinalizePolicy] = useState(0);
   const [clickedFields, setClickedFields] = useState<Set<string>>(new Set());
@@ -95,16 +126,35 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         setAvailableForOrder(fullStr);
         newForOrder = fullStr;
       } else {
-        const dateStr = sessionDate || dayjs().format("YYYY-MM-DD");
-        if (!sessionDate) setSessionDate(dateStr);
-        const fullStr = `${dateStr}T${time.format("HH:mm")}`;
+        const baseDate = sessionDate || dayjs().format("YYYY-MM-DD");
+        if (!sessionDate) setSessionDate(baseDate);
         if (field === "deadline") {
+          const fullStr = `${baseDate}T${time.format("HH:mm")}`;
           setFinalizationDeadline(fullStr);
           newDeadline = fullStr;
         } else if (field === "start") {
+          const startTime = time.format("HH:mm");
+          const fullStr = `${baseDate}T${startTime}`;
           setAvailableFrom(fullStr);
           newFrom = fullStr;
+          if (newTo) {
+            const toTime = newTo.split("T")[1];
+            if (toTime) {
+              const endDateStr =
+                toTime < startTime ? dayjs(baseDate).add(1, "day").format("YYYY-MM-DD") : baseDate;
+              const updatedTo = `${endDateStr}T${toTime}`;
+              setAvailableTo(updatedTo);
+              newTo = updatedTo;
+            }
+          }
         } else if (field === "end") {
+          const endTime = time.format("HH:mm");
+          const startTime = newFrom ? newFrom.split("T")[1] : "";
+          const endDateStr =
+            startTime && endTime < startTime
+              ? dayjs(baseDate).add(1, "day").format("YYYY-MM-DD")
+              : baseDate;
+          const fullStr = `${endDateStr}T${endTime}`;
           setAvailableTo(fullStr);
           newTo = fullStr;
         }
@@ -145,6 +195,25 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     },
   ]);
 
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  const [wizardLaneConfigs, setWizardLaneConfigs] = useState<
+    Record<string, { laneCode: string; capacity: number; robotArmId: string }>
+  >({});
+  const [robotArms, setRobotArms] = useState<RobotArm[]>([]);
+
+  // Tự động sinh danh sách mã Lane từ các RobotArm hiện có (hoặc mặc định S1, S2, S3 nếu chưa có dữ liệu)
+  const allLaneOptions = useMemo(() => {
+    if (robotArms.length > 0) {
+      const list: string[] = [];
+      robotArms.forEach((arm) => {
+        const code = (arm.code || "S1").toUpperCase();
+        list.push(`${code}_L1`, `${code}_L2`, `${code}_L3`);
+      });
+      return list;
+    }
+    return ["S1_L1", "S1_L2", "S1_L3", "S2_L1", "S2_L2", "S2_L3", "S3_L1", "S3_L2", "S3_L3"];
+  }, [robotArms]);
+
   function toDatetimeLocal(iso: string): string {
     const d = new Date(iso);
     const pad = (n: number) => n.toString().padStart(2, "0");
@@ -152,14 +221,51 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWizardLaneConfigs((prev) => {
+      const next = { ...prev };
+      const usedLanes = new Set(
+        Object.values(next)
+          .map((c) => c.laneCode)
+          .filter(Boolean),
+      );
+
+      selectedDishIds.forEach((dishId) => {
+        if (!next[dishId]) {
+          let defaultLane = allLaneOptions.find((l) => !usedLanes.has(l));
+          if (!defaultLane) {
+            const nextIdx = Object.keys(next).length;
+            defaultLane = allLaneOptions[nextIdx % allLaneOptions.length] || "S1_L1";
+          }
+          usedLanes.add(defaultLane);
+          const armPrefix = defaultLane.split("_")[0];
+          const matchingArm = robotArms.find((a) => (a.code || "").toUpperCase() === armPrefix);
+          next[dishId] = {
+            laneCode: defaultLane,
+            capacity: 12,
+            robotArmId: matchingArm ? matchingArm.id : "",
+          };
+        }
+      });
+      return next;
+    });
+  }, [selectedDishIds, allLaneOptions, robotArms]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dishResult, catResult] = await Promise.all([
+        const [dishResult, catResult, sessionResult, armsResult] = await Promise.all([
           dishService.getDishes({ isActive: true, pageSize: 100 }),
           categoryService.getAll(),
+          sessionService
+            .getSessions({ pageSize: 1000 })
+            .catch(() => ({ items: [] as SessionListItem[] })),
+          robotArmService.getList().catch(() => [] as RobotArm[]),
         ]);
         setDishes(dishResult.items);
         setCategories(catResult.items);
+        setExistingSessions(sessionResult.items || []);
+        setRobotArms(armsResult);
 
         if (copyFrom) {
           const detail = await sessionService.getSessionDetail(copyFrom);
@@ -170,8 +276,16 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
           setAvailableForOrder(toDatetimeLocal(detail.availableForOrder));
           if (detail.finalizationDeadline)
             setFinalizationDeadline(toDatetimeLocal(detail.finalizationDeadline));
-          setOrderOpenDate(toDatetimeLocal(detail.availableForOrder).split("T")[0]);
-          setSessionDate(toDatetimeLocal(detail.availableFrom).split("T")[0]);
+          const todayStr = dayjs().format("YYYY-MM-DD");
+          const copiedOrderDate = toDatetimeLocal(detail.availableForOrder).split("T")[0];
+          const copiedSessionDate = toDatetimeLocal(detail.availableFrom).split("T")[0];
+
+          setOrderOpenDate(
+            dayjs(copiedOrderDate).isBefore(dayjs(), "day") ? todayStr : copiedOrderDate,
+          );
+          setSessionDate(
+            dayjs(copiedSessionDate).isBefore(dayjs(), "day") ? todayStr : copiedSessionDate,
+          );
           setSelectedDishIds(new Set(detail.dishes.map((d) => d.dishId)));
           setTemplates(
             detail.mealTemplates.map((t, idx) => ({
@@ -189,6 +303,16 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     };
     fetchData();
   }, [copyFrom]);
+
+  const sessionsForSelectedDate = useMemo(
+    () => getSessionsForDate(sessionDate, existingSessions),
+    [sessionDate, existingSessions],
+  );
+
+  const overlappingSessions = useMemo(
+    () => checkSessionOverlap(availableFrom, availableTo, existingSessions),
+    [availableFrom, availableTo, existingSessions],
+  );
 
   const filteredDishes = useMemo(
     () =>
@@ -577,6 +701,42 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
       ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
     ]);
     if (totalDishes.size === 0) errs.dishes = "Vui lòng chọn ít nhất một món ăn.";
+
+    // 1. Chặn tạo phiên khi chưa tạo cấu hình Lane cho các món ăn
+    const dishIdList = Array.from(totalDishes);
+    const unconfiguredDishes = dishIdList.filter(
+      (dishId) => !wizardLaneConfigs[dishId]?.laneCode?.trim(),
+    );
+    if (totalDishes.size > 0 && unconfiguredDishes.length > 0) {
+      errs.lanes = `Bạn chưa cấu hình Lane cho ${unconfiguredDishes.length} món ăn!`;
+    }
+
+    // 2. Chặn tạo phiên khi có Mã Lane bị gán TRÙNG giữa các món ăn trong cùng 1 ca
+    const laneUsageMap = new Map<string, string[]>();
+    dishIdList.forEach((dishId) => {
+      const code = wizardLaneConfigs[dishId]?.laneCode?.trim()?.toUpperCase();
+      if (code) {
+        const dish = dishes.find((d) => d.id === dishId);
+        const name = dish ? dish.name : "Món ăn";
+        const current = laneUsageMap.get(code) || [];
+        current.push(name);
+        laneUsageMap.set(code, current);
+      }
+    });
+
+    const dupDetails: string[] = [];
+    laneUsageMap.forEach((dishNames, laneCode) => {
+      if (dishNames.length > 1) {
+        dupDetails.push(
+          `Mã Lane "${laneCode}" bị gán trùng cho ${dishNames.length} món (${dishNames.join(", ")})`,
+        );
+      }
+    });
+
+    if (dupDetails.length > 0) {
+      errs.duplicateLanes = dupDetails.join("; ");
+    }
+
     if (templates.some((t) => !t.name.trim()))
       errs.templatesName = "Tên khuôn mẫu không được để trống.";
     for (const t of templates) {
@@ -594,6 +754,50 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setError(null);
+
+      // Nếu thiếu cấu hình Lane hoặc bị TRÙNG Mã Lane -> CHẶN NGAY, không tạo session, tự động nhảy sang Bước 2!
+      if (validationErrors.lanes || validationErrors.duplicateLanes) {
+        setWizardStep(2);
+        const title = validationErrors.duplicateLanes
+          ? "Bị trùng mã Lane trong ca!"
+          : "Bạn chưa tạo cấu hình Lane!";
+        const desc = validationErrors.duplicateLanes || validationErrors.lanes;
+        toast.error(title, {
+          description: `${desc}. Vui lòng chỉnh sửa ở Bước 2 để mỗi món có 1 Mã Lane riêng trước khi tạo ca.`,
+          duration: 7000,
+        });
+        return;
+      }
+
+      const FIELD_ORDER = [
+        "name",
+        "description",
+        "orderOpenDate",
+        "availableForOrder",
+        "sessionDate",
+        "finalizationDeadline",
+        "availableFrom",
+        "availableTo",
+        "templatesName",
+        "templatesSettings",
+        "dishes",
+      ];
+
+      const firstKey = FIELD_ORDER.find((k) => validationErrors[k]);
+      if (firstKey) {
+        const el = document.getElementById(`field-${firstKey}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.focus({ preventScroll: true });
+          }
+        }
+      }
+
+      const firstErrorMsg = Object.values(validationErrors)[0];
+      toast.error("Thông tin tạo ca chưa hợp lệ", {
+        description: firstErrorMsg || "Vui lòng kiểm tra các trường bị lỗi.",
+      });
       return;
     }
 
@@ -625,12 +829,88 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         })),
     };
 
+    if (overlappingSessions.length > 0) {
+      const overlapMsg = formatSessionOverlapMessage(
+        availableFrom,
+        availableTo,
+        overlappingSessions,
+      );
+      toast.error(overlapMsg);
+      setError(overlapMsg);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const result = await sessionService.createSession(payload);
-      toast.success(`Tạo ca phục vụ "${result.value.name}" thành công!`);
+      const createdSessionId = result.value.id;
+
+      // Create Lane configurations simultaneously if configured in wizard step 2
+      const laneEntries = Object.entries(wizardLaneConfigs).filter(([dishId]) =>
+        payload.dishes.some((d) => d.dishId === dishId),
+      );
+
+      if (laneEntries.length > 0) {
+        let laneSuccessCount = 0;
+        const laneErrorMsgs: string[] = [];
+
+        for (const [dishId, cfg] of laneEntries) {
+          if (!cfg.laneCode?.trim()) continue;
+          const validArmId =
+            cfg.robotArmId && robotArms.some((a) => a.id === cfg.robotArmId)
+              ? cfg.robotArmId
+              : null;
+          try {
+            await slotConfigurationService.create({
+              sessionId: createdSessionId,
+              dishId,
+              laneCode: cfg.laneCode.trim().toUpperCase(),
+              capacity: cfg.capacity || 12,
+              robotArmId: validArmId,
+            });
+            laneSuccessCount++;
+          } catch (laneErr) {
+            console.warn(`[Slot Config Error] for dish ${dishId}:`, laneErr);
+            const errDetail = extractApiErrorMessage(
+              laneErr,
+              `Lỗi mã lane ${cfg.laneCode.toUpperCase()}`,
+            );
+            laneErrorMsgs.push(errDetail);
+          }
+        }
+
+        if (laneErrorMsgs.length > 0) {
+          toast.warning(
+            `Tạo ca "${result.value.name}" thành công! Lỗi gán Lane: ${laneErrorMsgs.join("; ")}`,
+            { duration: 8000 },
+          );
+        } else if (laneSuccessCount > 0) {
+          toast.success(
+            `Tạo ca phục vụ "${result.value.name}" và gán ${laneSuccessCount} cấu hình Lane thành công!`,
+          );
+        } else {
+          toast.success(
+            `Tạo ca phục vụ "${result.value.name}" thành công! (Bạn có thể gán cấu hình Lane trong Chi tiết ca).`,
+          );
+        }
+      } else {
+        toast.success(`Tạo ca phục vụ "${result.value.name}" thành công!`);
+      }
+
       onSuccess({ id: result.value.id, name: result.value.name });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to create session";
+      console.error("[Session Create] Error:", err);
+      const apiMsg = extractApiErrorMessage(err, "");
+      let msg = apiMsg;
+      if (!msg) {
+        const conflicts = checkSessionOverlap(availableFrom, availableTo, existingSessions);
+        if (conflicts.length > 0) {
+          msg = formatSessionOverlapMessage(availableFrom, availableTo, conflicts);
+        } else {
+          msg = "Tạo ca phục vụ thất bại. Vui lòng thử lại.";
+        }
+      }
+      toast.error(msg);
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -641,7 +921,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 border-2 border-[#D35400] border-t-transparent rounded-full animate-spin" />
-        <span className="ml-3 text-sm text-gray-500">Loading form data...</span>
+        <span className="ml-3 text-sm text-gray-500">Đang tải dữ liệu biểu mẫu...</span>
       </div>
     );
   }
@@ -654,8 +934,218 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         </div>
       )}
 
+      {/* 2-Step Wizard Stepper Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-white rounded-3xl border border-gray-200 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setWizardStep(1)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-xs font-black transition-all",
+            wizardStep === 1
+              ? "bg-[#D35400] text-white shadow-md"
+              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50",
+          )}
+        >
+          <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">
+            1
+          </span>
+          <CalendarPlus className="w-4 h-4 shrink-0" />
+          <span>Thông tin chung & Món ăn ({selectedDishes.length} món)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setWizardStep(2)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-xs font-black transition-all",
+            wizardStep === 2
+              ? "bg-[#D35400] text-white shadow-md"
+              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50",
+          )}
+        >
+          <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">
+            2
+          </span>
+          <Route className="w-4 h-4 shrink-0" />
+          <span>Cấu hình Lane & Sức chứa</span>
+        </button>
+      </div>
+
+      {wizardStep === 2 && (
+        <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-6 shadow-xs animate-fade-in">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
+                <Route className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-gray-900">
+                  Cấu hình Lane & Sức chứa cho các món ăn trong ca
+                </h3>
+                <p className="text-xs text-gray-400 font-medium">
+                  Gán Mã Lane (`S1_L1`, `S1_L2`, `S1_L3`), sức chứa tối đa và Robot Arm phụ trách
+                  cho từng món ăn.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {(errors.lanes || errors.duplicateLanes) && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 flex items-center gap-3 text-xs font-bold animate-shake">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              <div>
+                <p className="font-extrabold text-sm text-red-800">
+                  ⚠️{" "}
+                  {errors.duplicateLanes
+                    ? "Mã Lane bị trùng giữa các món!"
+                    : "Chưa chọn Mã Lane cho món ăn!"}
+                </p>
+                <p className="text-red-600 mt-0.5 font-medium leading-relaxed">
+                  {errors.duplicateLanes || errors.lanes} Vui lòng chọn cho mỗi món một Mã Lane
+                  riêng trước khi tạo ca.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {selectedDishes.length === 0 ? (
+            <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <p className="text-sm font-bold text-gray-400">
+                Chưa có món ăn nào được chọn ở Tab 1.
+              </p>
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="mt-3 text-xs font-bold text-[#D35400] underline"
+              >
+                Về Tab 1 để chọn món
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Món ăn
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Mã Lane
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Sức chứa (Khay)
+                    </th>
+                    <th className="px-5 py-3.5 text-xs font-black uppercase text-gray-400">
+                      Tay máy Robot
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {selectedDishes.map((dish) => {
+                    const cfg = wizardLaneConfigs[dish.id] || {
+                      laneCode: "S1_L1",
+                      capacity: 12,
+                      robotArmId: "",
+                    };
+                    const selectedArm = robotArms.find((a) => a.id === cfg.robotArmId);
+                    const availableLanes = selectedArm
+                      ? [
+                          `${selectedArm.code.toUpperCase()}_L1`,
+                          `${selectedArm.code.toUpperCase()}_L2`,
+                          `${selectedArm.code.toUpperCase()}_L3`,
+                        ]
+                      : allLaneOptions;
+
+                    return (
+                      <tr key={dish.id} className="hover:bg-orange-50/20">
+                        <td className="px-5 py-4 font-bold text-sm text-gray-900">{dish.name}</td>
+                        <td className="px-5 py-4">
+                          <select
+                            value={cfg.laneCode}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const armPrefix = val.split("_")[0];
+                              const matchingArm = robotArms.find(
+                                (a) => (a.code || "").toUpperCase() === armPrefix,
+                              );
+                              setWizardLaneConfigs((prev) => ({
+                                ...prev,
+                                [dish.id]: {
+                                  ...cfg,
+                                  laneCode: val,
+                                  robotArmId: matchingArm ? matchingArm.id : cfg.robotArmId,
+                                },
+                              }));
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl font-mono text-sm font-bold text-gray-900 focus:border-[#D35400] outline-none shadow-xs"
+                          >
+                            {availableLanes.map((lane) => (
+                              <option key={lane} value={lane}>
+                                {lane}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-5 py-4">
+                          <input
+                            type="number"
+                            min={1}
+                            value={cfg.capacity}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 1;
+                              setWizardLaneConfigs((prev) => ({
+                                ...prev,
+                                [dish.id]: { ...cfg, capacity: val },
+                              }));
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold w-24 focus:border-[#D35400] outline-none"
+                          />
+                        </td>
+                        <td className="px-5 py-4">
+                          <select
+                            value={cfg.robotArmId}
+                            onChange={(e) => {
+                              const armId = e.target.value;
+                              const arm = robotArms.find((a) => a.id === armId);
+                              const newLaneCode = arm
+                                ? `${arm.code.toUpperCase()}_L1`
+                                : cfg.laneCode;
+                              setWizardLaneConfigs((prev) => ({
+                                ...prev,
+                                [dish.id]: {
+                                  ...cfg,
+                                  robotArmId: armId,
+                                  laneCode: newLaneCode,
+                                },
+                              }));
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:border-[#D35400] outline-none"
+                          >
+                            <option value="">-- Tự phục vụ --</option>
+                            {robotArms.map((arm) => (
+                              <option key={arm.id} value={arm.id}>
+                                {arm.name ? `${arm.code} - ${arm.name}` : arm.code}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 2-Column Responsive Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div
+        className={cn(
+          "grid grid-cols-1 lg:grid-cols-12 gap-8 items-start",
+          wizardStep === 2 && "hidden",
+        )}
+      >
         {/* Left Column: Form Details & Templates */}
         <div className="lg:col-span-6 space-y-8">
           {/* General Metadata */}
@@ -671,6 +1161,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Tên ca phục vụ *
                 </label>
                 <input
+                  id="field-name"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -700,6 +1191,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   Mô tả ngắn gọn *
                 </label>
                 <textarea
+                  id="field-description"
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value);
@@ -734,7 +1226,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                     <Play className="w-4 h-4" /> Mở đặt
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                    <div id="field-orderOpenDate">
                       <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
                         Ngày mở đặt
                       </label>
@@ -774,6 +1266,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       )}
                     </div>
                     <div
+                      id="field-availableForOrder"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("order"))}
                     >
@@ -782,6 +1275,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={availableForOrder ? dayjs(availableForOrder) : null}
                         onChange={(v) => handleTimeSelect("order", v)}
                         shouldDisableTime={(value, view) => {
@@ -839,7 +1334,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
                     <CalendarPlus className="w-4 h-4" /> Phục vụ
                   </h3>
-                  <div>
+                  <div id="field-sessionDate">
                     <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
                       Ngày phục vụ
                     </label>
@@ -884,6 +1379,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div
+                      id="field-finalizationDeadline"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("deadline"))}
                     >
@@ -893,6 +1389,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={finalizationDeadline ? dayjs(finalizationDeadline) : null}
                         onChange={(v) => handleTimeSelect("deadline", v)}
                         shouldDisableTime={(value, view) => {
@@ -935,6 +1433,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         )}
                     </div>
                     <div
+                      id="field-availableFrom"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("start"))}
                     >
@@ -944,6 +1443,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={availableFrom ? dayjs(availableFrom) : null}
                         onChange={(v) => handleTimeSelect("start", v)}
                         shouldDisableTime={(value, view) => {
@@ -986,6 +1487,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                         )}
                     </div>
                     <div
+                      id="field-availableTo"
                       className="flex flex-col gap-1.5"
                       onClick={() => setClickedFields((prev) => new Set(prev).add("end"))}
                     >
@@ -995,6 +1497,8 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       </label>
                       <TimePicker
                         ampm={false}
+                        timeSteps={{ minutes: 1 }}
+                        minutesStep={1}
                         value={availableTo ? dayjs(availableTo) : null}
                         onChange={(v) => handleTimeSelect("end", v)}
                         shouldDisableTime={(value, view) => {
@@ -1033,6 +1537,57 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
                       )}
                     </div>
                   </div>
+
+                  {/* Existing Sessions Schedule Preview for Selected Date */}
+                  {sessionDate && (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2 mt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-500" />
+                          Các ca phục vụ trong ngày ({dayjs(sessionDate).format("DD/MM/YYYY")})
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-400">
+                          {sessionsForSelectedDate.length} ca
+                        </span>
+                      </div>
+                      {sessionsForSelectedDate.length === 0 ? (
+                        <p className="text-xs text-slate-400 italic">
+                          Chưa có ca phục vụ nào trong ngày này.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {sessionsForSelectedDate.map((s) => (
+                            <div
+                              key={s.id}
+                              className="flex items-center gap-2 bg-white border border-slate-200 shadow-2xs px-3 py-1.5 rounded-xl text-xs"
+                            >
+                              <span className="font-extrabold text-slate-800">{s.name}:</span>
+                              <span className="font-semibold text-slate-600">
+                                {formatSessionRange(s.availableFrom, s.availableTo)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Real-time Overlap Warning Card */}
+                  {overlappingSessions.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 space-y-1.5 shadow-xs animate-shake mt-4">
+                      <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wide text-amber-700">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                        Cảnh báo trùng thời gian ca phục vụ!
+                      </div>
+                      <p className="text-xs font-bold leading-relaxed">
+                        {formatSessionOverlapMessage(
+                          availableFrom,
+                          availableTo,
+                          overlappingSessions,
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </LocalizationProvider>
 
@@ -1061,6 +1616,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
 
           {/* Template Limits Configuration */}
           <div
+            id="field-templatesName"
             className={cn(
               "bg-white rounded-3xl border p-6 sm:p-8 space-y-6 shadow-xs transition-colors duration-300",
               errors.templatesName || errors.templatesSettings
@@ -1311,6 +1867,7 @@ export function NewSessionForm({ copyFromId: copyFrom, onSuccess, onCancel }: Ne
         <div className="lg:col-span-6 space-y-8 lg:sticky lg:top-0">
           {/* Mapped Session Dishes Pool (Drop zone) */}
           <div
+            id="field-dishes"
             ref={dropZoneRef}
             onDragOver={handleDragOverDropZone}
             onDragLeave={() => setIsDragOverDropZone(false)}

@@ -17,6 +17,9 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Sessions/${id}`,
     DELETE: (id: string) => `/api/Sessions/${id}`,
     FINALIZE: (id: string) => `/api/Sessions/${id}/finalize`,
+    FINALIZE_NOW: (id: string) => `/api/Sessions/${id}/finalize-now`,
+    DISH_QUANTITIES: (id: string) => `/api/sessions/${id}/dish-quantities`,
+    CALENDAR: "/api/sessions/calendar",
   },
   CATEGORY: {
     LIST: "/api/Categories",
@@ -40,6 +43,8 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/Orders/${id}`,
     DELETE: (id: string) => `/api/Orders/${id}`,
     MANAGER_BY_SESSION: (sessionId: string) => `/api/manager/orders/session/${sessionId}`,
+    MANAGER_GET: (id: string) => `/api/manager/orders/${id}`,
+    MANAGER_UPDATE_STATUS: (id: string) => `/api/manager/orders/${id}/status`,
   },
   CART: {
     GET: "/api/Cart",
@@ -52,8 +57,8 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/Payments/${id}`,
   },
   WALLET: {
-    TRANSACTIONS: "/api/Wallet/transactions",
-    GET: (id: string) => `/api/Wallet/transactions/${id}`,
+    TRANSACTIONS: "/api/wallet-transactions",
+    GET: (id: string) => `/api/wallet-transactions/${id}`,
   },
   SETTINGS: {
     LIST: "/api/Settings",
@@ -100,8 +105,10 @@ export const API_ENDPOINTS = {
   },
   CHANGE_PROPOSAL: {
     LIST: "/api/ChangeProposals",
+    GET: (id: string) => `/api/ChangeProposals/${id}`,
     ACCEPT: (id: string) => `/api/ChangeProposals/${id}/accept`,
     REQUEST_REFUND: (id: string) => `/api/ChangeProposals/${id}/request-refund`,
+    REQUEST_ORDER_REFUND: (id: string) => `/api/ChangeProposals/${id}/request-order-refund`,
   },
   PICKUP: {
     ASSIGN: "/api/pickup/assign",
@@ -113,6 +120,7 @@ export const API_ENDPOINTS = {
   MANAGER: {
     ROBOT_ARMS: {
       LIST: "/api/manager/robot-arms",
+      GET: (id: string) => `/api/manager/robot-arms/${id}`,
       CREATE: "/api/manager/robot-arms",
       UPDATE: (id: string) => `/api/manager/robot-arms/${id}`,
       DELETE: (id: string) => `/api/manager/robot-arms/${id}`,
@@ -120,6 +128,7 @@ export const API_ENDPOINTS = {
     },
     TRAYS: {
       LIST: "/api/manager/trays",
+      GET_BY_ID: (id: string) => `/api/manager/trays/${id}`,
       CREATE: "/api/manager/trays",
       FORCE_RELEASE: (id: string) => `/api/manager/trays/${id}/force-release`,
       RETIRE: (id: string) => `/api/manager/trays/${id}/retire`,
@@ -133,9 +142,19 @@ export const API_ENDPOINTS = {
     SLOT_CONFIGURATIONS: {
       LIST_BY_SESSION: (sessionId: string) =>
         `/api/manager/slot-configurations?sessionId=${sessionId}`,
+      GET: (id: string) => `/api/manager/slot-configurations/${id}`,
       CREATE: "/api/manager/slot-configurations",
       UPDATE: (id: string) => `/api/manager/slot-configurations/${id}`,
       DELETE: (id: string) => `/api/manager/slot-configurations/${id}`,
+    },
+    SHELF_STOCKS: {
+      LIST_BY_SESSION: (sessionId: string) => `/api/manager/shelf-stocks?sessionId=${sessionId}`,
+      GET: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      CREATE: "/api/manager/shelf-stocks",
+      UPDATE: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      DELETE: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      LIST_BY_ARM: (armId: string) => `/api/manager/shelf-stocks?armId=${armId}`,
+      LIST_BY_DISH: (dishId: string) => `/api/manager/shelf-stocks?dishId=${dishId}`,
     },
   },
   ADMIN: {
@@ -143,5 +162,12 @@ export const API_ENDPOINTS = {
       LIST: "/api/admin/logs",
       GET: (id: string) => `/api/admin/logs/${id}`,
     },
+  },
+  REPORT: {
+    SUMMARY: "/api/manager/reports/summary",
+    SESSIONS: "/api/manager/reports/sessions",
+    SESSION_DETAIL: (sessionId: string) => `/api/manager/reports/sessions/${sessionId}`,
+    ORDER_ISSUES: "/api/manager/reports/order-issues",
+    REFUND_POLICIES: "/api/manager/reports/refund-policies",
   },
 } as const;

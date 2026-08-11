@@ -19,9 +19,10 @@ import type { CartItem } from "@/context/cart-context";
 import { useCart } from "@/context/cart-context";
 import { toast } from "sonner";
 import { animate, stagger, spring } from "animejs";
-import { ShoppingCart, Clock, CalendarDays } from "lucide-react";
+import { ShoppingCart, Clock, CalendarDays, Search } from "lucide-react";
 import { isSessionExpired } from "@/lib/utils";
 import { useCurrency } from "@/lib/hooks/use-currency";
+import { useGlobalSearch } from "@/lib/stores/use-search";
 
 const getSafeImageUrl = (
   url: string | null | undefined,
@@ -77,6 +78,7 @@ function MenuContent() {
   const { data: allDishesData, isLoading: loadingDishes } = useAllDishes();
   const { data: sessionDetail, isLoading: loadingMeal } = useSessionDetail(sessionId);
   const { formatPoints } = useCurrency();
+  const { query: searchQuery } = useGlobalSearch();
 
   const {
     addToCart: contextAddToCart,
@@ -229,7 +231,7 @@ function MenuContent() {
   const [isDishDragging, setIsDishDragging] = useState(false);
 
   const heroImages = useMemo(
-    () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img6.png"],
+    () => ["/img1.jpg", "/img7.jpg", "/img3.jpg", "/img4.jpg", "/img5.jpg", "/img8.jpg"],
     [],
   );
   const [heroImageIdx, setHeroImageIdx] = useState(0);
@@ -439,6 +441,14 @@ function MenuContent() {
     return allDishesData?.items ?? [];
   }, [mealDetail, allDishesData]);
 
+  const filteredDishes = useMemo(() => {
+    if (!searchQuery.trim()) return dishes;
+    const q = searchQuery.toLowerCase();
+    return dishes.filter(
+      (d) => d.name?.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q),
+    );
+  }, [dishes, searchQuery]);
+
   const templates = useMemo(() => mealDetail?.mealTemplates || [], [mealDetail?.mealTemplates]);
   const selectedTemplate = selectedTemplateIdx !== null ? templates[selectedTemplateIdx] : null;
 
@@ -500,7 +510,7 @@ function MenuContent() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-white pb-32 font-sans overflow-x-hidden w-full px-8">
+      <main className="min-h-screen bg-[#FAF8F5] dark:bg-background pb-32 font-sans overflow-x-hidden w-full px-4 sm:px-8">
         {/* ── HERO: CAROUSEL OF CANTEEN IMAGES ── */}
         <div className="w-full pt-6">
           <div className="relative w-full min-h-[220px] md:min-h-[300px] rounded-[2.5rem] overflow-hidden shadow-lg">
@@ -533,37 +543,37 @@ function MenuContent() {
               ))}
             </div>
 
-            <div className="relative z-10 px-10 md:px-16 py-12 md:py-16 text-white">
-              <div className="flex flex-wrap items-center gap-2 text-white/80 text-xs font-medium mb-3">
-                <span className="bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm font-bold">
+            <div className="relative z-10 px-8 md:px-16 py-12 md:py-16 text-white space-y-4">
+              <div className="flex flex-wrap items-center gap-2.5 text-xs font-bold">
+                <span className="bg-white/20 backdrop-blur-md border border-white/25 px-4 py-1.5 rounded-full text-white font-extrabold uppercase tracking-wider shadow-sm">
                   {mealDetail?.availableForOrder
-                    ? `Mở đặt ${new Date(mealDetail.availableForOrder).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
-                    : "dang chon"}
+                    ? `Mở đặt từ ${new Date(mealDetail.availableForOrder).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+                    : "Đang mở chọn món"}
                 </span>
                 {expired && (
-                  <span className="bg-red-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-red-100 font-bold">
+                  <span className="bg-red-500/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white font-extrabold tracking-wider shadow-sm">
                     {mealDetail?.isFinalized ? "ĐÃ CHỐT ĐƠN" : "ĐÃ HẾT PHIÊN"}
                   </span>
                 )}
                 {upcoming && (
-                  <span className="bg-blue-500/50 px-3 py-1 rounded-full backdrop-blur-sm text-blue-100 font-bold">
+                  <span className="bg-blue-500/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white font-extrabold tracking-wider shadow-sm">
                     SẮP DIỄN RA
                   </span>
                 )}
               </div>
 
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight drop-shadow-sm">
-                {mealDetail?.name || "Dang tai thuc don..."}
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] drop-shadow-md text-white">
+                {mealDetail?.name || "Đang tải thực đơn..."}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-5 text-white/90 text-base font-bold">
-                <span className="flex items-center gap-1.5 drop-shadow-sm bg-black/20 px-4 py-1.5 rounded-xl">
+              <div className="flex flex-wrap items-center gap-4 pt-2 text-white/95 text-sm md:text-base font-bold">
+                <span className="flex items-center gap-2 drop-shadow bg-black/30 backdrop-blur-md border border-white/15 px-4 py-2 rounded-2xl">
                   <Clock className="w-5 h-5 text-orange-400" />
                   {mealDetail
                     ? formatTimeRange(mealDetail.availableFrom, mealDetail.availableTo)
                     : "--:--"}
                 </span>
-                <span className="flex items-center gap-1.5 drop-shadow-sm bg-black/20 px-4 py-1.5 rounded-xl">
+                <span className="flex items-center gap-2 drop-shadow bg-black/30 backdrop-blur-md border border-white/15 px-4 py-2 rounded-2xl">
                   <CalendarDays className="w-5 h-5 text-orange-400" />
                   {mealDetail ? formatDate(mealDetail.availableFrom) : "--"}
                 </span>
@@ -759,6 +769,25 @@ function MenuContent() {
               isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
             }`}
           >
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                value={searchQuery}
+                onChange={(e) => useGlobalSearch.getState().setQuery(e.target.value)}
+                placeholder="Tìm kiếm món ăn..."
+                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4C24]/20 focus:border-[#FF4C24] transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => useGlobalSearch.getState().setQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+
             {/* Round Category Horizontal Menu */}
             {categories.length === 0 && !isLoading ? (
               <div className="text-center py-28 bg-gray-50 rounded-[2.5rem] text-gray-400 border border-dashed border-gray-200">
@@ -767,14 +796,14 @@ function MenuContent() {
             ) : (
               <>
                 <div className="w-full bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-[2rem] border border-orange-100/60 shadow-sm">
-                  <div className="flex gap-5 items-center overflow-x-auto scrollbar-none">
+                  <div className="flex gap-5 items-center overflow-x-auto scrollbar-none py-3 px-2">
                     {/* All Category Button */}
                     <button
                       onClick={() => setSelectedCategoryId(null)}
-                      className="flex flex-col items-center gap-2 shrink-0 group"
+                      className="flex flex-col items-center gap-2 shrink-0 group relative cursor-pointer"
                     >
                       <div
-                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden transition-all duration-300 flex items-center justify-center ${
+                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-300 flex items-center justify-center ${
                           selectedCategoryId === null
                             ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 bg-[#FF4C24] text-white animate-bounce-subtle"
                             : "ring-1 ring-gray-200 bg-white text-gray-500 hover:ring-[#FF4C24]/50"
@@ -802,24 +831,26 @@ function MenuContent() {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategoryId(category.id)}
-                          className="flex flex-col items-center gap-2 shrink-0 group"
+                          className="flex flex-col items-center gap-2 shrink-0 group relative cursor-pointer"
                         >
-                          <div
-                            className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden transition-all duration-300 ${
-                              isActive
-                                ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 animate-bounce-subtle"
-                                : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50"
-                            }`}
-                          >
-                            <Image
-                              src={getSafeImageUrl(category.imgUrl, "/placeholder-food.png")}
-                              alt={category.name}
-                              fill
-                              className="object-cover rounded-full"
-                              sizes="80px"
-                            />
+                          <div className="relative">
+                            <div
+                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden transition-all duration-300 ${
+                                isActive
+                                  ? "ring-3 ring-[#FF4C24] ring-offset-2 scale-105 shadow-lg shadow-orange-500/20 animate-bounce-subtle"
+                                  : "ring-1 ring-gray-200 hover:ring-[#FF4C24]/50"
+                              }`}
+                            >
+                              <Image
+                                src={getSafeImageUrl(category.imgUrl, "/placeholder-food.png")}
+                                alt={category.name}
+                                fill
+                                className="object-cover rounded-full"
+                                sizes="80px"
+                              />
+                            </div>
                             {cartCount > 0 && (
-                              <span className="absolute -top-0.5 -right-0.5 bg-[#FF4C24] text-white text-[10px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
+                              <span className="absolute -top-1 -right-1 z-20 bg-[#FF4C24] text-white text-[11px] font-black min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-md">
                                 {cartCount}
                               </span>
                             )}
@@ -840,10 +871,16 @@ function MenuContent() {
                 </div>
 
                 {/* Grid Món ăn */}
-                {selectedCategoryId === null ? (
+                {searchQuery.trim() && filteredDishes.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-lg font-bold text-gray-500">Không tìm thấy món ăn</p>
+                    <p className="text-sm text-gray-400 mt-1">Thử tìm kiếm với từ khóa khác</p>
+                  </div>
+                ) : selectedCategoryId === null ? (
                   <div className="space-y-6">
                     {categories.map((cat) => {
-                      const catDishes = dishes.filter((d) => d.categoryId === cat.id);
+                      const catDishes = filteredDishes.filter((d) => d.categoryId === cat.id);
                       if (catDishes.length === 0) return null;
                       const setting = getSettingForCategory(cat.id);
                       const cartCount = getCartCountForCategory(cat.id);
@@ -914,7 +951,9 @@ function MenuContent() {
                   (() => {
                     const activeCat = categories.find((c) => c.id === selectedCategoryId);
                     if (!activeCat) return null;
-                    const categoryDishes = dishes.filter((d) => d.categoryId === activeCat.id);
+                    const categoryDishes = filteredDishes.filter(
+                      (d) => d.categoryId === activeCat.id,
+                    );
                     if (categoryDishes.length === 0) return null;
 
                     const setting = getSettingForCategory(activeCat.id);
@@ -1173,28 +1212,30 @@ function DishCard({
           : "cursor-pointer hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] hover:border-orange-300 border-gray-100"
       }`}
     >
-      <div
-        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-lg group-hover:scale-105 transition-transform duration-300"
-        style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
-      >
-        <Image
-          src={finalImageUrl}
-          alt={dish.name}
-          fill
-          sizes="160px"
-          className="object-cover rounded-full"
-        />
+      <div className="relative">
+        <div
+          className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shadow-lg group-hover:scale-105 transition-transform duration-300 relative"
+          style={{ transformStyle: "preserve-3d", transform: `translateZ(30px)` }}
+        >
+          <Image
+            src={finalImageUrl}
+            alt={dish.name}
+            fill
+            sizes="160px"
+            className="object-cover rounded-full"
+          />
+          {!disabled && (
+            <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
+              <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">
+                + Thêm món
+              </span>
+            </div>
+          )}
+        </div>
         {dishQuantity > 0 && (
-          <span className="absolute top-1 right-1 bg-[#FF4C24] text-white text-xs font-black min-w-[24px] h-6 rounded-full flex items-center justify-center px-1.5 border-2 border-white shadow-md z-10">
+          <span className="absolute -top-1 -right-1 bg-[#FF4C24] text-white text-xs font-black min-w-[24px] h-6 rounded-full flex items-center justify-center px-1.5 border-2 border-white shadow-md z-20">
             x{dishQuantity}
           </span>
-        )}
-        {!disabled && (
-          <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
-            <span className="bg-[#FF4C24] text-xs font-black uppercase px-4 py-2 rounded-full shadow-lg">
-              + Thêm món
-            </span>
-          </div>
         )}
       </div>
       <div className="w-full mt-3 space-y-1.5">

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useSyncExternalStore } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Bell, ShoppingCart, LogOut } from "lucide-react";
@@ -8,6 +8,11 @@ import { useCart } from "@/context/cart-context";
 import { notificationService } from "@/services/notification.service";
 import NotificationDropdown from "@/components/features/notifications/NotificationDropdown";
 import { getAccessToken } from "@/lib/auth-token-storage";
+import { useSignalr } from "@/lib/hooks/use-signalr";
+import type { NotificationItem } from "@/types/notification.types";
+import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver";
+import { getSafeUserAvatar } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Navbar() {
   const mounted = useSyncExternalStore(
@@ -29,6 +34,45 @@ export default function Navbar() {
   ];
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notifListenersRef = useRef<((n: NotificationItem) => void)[]>([]);
+
+  const handleNewNotification = useCallback((n: NotificationItem) => {
+    setUnreadCount((prev) => prev + 1);
+    notifListenersRef.current.forEach((cb) => cb(n));
+    const navigableTypes = [
+      "Order.StatusChanged",
+      "Order.Created",
+      "ChangeProposal.Created",
+      "Refund.StatusChanged",
+    ];
+    const shouldNotify =
+      navigableTypes.includes(n.type) ||
+      (n.referenceType && ["Order", "ChangeProposal", "Refund"].includes(n.referenceType));
+    if (shouldNotify) {
+      toast.info(n.title, {
+        description: n.message,
+        action: n.referenceId
+          ? {
+              label: "Xem",
+              onClick: async () => {
+                const targetUrl = await resolveNotificationTargetUrl(n);
+                window.location.href = targetUrl;
+              },
+            }
+          : undefined,
+        duration: 8000,
+      });
+    }
+  }, []);
+
+  useSignalr(handleNewNotification);
+
+  const registerNotifListener = useCallback((cb: (n: NotificationItem) => void) => {
+    notifListenersRef.current.push(cb);
+    return () => {
+      notifListenersRef.current = notifListenersRef.current.filter((h) => h !== cb);
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -55,9 +99,8 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
-  const getSafeAvatar = (url: string | null | undefined, id: string) => {
-    if (url && url.trim() !== "") return url;
-    return `https://api.dicebear.com/9.x/adventurer/svg?seed=${id || "default"}`;
+  const getSafeAvatar = (url: string | null | undefined, id?: string, name?: string) => {
+    return getSafeUserAvatar(url, id || name);
   };
   return (
     <header className="w-full px-3 sm:px-6 py-3 bg-[#ffefe7]">
@@ -110,7 +153,10 @@ export default function Navbar() {
               )}
             </button>
             {showNotifications && (
-              <NotificationDropdown onClose={() => setShowNotifications(false)} />
+              <NotificationDropdown
+                onClose={() => setShowNotifications(false)}
+                onRegisterListener={registerNotifListener}
+              />
             )}
           </div>
           <button
@@ -139,7 +185,7 @@ export default function Navbar() {
               </span>
               <Image
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                src={getSafeAvatar(userData.imgUrl, userData.id)}
+                src={getSafeAvatar(userData.imgUrl, userData.id, userData.name)}
                 alt={userData.name || "Ảnh đại diện"}
                 width={36}
                 height={36}
@@ -169,6 +215,13 @@ export default function Navbar() {
                     onClick={() => setIsDropdownOpen(false)}
                   >
                     Đơn hàng của tôi
+                  </Link>
+                  <Link
+                    href="/change-proposals"
+                    className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    Đề xuất đổi món
                   </Link>
                   <div className="border-t border-gray-100" />
                   <button

@@ -12,10 +12,12 @@ import {
   RefreshCw,
   Layers,
   AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { trayService } from "@/services/tray.service";
 import type { TrayPoolSummary, TrayStatus } from "@/types/tray.types";
 import Modal from "../_components/modal";
+import TrayDetailModal from "@/components/features/trays/tray-detail-modal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -55,6 +57,8 @@ export default function ManagerTraysPage() {
   const [search, setSearch] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedTrayId, setSelectedTrayId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"single" | "bulk">("single");
   const [singleCode, setSingleCode] = useState("");
   const [bulkPrefix, setBulkPrefix] = useState("TRAY");
@@ -62,6 +66,11 @@ export default function ManagerTraysPage() {
   const [bulkTo, setBulkTo] = useState(10);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOpenDetail = (id: string) => {
+    setSelectedTrayId(id);
+    setIsDetailOpen(true);
+  };
 
   const fetchPool = async () => {
     try {
@@ -182,8 +191,8 @@ export default function ManagerTraysPage() {
       {/* ── Header ── */}
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0 animate-float">
-            <Package className="w-6 h-6 text-white" />
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0">
+            <Package className="w-7 h-7 text-white" />
           </div>
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900">Pool Khay</h1>
@@ -288,22 +297,31 @@ export default function ManagerTraysPage() {
       )}
 
       {/* ── Search ── */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          placeholder="Tìm theo mã khay, trạng thái, đơn hàng..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+      {/* ── Search Bar ── */}
+      <div className="flex items-center gap-4 w-full sm:w-auto flex-1 max-w-lg">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            placeholder="Tìm theo mã khay, trạng thái, đơn hàng..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => {}}
+          className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
+        >
+          Tìm kiếm
+        </button>
       </div>
 
       {/* ── Content ── */}
@@ -344,39 +362,39 @@ export default function ManagerTraysPage() {
           </p>
         </div>
       ) : (
-        <div
-          className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm animate-slide-up-3d"
-          style={{ animationDelay: "300ms" }}
-        >
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left">
-              <thead className="border-b border-gray-100 bg-gray-50/70">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/80 border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Mã khay
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Đơn hiện tại
                   </th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Cập nhật lúc
+                  </th>
+                  <th className="px-5 py-4 text-right text-xs font-black uppercase tracking-wider text-gray-400">
+                    Thao tác
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((tray, idx) => {
+                {filtered.map((tray) => {
                   const s = STATUS_CONFIG[tray.status];
                   const Icon = s.icon;
                   return (
                     <tr
                       key={tray.id}
-                      className="hover:bg-orange-50/30 transition-colors group animate-fade-in-scale"
-                      style={{ animationDelay: `${350 + idx * 50}ms` }}
+                      className="hover:bg-orange-50/20 transition-colors cursor-pointer"
+                      onClick={() => handleOpenDetail(tray.id)}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div
                             className={cn(
@@ -387,12 +405,12 @@ export default function ManagerTraysPage() {
                           >
                             <Icon className={cn("w-4 h-4", s.text)} />
                           </div>
-                          <code className="text-sm font-mono font-bold text-gray-800">
+                          <code className="text-sm font-mono font-bold text-gray-800 group-hover:text-[#D35400] transition-colors">
                             {tray.code}
                           </code>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <span
                           className={cn(
                             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border",
@@ -405,8 +423,9 @@ export default function ManagerTraysPage() {
                           {s.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        {tray.currentOrderId ? (
+                      <td className="px-5 py-4">
+                        {tray.currentOrderId &&
+                        tray.currentOrderId !== "00000000-0000-0000-0000-000000000000" ? (
                           <code className="text-xs font-mono text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
                             {tray.currentOrderId.slice(0, 8)}...
                           </code>
@@ -414,13 +433,12 @@ export default function ManagerTraysPage() {
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         {tray.updatedAtUtc ? (
-                          <span className="text-xs text-gray-400">
+                          <span className="text-sm font-bold text-gray-600">
                             {new Date(tray.updatedAtUtc).toLocaleString("vi-VN", {
                               hour: "2-digit",
                               minute: "2-digit",
-                              second: "2-digit",
                               day: "2-digit",
                               month: "2-digit",
                             })}
@@ -429,15 +447,25 @@ export default function ManagerTraysPage() {
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
                       </td>
+                      <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleOpenDetail(tray.id)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-all hover:bg-[#D35400] hover:text-white"
+                          title="Xem chi tiết"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <div className="border-t border-gray-100 px-6 py-3 bg-gray-50/50">
-            <p className="text-xs font-semibold text-gray-400">
-              Hiển thị {filtered.length} / {trays.length} khay
+          <div className="border-t border-gray-100 px-8 py-5 bg-gray-50/50">
+            <p className="text-base font-semibold text-gray-500">
+              Hiển thị <span className="font-black text-gray-800">{filtered.length}</span> /{" "}
+              <span className="font-black text-gray-800">{trays.length}</span> khay
             </p>
           </div>
         </div>
@@ -590,6 +618,15 @@ export default function ManagerTraysPage() {
           </div>
         </div>
       </Modal>
+
+      {/* ── DETAIL MODAL ── */}
+      <TrayDetailModal
+        trayId={selectedTrayId}
+        initialCurrentOrderId={trays.find((t) => t.id === selectedTrayId)?.currentOrderId}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onRefreshPool={fetchPool}
+      />
     </div>
   );
 }

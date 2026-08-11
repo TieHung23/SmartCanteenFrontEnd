@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Plus, Search, Trash2, Tag } from "lucide-react";
+import { Plus, Search, Trash2, Tag, LayoutGrid, LayoutList, Pencil } from "lucide-react";
+import Swal from "sweetalert2";
+import { toast } from "sonner";
 import { categoryService } from "@/services/category.service";
 import type { Category } from "@/types/category.types";
+import { cn } from "@/lib/utils";
 import Modal from "../_components/modal";
 
 export default function CategoryListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
   // Modal & Form States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -52,12 +56,34 @@ export default function CategoryListPage() {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Xóa danh mục "${name}"?`)) return;
+    const result = await Swal.fire({
+      title: "Xác nhận xóa danh mục?",
+      html: `Bạn có chắc chắn muốn xóa danh mục <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-gray-500 font-normal mt-1 block">Hành động này không thể hoàn tác.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xóa danh mục",
+      cancelButtonText: "Hủy",
+      background: "#ffffff",
+      customClass: {
+        popup: "rounded-3xl border border-gray-200 shadow-2xl p-6",
+        title: "text-xl font-black text-gray-900",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await categoryService.delete(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      console.error(err);
+      toast.success(`Đã xóa danh mục "${name}" thành công!`);
+    } catch (err: unknown) {
+      console.error("Lỗi xóa danh mục:", err);
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Xóa danh mục thất bại. Danh mục có thể đang chứa món ăn.";
+      toast.error(msg);
     }
   };
 
@@ -163,26 +189,58 @@ export default function CategoryListPage() {
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            placeholder="Tìm kiếm danh mục..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") fetchCategories(true);
-            }}
-            className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
-          />
+      {/* Search Bar & View Mode Toggle */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              placeholder="Tìm kiếm danh mục..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") fetchCategories(true);
+              }}
+              className="w-full pl-12 pr-4 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
+            />
+          </div>
+          <button
+            onClick={() => fetchCategories(true)}
+            className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
+          >
+            Tìm kiếm
+          </button>
         </div>
-        <button
-          onClick={() => fetchCategories(true)}
-          className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98"
-        >
-          Tìm kiếm
-        </button>
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 p-1.5 rounded-2xl border border-gray-200/60 shrink-0 self-end sm:self-auto">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2",
+              viewMode === "grid"
+                ? "bg-white text-[#D35400] shadow-xs"
+                : "text-gray-500 hover:text-gray-800",
+            )}
+            title="Xem dạng Thẻ Grid"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Thẻ</span>
+          </button>
+          <button
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2",
+              viewMode === "table"
+                ? "bg-white text-[#D35400] shadow-xs"
+                : "text-gray-500 hover:text-gray-800",
+            )}
+            title="Xem dạng Bảng"
+          >
+            <LayoutList className="w-4 h-4" />
+            <span>Bảng</span>
+          </button>
+        </div>
       </div>
 
       {/* Content Section */}
@@ -195,50 +253,125 @@ export default function CategoryListPage() {
         <div className="bg-white rounded-3xl border border-gray-100 p-16 text-center shadow-xs">
           <p className="text-gray-400 font-bold text-lg">Chưa có danh mục nào được khởi tạo.</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {categories.map((category) => (
             <div
               key={category.id}
-              className="bg-white rounded-3xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 flex flex-col shadow-2xs card-3d"
+              className="bg-white rounded-3xl border border-gray-100 p-3.5 hover:shadow-md hover:border-orange-200/60 transition-all duration-300 flex flex-col shadow-2xs card-3d"
             >
-              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mb-3">
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mb-2.5">
                 {category.imgUrl ? (
                   <Image
                     src={category.imgUrl}
                     alt={category.name}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-300 bg-white">
-                    <Tag className="w-8 h-8" />
+                    <Tag className="w-7 h-7" />
                   </div>
                 )}
               </div>
-              <h3 className="text-lg font-black text-gray-900 mb-1 truncate uppercase tracking-wide">
+              <h3 className="text-base font-black text-gray-900 mb-1 truncate uppercase tracking-wide">
                 {category.name}
               </h3>
-              <p className="text-sm text-gray-500 mb-5 line-clamp-2 min-h-[2.5rem]">
+              <p className="text-xs text-gray-500 mb-4 line-clamp-2 min-h-[2rem]">
                 {category.description || "Chưa có mô tả cho danh mục này."}
               </p>
-              <div className="mt-auto flex items-center gap-3">
+              <div className="mt-auto flex items-center gap-2">
                 <button
                   onClick={() => openEditModal(category)}
-                  className="flex-1 py-3 bg-[#D35400]/10 text-[#D35400] rounded-2xl text-sm font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center"
+                  className="flex-1 py-2.5 bg-[#D35400]/10 text-[#D35400] rounded-xl text-xs font-black hover:bg-[#D35400]/25 transition-all uppercase tracking-wider text-center flex items-center justify-center gap-1.5"
+                  title="Sửa danh mục"
                 >
-                  Sửa
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => handleDelete(category.id, category.name)}
-                  className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl border border-transparent hover:border-red-100 transition-all shrink-0"
+                  className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all shrink-0"
+                  title="Xóa danh mục"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        /* Dạng Bảng (Table Layout) */
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50/80 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400 w-24">
+                    Hình ảnh
+                  </th>
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
+                    Tên Danh Mục
+                  </th>
+                  <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
+                    Mô Tả
+                  </th>
+                  <th className="px-5 py-4 text-right text-xs font-black uppercase tracking-wider text-gray-400 w-36">
+                    Thao Tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {categories.map((category) => (
+                  <tr key={category.id} className="hover:bg-orange-50/30 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
+                        {category.imgUrl ? (
+                          <Image
+                            src={category.imgUrl}
+                            alt={category.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        ) : (
+                          <Tag className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="font-black text-gray-900 uppercase tracking-wide">
+                        {category.name}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-500 max-w-md">
+                      <p className="line-clamp-2">
+                        {category.description || "Chưa có mô tả cho danh mục này."}
+                      </p>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openEditModal(category)}
+                          className="p-2 text-gray-500 hover:text-[#D35400] hover:bg-orange-50 rounded-xl transition-all"
+                          title="Sửa danh mục"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(category.id, category.name)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          title="Xóa danh mục"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

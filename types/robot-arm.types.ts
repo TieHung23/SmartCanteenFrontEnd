@@ -1,5 +1,14 @@
 export type RobotArmStatus = "Idle" | "Busy" | "Error" | "Maintenance" | "Offline";
 
+export interface RobotArmLane {
+  slotConfigurationId: string;
+  sessionId: string;
+  laneCode: string;
+  dishId: string;
+  dishName: string;
+  capacity: number;
+}
+
 export interface RobotArm {
   id: string;
   code: string;
@@ -8,6 +17,12 @@ export interface RobotArm {
   stationIndex: number;
   status: RobotArmStatus;
   lastHeartbeatUtc: string | null;
+}
+
+export interface RobotArmDetail extends RobotArm {
+  lanes: RobotArmLane[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
 }
 
 export interface CreateRobotArmPayload {

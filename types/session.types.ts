@@ -114,3 +114,31 @@ export const SessionListItemSchema = z
 export const SessionDetailSchema = SessionListItemSchema.extend({
   mealTemplates: z.array(SessionTemplateSchema),
 }).passthrough() satisfies z.ZodType<SessionDetail>;
+
+export interface SessionCalendarDay {
+  date: string;
+  sessionCount: number;
+}
+
+export interface SessionCalendarData {
+  year: number;
+  timezone: string;
+  totalDays: number;
+  totalSessions: number;
+  days: SessionCalendarDay[];
+}
+
+/** Portions currently on order for a single dish in a session. */
+export interface SessionDishQuantity {
+  dishId: string;
+  dishName: string;
+  orderedQuantity: number;
+}
+
+/** Response of GET /api/sessions/{id}/dish-quantities (Manager only). */
+export interface SessionDishQuantities {
+  sessionId: string;
+  sessionName: string;
+  totalOrderedQuantity: number;
+  dishes: SessionDishQuantity[];
+}

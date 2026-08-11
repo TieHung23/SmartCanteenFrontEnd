@@ -35,12 +35,13 @@ export interface PaymentDetail {
 
 export interface WalletTransaction {
   id: string;
-  userId: string;
+  userId?: string;
   amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
+  balanceBefore?: number;
+  balanceAfter?: number;
   transactionType: number;
-  paymentId: string | null;
+  transactionTypeName?: string;
+  paymentId?: string | null;
   createdAtUtc: string;
   updatedAtUtc?: string;
   createdBy?: string | null;
@@ -95,6 +96,7 @@ export const paymentService = {
   },
 
   getWalletTransactions: async (params?: {
+    transactionType?: number;
     pageNumber?: number;
     pageSize?: number;
   }): Promise<{
@@ -107,23 +109,30 @@ export const paymentService = {
     hasNextPage: boolean;
   }> => {
     try {
+      const queryParams: Record<string, unknown> = {};
+      if (params?.transactionType !== undefined && params.transactionType !== 0) {
+        queryParams.TransactionType = params.transactionType;
+      }
+      if (params?.pageNumber !== undefined) queryParams.PageNumber = params.pageNumber;
+      if (params?.pageSize !== undefined) queryParams.PageSize = params.pageSize;
+
       const response = (await apiClient.get<unknown>(API_ENDPOINTS.WALLET.TRANSACTIONS, {
-        params,
+        params: queryParams,
       })) as unknown as Record<string, unknown>;
-      console.log("Wallet transactions raw response:", response);
-      // Unwrap value if present
+
       const data =
-        response.value && typeof response.value === "object"
+        response?.value && typeof response.value === "object"
           ? (response.value as Record<string, unknown>)
           : response;
-      return data as {
-        items: WalletTransaction[];
-        pageNumber: number;
-        pageSize: number;
-        totalCount: number;
-        totalPages: number;
-        hasPreviousPage: boolean;
-        hasNextPage: boolean;
+
+      return {
+        items: (data?.items as WalletTransaction[]) || [],
+        pageNumber: Number(data?.pageNumber) || 1,
+        pageSize: Number(data?.pageSize) || 10,
+        totalCount: Number(data?.totalCount) || 0,
+        totalPages: Number(data?.totalPages) || 1,
+        hasPreviousPage: Boolean(data?.hasPreviousPage),
+        hasNextPage: Boolean(data?.hasNextPage),
       };
     } catch (error) {
       console.error("Error when fetching wallet transactions:", error);

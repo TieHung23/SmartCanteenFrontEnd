@@ -13,8 +13,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 
-// ─── Shimmer Button ───
-
 function ShimmerButton({
   children,
   onClick,
@@ -31,7 +29,7 @@ function ShimmerButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "relative overflow-hidden group px-6 py-3.5 rounded-2xl font-black text-sm tracking-wider uppercase",
+        "relative overflow-hidden group px-7 py-4 rounded-2xl font-black text-base tracking-wider uppercase",
         "bg-gradient-to-r from-[#D35400] to-[#E86A33] text-white shadow-lg shadow-orange-500/25",
         "hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98]",
         "transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
@@ -44,14 +42,11 @@ function ShimmerButton({
   );
 }
 
-// ─── Main Page ───
-
 export default function ManagerRefundPoliciesPage() {
   const [policies, setPolicies] = useState<RefundPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateRefundPolicyPayload>({
     code: "",
@@ -61,7 +56,6 @@ export default function ManagerRefundPoliciesPage() {
     requiresImage: false,
   });
 
-  // Edit modal
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editCode, setEditCode] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<UpdateRefundPolicyPayload>({
@@ -95,16 +89,8 @@ export default function ManagerRefundPoliciesPage() {
     initial();
   }, []);
 
-  // ── Create ──
-
   const openCreateModal = () => {
-    setCreateForm({
-      code: "",
-      name: "",
-      description: "",
-      percent: 0,
-      requiresImage: false,
-    });
+    setCreateForm({ code: "", name: "", description: "", percent: 0, requiresImage: false });
     setFormSubmitting(false);
     setIsCreateOpen(true);
   };
@@ -125,14 +111,11 @@ export default function ManagerRefundPoliciesPage() {
       toast.success("Tạo refund policy thành công");
       fetchPolicies();
     } catch (err: unknown) {
-      const apiMsg = err instanceof Error ? err.message : "Tạo thất bại";
-      toast.error(apiMsg);
+      toast.error(err instanceof Error ? err.message : "Tạo thất bại");
     } finally {
       setFormSubmitting(false);
     }
   };
-
-  // ── Edit ──
 
   const openEditModal = (p: RefundPolicy) => {
     setEditCode(p.code);
@@ -164,14 +147,11 @@ export default function ManagerRefundPoliciesPage() {
       toast.success("Cập nhật refund policy thành công");
       fetchPolicies();
     } catch (err: unknown) {
-      const apiMsg = err instanceof Error ? err.message : "Cập nhật thất bại";
-      toast.error(apiMsg);
+      toast.error(err instanceof Error ? err.message : "Cập nhật thất bại");
     } finally {
       setFormSubmitting(false);
     }
   };
-
-  // ── Delete ──
 
   const handleDelete = (code: string, name: string) => {
     Swal.fire({
@@ -191,13 +171,10 @@ export default function ManagerRefundPoliciesPage() {
         setPolicies((prev) => prev.filter((p) => p.code !== code));
         toast.success(`Đã xoá "${name}"`);
       } catch (err) {
-        const apiMsg = err instanceof Error ? err.message : "Xoá thất bại";
-        toast.error(apiMsg);
+        toast.error(err instanceof Error ? err.message : "Xoá thất bại");
       }
     });
   };
-
-  // ── Filter ──
 
   const filtered = policies.filter((p) => {
     if (!search) return true;
@@ -211,11 +188,11 @@ export default function ManagerRefundPoliciesPage() {
 
   return (
     <div className="space-y-8 animate-fade-in pb-16">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-500/20 shrink-0">
-            <RotateCcw className="w-6 h-6 text-white" />
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-500/20 shrink-0">
+            <RotateCcw className="w-7 h-7 text-white" />
           </div>
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900">Refund Policies</h1>
@@ -225,31 +202,32 @@ export default function ManagerRefundPoliciesPage() {
           </div>
         </div>
         <ShimmerButton onClick={openCreateModal}>
-          <Plus className="w-4 h-4" />
-          New Policy
+          <Plus className="w-5 h-5" /> New Policy
         </ShimmerButton>
       </div>
 
-      {/* ── Search ── */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          placeholder="Search by code, name or description..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+      {/* Search */}
+      <div className="rounded-2xl border border-gray-100/80 bg-white p-6 shadow-xs">
+        <div className="relative max-w-md">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
+          <input
+            placeholder="Search by code, name or description..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-14 pr-12 py-4 text-base bg-gray-50/80 border border-gray-200/80 rounded-2xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* ── Content ── */}
+      {/* Table */}
       {loading ? (
         <div className="flex h-[40vh] flex-col items-center justify-center gap-4">
           <div className="relative">
@@ -259,72 +237,100 @@ export default function ManagerRefundPoliciesPage() {
           <p className="text-base font-bold text-gray-500">Loading refund policies...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white border border-gray-100 p-20 text-center shadow-xs">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.03)_0%,transparent_70%)]" />
-          <RotateCcw className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-gray-200/60 bg-white p-16 text-center shadow-xs">
+          <RotateCcw className="w-16 h-16 text-gray-200 mx-auto" />
           <p className="text-gray-400 font-bold text-lg">
             {search ? "No policies match your search." : "No refund policies yet."}
           </p>
-          <p className="text-gray-300 text-sm mt-1">
-            {search
-              ? "Try a different search term."
-              : "Create your first refund policy to get started."}
-          </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((policy) => (
-            <div
-              key={policy.code}
-              className="relative rounded-2xl border border-gray-100 bg-white p-5 md:p-6 transition-all duration-300 hover:shadow-md hover:border-gray-200"
-              style={{ boxShadow: "0 2px 20px -5px rgba(139,92,246,0.15)" }}
-            >
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <div className="min-w-0 flex-1">
-                  <code className="text-xs font-mono font-bold text-violet-500 uppercase tracking-wider block truncate">
-                    {policy.code}
-                  </code>
-                  <h3 className="text-base font-extrabold text-gray-900 truncate mt-0.5">
-                    {policy.name}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => openEditModal(policy)}
-                    className="p-2 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl border border-transparent hover:border-violet-100 transition-all"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(policy.code, policy.name)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {policy.description && (
-                <p className="text-sm text-gray-500 mb-4 leading-relaxed">{policy.description}</p>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200/50 rounded-xl text-xs font-bold">
-                  <Shield className="w-3.5 h-3.5" />
-                  {policy.percent}%
-                </span>
-                {policy.requiresImage && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-700 border border-sky-200/50 rounded-xl text-xs font-bold">
+        <div className="overflow-hidden rounded-2xl border border-gray-100/80 bg-white shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left">
+              <thead className="border-b border-gray-100 bg-gray-50/70">
+                <tr>
+                  <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
+                    Code
+                  </th>
+                  <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
+                    Name
+                  </th>
+                  <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400">
+                    Description
+                  </th>
+                  <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-32">
+                    Percent
+                  </th>
+                  <th className="px-8 py-5 text-sm font-black uppercase tracking-wider text-gray-400 w-32">
                     Requires Image
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+                  </th>
+                  <th className="px-8 py-5 text-right text-sm font-black uppercase tracking-wider text-gray-400 w-36">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100/80">
+                {filtered.map((policy, idx) => (
+                  <tr
+                    key={policy.code}
+                    className="transition-all duration-200 hover:bg-orange-50/30 animate-fade-in"
+                    style={{ animationDelay: `${idx * 40}ms` } as React.CSSProperties}
+                  >
+                    <td className="px-8 py-5">
+                      <code className="text-base font-mono font-bold text-violet-600 uppercase tracking-wider">
+                        {policy.code}
+                      </code>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className="text-base font-black text-gray-900">{policy.name}</span>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className="text-base text-gray-500 line-clamp-1">
+                        {policy.description || "—"}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 text-amber-700 border border-amber-200/50 rounded-xl text-sm font-bold">
+                        <Shield className="w-4 h-4" />
+                        {policy.percent}%
+                      </span>
+                    </td>
+                    <td className="px-8 py-5">
+                      {policy.requiresImage ? (
+                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-sky-50 text-sky-700 border border-sky-200/50 rounded-xl text-sm font-bold">
+                          Requires Image
+                        </span>
+                      ) : (
+                        <span className="text-base text-gray-400 font-semibold">—</span>
+                      )}
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => openEditModal(policy)}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition-all hover:bg-violet-50 hover:text-violet-600 hover:shadow-sm"
+                          title="Edit"
+                        >
+                          <Edit3 className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(policy.code, policy.name)}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition-all hover:bg-red-50 hover:text-red-500 hover:shadow-sm"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* ── CREATE MODAL ── */}
+      {/* Create Modal */}
       <Modal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
@@ -341,7 +347,7 @@ export default function ManagerRefundPoliciesPage() {
         />
       </Modal>
 
-      {/* ── EDIT MODAL ── */}
+      {/* Edit Modal */}
       <Modal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
@@ -362,8 +368,6 @@ export default function ManagerRefundPoliciesPage() {
     </div>
   );
 }
-
-// ─── Policy Form Component ───
 
 function RefundPolicyForm({
   form,
@@ -393,7 +397,6 @@ function RefundPolicyForm({
           />
         </div>
       )}
-
       <div>
         <label className="block text-sm font-bold text-gray-800 mb-2">Name *</label>
         <input
@@ -403,7 +406,6 @@ function RefundPolicyForm({
           className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
         />
       </div>
-
       <div>
         <label className="block text-sm font-bold text-gray-800 mb-2">Description</label>
         <textarea
@@ -414,7 +416,6 @@ function RefundPolicyForm({
           className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-xs"
         />
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
           <label className="block text-sm font-bold text-gray-800 mb-2">Percent *</label>
@@ -449,7 +450,6 @@ function RefundPolicyForm({
           </div>
         </div>
       </div>
-
       <div className="flex items-center justify-end gap-4 border-t border-gray-100 pt-6">
         <button
           onClick={onCancel}
@@ -460,12 +460,12 @@ function RefundPolicyForm({
         <ShimmerButton onClick={onSubmit} disabled={submitting}>
           {submitting ? (
             <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{" "}
               Saving...
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" />{" "}
               {mode === "create" ? "Create Policy" : "Save Changes"}
             </>
           )}

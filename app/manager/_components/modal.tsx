@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface ModalProps {
@@ -33,12 +32,28 @@ export default function Modal({
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-    return () => setMounted(false);
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => {
+      clearTimeout(timer);
+      setMounted(false);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => setVisible(true), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  const handleAnimationEnd = () => {
+    if (!isOpen) {
+      setVisible(false);
+    }
+  };
 
   // Close on ESC key press
   useEffect(() => {
@@ -55,52 +70,45 @@ export default function Modal({
     };
   }, [isOpen, onClose]);
 
-  if (!mounted) return null;
+  if (!mounted || !visible) return null;
 
   return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 select-none">
-          {/* Backdrop Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 select-none">
+      {/* Backdrop Overlay */}
+      <div
+        onClick={onClose}
+        className={cn(
+          "fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200",
+          isOpen ? "opacity-100" : "opacity-0",
+        )}
+      />
+
+      {/* Modal Container */}
+      <div
+        ref={modalRef}
+        onTransitionEnd={handleAnimationEnd}
+        className={cn(
+          "relative bg-white rounded-[2.5rem] border border-gray-200/35 shadow-[0_30px_70px_-10px_rgba(0,0,0,0.12),_0_0_0_1px_rgba(0,0,0,0.015)] flex flex-col w-full max-h-[90vh] overflow-hidden z-10 transition-all duration-300 ease-out",
+          isOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4",
+          sizeClasses[size],
+          className,
+        )}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100/60 px-8 py-5 shrink-0">
+          <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{title}</h2>
+          <button
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-          />
-
-          {/* Modal Container */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
-            ref={modalRef}
-            className={cn(
-              "relative bg-white rounded-[2.5rem] border border-gray-200/35 shadow-[0_30px_70px_-10px_rgba(0,0,0,0.12),_0_0_0_1px_rgba(0,0,0,0.015)] flex flex-col w-full max-h-[90vh] overflow-hidden z-10 animate-fade-in",
-              sizeClasses[size],
-              className,
-            )}
+            className="p-2.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-2xl transition-all active:scale-90"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-100/60 px-8 py-5 shrink-0">
-              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{title}</h2>
-              <button
-                onClick={onClose}
-                className="p-2.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-2xl transition-all active:scale-90"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto px-8 py-6 select-text">{children}</div>
-          </motion.div>
+            <X className="w-6 h-6" />
+          </button>
         </div>
-      )}
-    </AnimatePresence>,
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto px-8 py-6 select-text">{children}</div>
+      </div>
+    </div>,
     document.body,
   );
 }

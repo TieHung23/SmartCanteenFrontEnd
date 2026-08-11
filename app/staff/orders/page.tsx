@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, startTransition } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import {
   Loader2,
@@ -13,12 +13,20 @@ import {
   Truck,
   Ban,
   DollarSign,
+  BellRing,
 } from "lucide-react";
 import { orderService } from "@/services/order.service";
 import { pickupService } from "@/services/pickup.service";
 import { robotService } from "@/services/robot.service";
+import { sessionService } from "@/services/session.service";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useGlobalSearch } from "@/lib/stores/use-search";
+import type { OrderStatus } from "@/types/order.types";
+import {
+  useOrderStatusSignalr,
+  getOrderStatusLabelVi,
+  type OrderStatusChangedPayload,
+} from "@/lib/hooks/use-signalr";
 
 interface OrderItem {
   dishName?: string;
@@ -64,58 +72,144 @@ export default function StaffOrdersPage() {
   const [manualQrToken, setManualQrToken] = useState("");
   const [cancelReason, setCancelReason] = useState("");
 
-  useEffect(() => {
-    startTransition(() => {
-      setLoading(true);
-    });
+  const fetchOrders = useCallback(async () => {
+    try {
+      const statusFilter = filter !== "all" ? (filter as OrderStatus) : undefined;
 
-    const params: Record<string, unknown> = { PageNumber: 1, PageSize: 100 };
-    if (filter !== "all") params.Status = filter;
+      const data = await orderService.getAll({
+        pageSize: 100,
+        pageNumber: 1,
+        ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+      });
+      let items = (data?.items || []) as unknown as StaffOrder[];
 
-    orderService
-      .getMyOrders(params)
-      .then((data) => {
-        const items = (data?.items || []) as unknown as StaffOrder[];
-        setOrders(items);
-      })
-      .catch(() => {
-        setOrders([]);
-      })
-      .finally(() => setLoading(false));
+      if (items.length === 0) {
+        const activeSessions = await sessionService.getSessions({ pageSize: 10 });
+        const currentSession =
+          activeSessions.items.find(
+            (s) => s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date()),
+          ) || activeSessions.items[0];
+        if (currentSession) {
+          const sessionData = await orderService.getManagerOrdersBySession(currentSession.id, {
+            pageSize: 100,
+            pageNumber: 1,
+            ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+          });
+          items = (sessionData?.items || []) as unknown as StaffOrder[];
+        }
+      }
+
+      setOrders(items);
+    } catch {
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
   }, [filter]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    fetchOrders();
+  }, [fetchOrders]);
+
+  useOrderStatusSignalr(
+    useCallback(
+      (evt: OrderStatusChangedPayload) => {
+        const labelVi = getOrderStatusLabelVi(evt.status, evt.statusName);
+        const shortId = evt.orderId ? evt.orderId.slice(0, 8) : "";
+        toast({
+          title: "Cập nhật đơn hàng real-time",
+          description: `Đơn #${shortId} vừa đổi sang: ${labelVi}`,
+        });
+        setOrders((prev) =>
+          prev.map((o) => {
+            const id = o.id || o.Id;
+            if (id && id.toLowerCase() === evt.orderId.toLowerCase()) {
+              return { ...o, status: evt.status, Status: evt.status };
+            }
+            return o;
+          }),
+        );
+        fetchOrders();
+      },
+      [fetchOrders, toast],
+    ),
+  );
 
   const filteredOrders = orders.filter((order) => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
 
-    const id = (order.id || "").toLowerCase();
-    const studentId = (order.studentId || "").toLowerCase();
-    const userName = (order.userName || "").toLowerCase();
+    const id = (order.id || order.Id || "").toLowerCase();
+    const studentId = (order.studentId || order.StudentId || "").toLowerCase();
+    const userName = (order.userName || order.UserName || "").toLowerCase();
 
     return id.includes(query) || studentId.includes(query) || userName.includes(query);
   });
 
   const stats = useMemo(() => {
     const total = orders.length;
-    const delivered = orders.filter((o) => o.status === 2).length;
-    const canceled = orders.filter((o) => o.status === 3).length;
+    const delivered = orders.filter((o) => (o.status ?? o.Status) === 2).length;
+    const canceled = orders.filter((o) => (o.status ?? o.Status) === 3).length;
     const revenue = orders
-      .filter((o) => o.status === 2)
-      .reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+      .filter((o) => (o.status ?? o.Status) === 2)
+      .reduce((sum, o) => sum + (o.totalPrice || o.TotalPrice || 0), 0);
 
     return { total, delivered, canceled, revenue };
   }, [orders]);
 
-  const refetchOrders = () => {
-    const params: Record<string, unknown> = { PageNumber: 1, PageSize: 100 };
-    if (filter !== "all") params.Status = filter;
-    orderService
-      .getMyOrders(params)
-      .then((data) => {
-        const items = (data?.items || []) as unknown as StaffOrder[];
-        setOrders(items);
-      })
-      .catch(() => {});
+  const refetchOrders = async () => {
+    try {
+      const statusFilter = filter !== "all" ? (filter as OrderStatus) : undefined;
+      const data = await orderService.getAll({
+        pageSize: 100,
+        pageNumber: 1,
+        ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+      });
+      let items = (data?.items || []) as unknown as StaffOrder[];
+
+      if (items.length === 0) {
+        const activeSessions = await sessionService.getSessions({ pageSize: 10 });
+        const currentSession =
+          activeSessions.items.find(
+            (s) => s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date()),
+          ) || activeSessions.items[0];
+        if (currentSession) {
+          const sessionData = await orderService.getManagerOrdersBySession(currentSession.id, {
+            pageSize: 100,
+            pageNumber: 1,
+            ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+          });
+          items = (sessionData?.items || []) as unknown as StaffOrder[];
+        }
+      }
+
+      setOrders(items);
+    } catch {
+      setOrders([]);
+    }
+  };
+
+  const handleUpdateStatus = async (orderId: string, status: number) => {
+    try {
+      if (status === 2) {
+        await orderService.confirmReceived(orderId);
+      } else {
+        await orderService.updateOrderStatus(orderId, status);
+      }
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật trạng thái đơn hàng.",
+      });
+      setSelectedOrder(null);
+      refetchOrders();
+    } catch {
+      toast({
+        title: "Thất bại",
+        description: "Không thể cập nhật trạng thái đơn hàng.",
+      });
+    }
   };
 
   const handleVerifyQrManually = async () => {
@@ -140,7 +234,7 @@ export default function StaffOrdersPage() {
   const handleCancelOrderOverride = async () => {
     if (!selectedOrder || !cancelReason.trim()) return;
     try {
-      const orderId = selectedOrder.id;
+      const orderId = selectedOrder.id || selectedOrder.Id;
       if (!orderId) return;
       await orderService.updateOrderStatus(orderId, 3, cancelReason);
 
@@ -253,7 +347,7 @@ export default function StaffOrdersPage() {
         </div>
       </div>
 
-      {/* ── TẦNG 3: HIỂN THỊ HÌNH KHỐI ROW-BLOCK CAO CẤP Y HỆT ẢNH MẪU ── */}
+      {/* ── TẦNG 3: HIỂN THỊ HÌNH KHỐI ROW-BLOCK ── */}
       <div className="space-y-4">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -265,12 +359,12 @@ export default function StaffOrdersPage() {
           </div>
         ) : (
           filteredOrders.map((order, idx) => {
-            const currentId = order.id || `temp-${idx}`;
-            const currentStatus = order.status ?? 0;
-            const currentUserName = order.userName || "Ẩn danh";
-            const currentStudentId = order.studentId || "N/A";
-            const currentItems: OrderItem[] = order.items || [];
-            const currentTotalPrice = order.totalPrice || 0;
+            const currentId = order.id || order.Id || `temp-${idx}`;
+            const currentStatus = order.status ?? order.Status ?? 0;
+            const currentUserName = order.userName || order.UserName || "Ẩn danh";
+            const currentStudentId = order.studentId || order.StudentId || "N/A";
+            const currentItems: OrderItem[] = order.items || order.Items || [];
+            const currentTotalPrice = order.totalPrice || order.TotalPrice || 0;
 
             const s = STATUS_MAP[currentStatus] || STATUS_MAP[0];
 
@@ -303,8 +397,8 @@ export default function StaffOrdersPage() {
                   </div>
                 </div>
 
-                <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-6 border-t md:border-none pt-4 md:pt-0">
-                  <div>
+                <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-4 border-t md:border-none pt-4 md:pt-0">
+                  <div className="text-right">
                     <div className="text-sm font-bold text-gray-400 uppercase tracking-wider text-left md:text-right">
                       Tổng điểm
                     </div>
@@ -319,13 +413,33 @@ export default function StaffOrdersPage() {
                       />
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedOrder(order)}
-                    className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold text-sm px-5 py-2.5 rounded-xl transition shadow-xs"
-                  >
-                    <Eye className="w-4 h-4 text-gray-500" />
-                    Chi tiết
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {currentStatus === 0 && (
+                      <button
+                        onClick={() => handleUpdateStatus(currentId, 1)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <BellRing className="w-3.5 h-3.5" />
+                        Sẵn sàng nhận
+                      </button>
+                    )}
+                    {(currentStatus === 1 || currentStatus === 0) && (
+                      <button
+                        onClick={() => handleUpdateStatus(currentId, 2)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Thu món (Hoàn thành)
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedOrder(order)}
+                      className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition shadow-xs"
+                    >
+                      <Eye className="w-4 h-4 text-gray-500" />
+                      Chi tiết
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -337,9 +451,9 @@ export default function StaffOrdersPage() {
       {selectedOrder && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="bg-gray-900 text-white px-6 py-4 flex items-center justify-between">
+            <div className="bg-gray-900 text-[#FF4C24] px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="font-black text-base tracking-tight">
+                <h3 className="font-black text-base tracking-tight text-white">
                   Chi Tiết Đơn Hàng #{(selectedOrder.id || selectedOrder.Id)?.slice(0, 8)}
                 </h3>
               </div>
@@ -357,10 +471,10 @@ export default function StaffOrdersPage() {
                   Thông tin khách hàng
                 </p>
                 <p className="font-black text-gray-800 text-base mt-1">
-                  {selectedOrder.userName || "N/A"}
+                  {selectedOrder.userName || selectedOrder.UserName || "N/A"}
                 </p>
                 <p className="font-semibold text-gray-400 font-mono text-xs">
-                  Mã sinh viên: {selectedOrder.studentId || "N/A"}
+                  Mã sinh viên: {selectedOrder.studentId || selectedOrder.StudentId || "N/A"}
                 </p>
               </div>
 
@@ -369,7 +483,7 @@ export default function StaffOrdersPage() {
                   Thực đơn suất ăn
                 </h4>
                 <div className="border border-gray-100 rounded-xl divide-y divide-gray-100 bg-white shadow-2xs">
-                  {(selectedOrder.items || []).map((item, idx: number) => (
+                  {(selectedOrder.items || selectedOrder.Items || []).map((item, idx: number) => (
                     <div key={idx} className="p-3.5 flex justify-between text-sm items-center">
                       <div>
                         <p className="font-bold text-gray-800">{item.dishName || "Món ăn"}</p>
@@ -392,85 +506,79 @@ export default function StaffOrdersPage() {
                 </div>
               </div>
 
-              {(selectedOrder.status ?? 0) < 2 && (
+              {(selectedOrder.status ?? selectedOrder.Status ?? 0) < 2 && (
                 <div className="border-t border-dashed border-gray-200 pt-4 space-y-4">
                   <h4 className="text-xs font-black text-amber-600 uppercase tracking-wider">
                     Nghiệp vụ quầy điều hành
                   </h4>
 
-                  {(selectedOrder.status ?? 0) === 1 && (
-                    <div className="space-y-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const orderId = selectedOrder.id;
-                            if (!orderId) return;
-                            await pickupService.assign({ orderId });
-                            toast({
-                              title: "Đã gán pickup",
-                              description: "Pickup slot đã được gán cho đơn hàng.",
-                            });
-                            refetchOrders();
-                          } catch {
-                            toast({
-                              title: "Lỗi",
-                              description: "Không thể gán pickup slot.",
-                            });
-                          }
-                        }}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-2.5 rounded-xl transition shadow-xs uppercase tracking-wider"
-                      >
-                        Gán Pickup Slot
-                      </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        const orderId = selectedOrder.id || selectedOrder.Id;
+                        if (orderId) handleUpdateStatus(orderId, 1);
+                      }}
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                    >
+                      <BellRing className="w-4 h-4" />
+                      Sẵn sàng nhận (Bước 1)
+                    </button>
 
-                      <button
-                        onClick={async () => {
-                          try {
-                            const orderId = selectedOrder.id;
-                            if (!orderId) return;
-                            await robotService.createServingJob({ orderId });
-                            toast({
-                              title: "Đã tạo robot job",
-                              description: "Robot sẽ bắt đầu phục vụ đơn hàng.",
-                            });
-                            refetchOrders();
-                          } catch {
-                            toast({
-                              title: "Lỗi",
-                              description: "Không thể tạo robot serving job.",
-                            });
-                          }
-                        }}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black text-xs py-2.5 rounded-xl transition shadow-xs uppercase tracking-wider"
-                      >
-                        Tạo Robot Serving
-                      </button>
+                    <button
+                      onClick={() => {
+                        const orderId = selectedOrder.id || selectedOrder.Id;
+                        if (orderId) handleUpdateStatus(orderId, 2);
+                      }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Thu món (Bước 2)
+                    </button>
+                  </div>
 
-                      <button
-                        onClick={async () => {
-                          try {
-                            const orderId = selectedOrder.id;
-                            if (!orderId) return;
-                            await pickupService.collect(orderId);
-                            toast({
-                              title: "Thu món thành công",
-                              description: "Đơn hàng đã được thu món.",
-                            });
-                            setSelectedOrder(null);
-                            refetchOrders();
-                          } catch {
-                            toast({
-                              title: "Lỗi",
-                              description: "Không thể thu món.",
-                            });
-                          }
-                        }}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2.5 rounded-xl transition shadow-xs uppercase tracking-wider"
-                      >
-                        Thu món (Collect)
-                      </button>
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const orderId = selectedOrder.id || selectedOrder.Id;
+                          if (!orderId) return;
+                          await pickupService.assign({ orderId });
+                          toast({
+                            title: "Đã gán pickup",
+                            description: "Pickup slot đã được gán cho đơn hàng.",
+                          });
+                          refetchOrders();
+                        } catch {
+                          const orderId = selectedOrder.id || selectedOrder.Id;
+                          if (orderId) handleUpdateStatus(orderId, 1);
+                        }
+                      }}
+                      className="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs py-2.5 rounded-xl transition uppercase tracking-wider"
+                    >
+                      Gán Pickup Slot
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        try {
+                          const orderId = selectedOrder.id || selectedOrder.Id;
+                          if (!orderId) return;
+                          await robotService.createServingJob({ orderId });
+                          toast({
+                            title: "Đã tạo robot job",
+                            description: "Robot sẽ bắt đầu phục vụ đơn hàng.",
+                          });
+                          refetchOrders();
+                        } catch {
+                          const orderId = selectedOrder.id || selectedOrder.Id;
+                          if (orderId) handleUpdateStatus(orderId, 1);
+                        }
+                      }}
+                      className="w-full bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-xs py-2.5 rounded-xl transition uppercase tracking-wider"
+                    >
+                      Tạo Robot Serving
+                    </button>
+                  </div>
 
                   <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 space-y-3">
                     <textarea

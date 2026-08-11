@@ -1117,11 +1117,11 @@ export default function CheckoutPage() {
                                   <button
                                     key={name}
                                     disabled
-                                    className="p-2.5 rounded-xl text-xs font-bold border border-dashed border-gray-200 bg-gray-50/50 text-gray-300 cursor-not-allowed relative overflow-hidden text-center w-full"
+                                    className="p-2.5 rounded-xl text-xs font-bold border border-dashed border-gray-200 bg-gray-50/70 text-gray-400 cursor-not-allowed relative overflow-hidden flex items-center justify-between w-full"
                                   >
-                                    {name}
-                                    <span className="absolute -top-1 -right-3 bg-gray-200 text-gray-400 text-[6px] font-black uppercase px-2 py-0.5 -rotate-[16deg]">
-                                      Sắp có
+                                    <span>{name}</span>
+                                    <span className="bg-amber-100/80 text-amber-700 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border border-amber-200/60 shadow-2xs">
+                                      Sắp ra mắt
                                     </span>
                                   </button>
                                 ))}

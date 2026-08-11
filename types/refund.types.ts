@@ -29,6 +29,8 @@ export interface RefundRequest {
   status: RefundStatus;
   createdAtUtc: string;
   updatedAtUtc: string | null;
+  changeProposalId?: string | null;
+  orderItemId?: number | null;
 }
 
 export type RefundStatus = 0 | 1 | 2;
@@ -69,6 +71,18 @@ export interface ManagerRefundListItem {
   id: string;
   orderId: string;
   userId: string;
+  userName?: string;
+  studentId?: string | null;
+  orderItemId?: string | null;
+  changeProposalId?: string | null;
+  dishId?: string | null;
+  dishName?: string | null;
+  currentDishId?: string | null;
+  currentDishName?: string | null;
+  suggestedDishId?: string | null;
+  suggestedDishName?: string | null;
+  selectedDishId?: string | null;
+  selectedDishName?: string | null;
   policyName: string;
   refundPercent: number;
   orderAmount: number;
@@ -89,6 +103,19 @@ export interface ManagerRefundDetail {
   id: string;
   orderId: string;
   userId: string;
+  userName?: string;
+  userEmail?: string;
+  studentId?: string | null;
+  orderItemId?: string | null;
+  changeProposalId?: string | null;
+  dishId?: string | null;
+  dishName?: string | null;
+  currentDishId?: string | null;
+  currentDishName?: string | null;
+  suggestedDishId?: string | null;
+  suggestedDishName?: string | null;
+  selectedDishId?: string | null;
+  selectedDishName?: string | null;
   policyCode: string;
   policyName: string;
   refundPercent: number;

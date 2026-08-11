@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSessions } from "@/lib/hooks/use-sessions";
 import { cn, isSessionExpired } from "@/lib/utils";
 import Navbar from "@/components/layout/Navbar";
 import Image from "next/image";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import type { SessionListItem } from "@/types/session.types";
 
 const generateCalendarDays = () => {
   const dates = [];
-  for (let i = -3; i <= 7; i++) {
+  for (let i = -5; i <= 25; i++) {
     const date = new Date();
     date.setDate(date.getDate() + i);
     dates.push(date);
@@ -97,6 +98,52 @@ export default function SessionPage() {
     return calendarDays.find((d) => isSameDay(d, today)) || calendarDays[3];
   });
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [hasDragged, setHasDragged] = useState(false);
+
+  // Auto-scroll selected date into center view when page loads
+  useEffect(() => {
+    if (scrollRef.current) {
+      const selectedEl = scrollRef.current.querySelector(".selected-date-item");
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsMouseDown(true);
+    setHasDragged(false);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    setIsMouseDown(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDown || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.8;
+    if (Math.abs(walk) > 5) {
+      setHasDragged(true);
+    }
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const scrollNav = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const amount = direction === "left" ? -240 : 240;
+      scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
+
   const { data: sessionsData, isLoading, isSuccess } = useSessions(true);
   const [activePlate, setActivePlate] = useState(0);
 
@@ -174,16 +221,22 @@ export default function SessionPage() {
           <div className="absolute top-1/2 left-[70%] -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] md:w-[600px] md:h-[600px] bg-orange-200/40 rounded-full blur-[80px] pointer-events-none" />
 
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center gap-8 lg:gap-12 min-h-[24rem] lg:min-h-[30rem] px-6 md:px-12 relative z-10">
-            <div className="flex flex-col items-center md:items-start text-center md:text-left w-full md:w-5/12 mb-16 md:mb-0">
-              <span className="text-[#A03D14] font-bold tracking-[0.25em] uppercase text-sm md:text-base mb-5">
-                Trải nghiệm ẩm thực
-              </span>
-              <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-serif font-extrabold text-[#1a0a00] leading-[1.1] mb-6 drop-shadow-sm">
-                Nâng tầm <br />
-                <span className="text-[#D35400]">Bữa ăn hàng ngày</span>
+            <div className="flex flex-col items-center md:items-start text-center md:text-left w-full md:w-5/12 mb-16 md:mb-0 space-y-4">
+              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white dark:bg-card border border-orange-500/15 shadow-sm text-xs font-semibold text-orange-600 dark:text-orange-400">
+                <Sparkles className="w-4 h-4 text-orange-500" />
+                <span className="tracking-wide uppercase font-bold">
+                  Trải Nghiệm Ẩm Thực Smart 4.0
+                </span>
+              </div>
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-foreground leading-[1.05]">
+                Nâng Tầm{" "}
+                <span className="italic font-medium text-orange-600 dark:text-orange-400">
+                  Bữa Ăn Hàng Ngày
+                </span>
               </h1>
-              <p className="text-gray-600 font-medium text-base md:text-lg max-w-md leading-relaxed">
-                Khám phá thực đơn được tuyển chọn bởi các đầu bếp. Chọn một phiên ăn để bắt đầu.
+              <p className="text-muted-foreground font-normal text-base md:text-lg max-w-md leading-relaxed">
+                Khám phá thực đơn phong phú được chế biến tươi sạch. Chọn một phiên ăn để bắt đầu
+                đặt món.
               </p>
             </div>
 
@@ -227,10 +280,43 @@ export default function SessionPage() {
 
         {/* ── Body ── */}
         <div className="px-4 md:px-6 lg:px-10 max-w-7xl mx-auto">
-          <p className="text-sm md:text-base font-bold tracking-[0.2em] text-gray-400 uppercase mb-5">
-            Chọn ngày
-          </p>
-          <div className="flex overflow-x-auto gap-3 md:gap-5 mb-12 pb-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+          <div className="flex items-center justify-between mb-5">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-card border border-orange-500/15 text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+              <span>Chọn Ngày Phiên Ăn</span>
+            </div>
+            {/* Nav Arrows */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => scrollNav("left")}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition-all shadow-xs"
+                title="Cuộn sang trái"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollNav("right")}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition-all shadow-xs"
+                title="Cuộn sang phải"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={scrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeaveOrUp}
+            onMouseUp={handleMouseLeaveOrUp}
+            onMouseMove={handleMouseMove}
+            className={cn(
+              "flex overflow-x-auto gap-3 md:gap-5 mb-12 pb-4 snap-x snap-mandatory scroll-smooth select-none",
+              "[-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden",
+              isMouseDown ? "cursor-grabbing" : "cursor-grab",
+            )}
+          >
             {calendarDays.map((date, index) => {
               const isSelected = isSameDay(date, selectedDate);
               const isToday = isSameDay(date, new Date());
@@ -242,11 +328,16 @@ export default function SessionPage() {
               return (
                 <button
                   key={index}
-                  onClick={() => setSelectedDate(date)}
+                  type="button"
+                  onClick={() => {
+                    if (!hasDragged) {
+                      setSelectedDate(date);
+                    }
+                  }}
                   className={cn(
                     "flex-shrink-0 w-20 md:w-24 flex flex-col items-center justify-center py-5 md:py-6 rounded-3xl transition-all duration-300 gap-1.5 border-2 snap-center",
                     isSelected
-                      ? "bg-[#D35400] text-white shadow-[0_10px_30px_rgba(211,84,0,0.3)] border-[#D35400] scale-105"
+                      ? "selected-date-item bg-[#D35400] text-white shadow-[0_10px_30px_rgba(211,84,0,0.3)] border-[#D35400] scale-105"
                       : "bg-white text-gray-700 border-gray-100 hover:border-orange-200 hover:bg-orange-50/50 hover:shadow-sm",
                   )}
                 >

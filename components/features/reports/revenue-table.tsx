@@ -75,77 +75,82 @@ export function RevenueTable({ data, loading, error, onRetry }: RevenueTableProp
   const sorted = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
-      <div className="flex items-center gap-3 mb-6">
-        <Table2 className="w-6 h-6 text-[#D35400]" />
-        <h2 className="text-2xl font-black text-gray-900">Chi tiết doanh thu</h2>
-        <span className="text-sm font-semibold text-gray-400 ml-auto">{data.length} ngày</span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left py-3 px-2 font-black text-gray-400 uppercase tracking-wider text-xs">
-                Ngày
-              </th>
-              <th className="text-right py-3 px-2 font-black text-gray-400 uppercase tracking-wider text-xs">
-                Đơn hàng
-              </th>
-              <th className="text-right py-3 px-2 font-black text-gray-400 uppercase tracking-wider text-xs">
-                Doanh thu
-              </th>
-              <th className="text-right py-3 px-2 font-black text-gray-400 uppercase tracking-wider text-xs">
-                TB/đơn
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((row) => {
-              const d = new Date(row.date);
-              const dateStr = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-              const avg = row.orders > 0 ? row.revenue / row.orders : 0;
-              return (
-                <tr
-                  key={row.date}
-                  className="border-b border-gray-50 hover:bg-orange-50/50 transition-colors"
-                >
-                  <td className="py-3 px-2 font-bold text-gray-700">{dateStr}</td>
-                  <td className="py-3 px-2 text-right font-bold text-gray-700">
-                    {row.orders.toLocaleString("vi-VN")}
-                  </td>
-                  <td className="py-3 px-2 text-right font-bold text-[#D35400]">
-                    {formatVND(row.revenue)}
-                  </td>
-                  <td className="py-3 px-2 text-right font-semibold text-gray-500">
-                    {formatVND(Math.round(avg))}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-gray-200 bg-gray-50">
-              <td className="py-3 px-2 font-black text-gray-700">Tổng</td>
-              <td className="py-3 px-2 text-right font-black text-gray-700">
-                {sorted.reduce((s, r) => s + r.orders, 0).toLocaleString("vi-VN")}
-              </td>
-              <td className="py-3 px-2 text-right font-black text-[#D35400]">
-                {formatVND(sorted.reduce((s, r) => s + r.revenue, 0))}
-              </td>
-              <td className="py-3 px-2 text-right font-black text-gray-500">
-                {formatVND(
-                  Math.round(
-                    sorted.reduce((s, r) => s + r.revenue, 0) /
-                      Math.max(
-                        sorted.reduce((s, r) => s + r.orders, 0),
-                        1,
-                      ),
-                  ),
-                )}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+    <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm flex flex-col justify-between">
+      <div>
+        <div className="flex items-center gap-3 mb-6">
+          <Table2 className="w-6 h-6 text-[#D35400]" />
+          <h2 className="text-2xl font-black text-gray-900">Chi tiết doanh thu</h2>
+          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-xl ml-auto">
+            {data.length} ngày
+          </span>
+        </div>
+
+        <div className="border border-gray-200/80 rounded-2xl overflow-hidden max-h-[380px] overflow-y-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 bg-gray-50/95 backdrop-blur-xs border-b border-gray-200 z-10">
+              <tr>
+                <th className="w-1/4 text-left py-3.5 px-4 font-black text-gray-500 uppercase tracking-wider text-xs">
+                  Ngày
+                </th>
+                <th className="w-1/4 text-right py-3.5 px-4 font-black text-gray-500 uppercase tracking-wider text-xs">
+                  Đơn hàng
+                </th>
+                <th className="w-1/4 text-right py-3.5 px-4 font-black text-gray-500 uppercase tracking-wider text-xs">
+                  Doanh thu
+                </th>
+                <th className="w-1/4 text-right py-3.5 px-4 font-black text-gray-500 uppercase tracking-wider text-xs">
+                  TB / đơn
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sorted.map((row) => {
+                const parts = row.date.split("-");
+                const dateStr =
+                  parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : row.date;
+                const avg = row.orders > 0 ? row.revenue / row.orders : 0;
+                return (
+                  <tr key={row.date} className="hover:bg-orange-50/40 transition-colors">
+                    <td className="py-3 px-4 font-bold text-gray-800 whitespace-nowrap">
+                      {dateStr}
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-gray-700 whitespace-nowrap">
+                      {row.orders.toLocaleString("vi-VN")}
+                    </td>
+                    <td className="py-3 px-4 text-right font-black text-[#D35400] whitespace-nowrap">
+                      {formatVND(row.revenue)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-gray-600 whitespace-nowrap">
+                      {formatVND(Math.round(avg))}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot className="sticky bottom-0 bg-gray-100/95 backdrop-blur-xs border-t-2 border-gray-300 font-black">
+              <tr>
+                <td className="py-3.5 px-4 text-gray-800">Tổng</td>
+                <td className="py-3.5 px-4 text-right text-gray-800">
+                  {sorted.reduce((s, r) => s + r.orders, 0).toLocaleString("vi-VN")}
+                </td>
+                <td className="py-3.5 px-4 text-right text-[#D35400]">
+                  {formatVND(sorted.reduce((s, r) => s + r.revenue, 0))}
+                </td>
+                <td className="py-3.5 px-4 text-right text-gray-600">
+                  {formatVND(
+                    Math.round(
+                      sorted.reduce((s, r) => s + r.revenue, 0) /
+                        Math.max(
+                          sorted.reduce((s, r) => s + r.orders, 0),
+                          1,
+                        ),
+                    ),
+                  )}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   );

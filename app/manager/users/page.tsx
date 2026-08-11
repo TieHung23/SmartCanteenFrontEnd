@@ -152,22 +152,23 @@ function StatusBadge({ status }: { status: AccountStatus }) {
   );
 }
 
-function UserAvatar({ user }: { user: Pick<ManagerUserListItem, "name" | "imgUrl"> }) {
-  if (user.imgUrl) {
-    return (
-      <div
-        aria-label={user.name}
-        role="img"
-        className="h-12 w-12 rounded-2xl border border-gray-100 bg-cover bg-center shadow-sm"
-        style={{ backgroundImage: `url("${user.imgUrl}")` }}
-      />
-    );
-  }
+function UserAvatar({
+  user,
+}: {
+  user: Pick<ManagerUserListItem, "name" | "imgUrl"> & { id?: string };
+}) {
+  const avatarUrl =
+    user.imgUrl && user.imgUrl.trim() !== ""
+      ? user.imgUrl
+      : `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(user.id || user.name || "default")}`;
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E86A33]/20 bg-gradient-to-br from-[#D35400]/10 to-[#E86A33]/5 text-base font-black uppercase text-[#D35400] shadow-sm">
-      {(user.name || "?").charAt(0)}
-    </div>
+    <div
+      aria-label={user.name}
+      role="img"
+      className="h-12 w-12 rounded-2xl border border-gray-100/80 bg-cover bg-center shadow-2xs shrink-0 overflow-hidden bg-slate-50"
+      style={{ backgroundImage: `url("${avatarUrl}")` }}
+    />
   );
 }
 
@@ -469,10 +470,10 @@ export default function ManagerUsersPage() {
       </div>
 
       {/* ── Search & Filters ── */}
-      <div className="rounded-2xl border border-gray-100/80 bg-white p-5 shadow-xs">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               value={search}
               onChange={(event) => {
@@ -480,39 +481,45 @@ export default function ManagerUsersPage() {
                 setPageNumber(1);
               }}
               placeholder="Tìm theo tên, email hoặc mã sinh viên..."
-              className="h-12 w-full rounded-2xl border border-gray-200/80 bg-gray-50/80 pl-12 pr-4 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:bg-white focus:ring-2 focus:ring-[#D35400]/15 placeholder:text-gray-400"
+              className="w-full pl-12 pr-4 py-3 text-sm bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
             />
           </div>
-          <div className="flex gap-3">
-            <select
-              value={roleFilter}
-              onChange={(event) => {
-                setRoleFilter(event.target.value);
-                setPageNumber(1);
-              }}
-              className="h-12 rounded-2xl border border-gray-200/80 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-52"
-            >
-              {ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value);
-                setPageNumber(1);
-              }}
-              className="h-12 rounded-2xl border border-gray-200/80 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-64"
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            onClick={() => fetchUsers()}
+            className="px-6 py-3 bg-gray-900 text-white rounded-3xl text-sm font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
+          >
+            Tìm kiếm
+          </button>
+        </div>
+        <div className="flex gap-3">
+          <select
+            value={roleFilter}
+            onChange={(event) => {
+              setRoleFilter(event.target.value);
+              setPageNumber(1);
+            }}
+            className="h-11 rounded-3xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-52 shadow-2xs"
+          >
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setPageNumber(1);
+            }}
+            className="h-11 rounded-3xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#D35400] focus:ring-2 focus:ring-[#D35400]/15 lg:w-64 shadow-2xs"
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
