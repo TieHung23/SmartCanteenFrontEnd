@@ -13,16 +13,22 @@ interface RobotArmListResponse {
 }
 
 export const robotArmService = {
-  getById: async (id: string): Promise<RobotArmDetail> => {
+  getById: async (id: string, sessionId?: string): Promise<RobotArmDetail> => {
     const response = (await apiClient.get<ApiResponse<RobotArmDetail>>(
       API_ENDPOINTS.MANAGER.ROBOT_ARMS.GET(id),
+      {
+        params: sessionId ? { sessionId } : undefined,
+      },
     )) as unknown as ApiResponse<RobotArmDetail>;
     return response.value;
   },
 
-  getList: async (): Promise<RobotArm[]> => {
+  getList: async (sessionId?: string): Promise<RobotArm[]> => {
     const response = (await apiClient.get<ApiResponse<RobotArmListResponse>>(
       API_ENDPOINTS.MANAGER.ROBOT_ARMS.LIST,
+      {
+        params: sessionId ? { sessionId } : undefined,
+      },
     )) as unknown as ApiResponse<RobotArmListResponse>;
     return response.value.arms;
   },
