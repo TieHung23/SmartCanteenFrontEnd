@@ -35,7 +35,11 @@ import { toast } from "sonner";
 import { translateApiMessage } from "@/lib/utils";
 import Swal from "sweetalert2";
 import { useState, useEffect, useCallback } from "react";
-import { useSignalr } from "@/lib/hooks/use-signalr";
+import {
+  useSignalr,
+  getOrderStatusLabelVi,
+  type OrderStatusChangedPayload,
+} from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -315,6 +319,31 @@ export default function OrderDetailPage() {
           notifType.includes("Refund")
         ) {
           queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+          fetchProposals();
+          fetchRefunds();
+        }
+      },
+      [orderId, queryClient, fetchProposals, fetchRefunds],
+    ),
+    useCallback(
+      (evt: OrderStatusChangedPayload) => {
+        if (evt?.orderId && orderId && evt.orderId.toLowerCase() === orderId.toLowerCase()) {
+          const labelVi = getOrderStatusLabelVi(evt.status, evt.statusName);
+          toast.info(`Trạng thái đơn hàng vừa được cập nhật: ${labelVi}`);
+
+          queryClient.setQueryData(
+            ["order-detail", orderId],
+            (oldData: typeof order | undefined) => {
+              if (!oldData) return oldData;
+              return {
+                ...oldData,
+                status: evt.status as OrderStatus,
+              };
+            },
+          );
+
+          queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+          queryClient.invalidateQueries({ queryKey: ["my-orders"] });
           fetchProposals();
           fetchRefunds();
         }
