@@ -225,12 +225,24 @@ export function NewSessionForm({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWizardLaneConfigs((prev) => {
       const next = { ...prev };
-      const usedLanes = new Set(
-        Array.from(selectedDishIds)
-          .map((dishId) => next[dishId]?.laneCode?.trim()?.toUpperCase())
-          .filter(Boolean),
-      );
+      const claimedLanes = new Map<string, string>(); // laneCode -> dishId
+      const usedLanes = new Set<string>();
 
+      // Bước 1: Quét và giải phóng các Mã Lane bị TRÙNG lặp từ ca cũ
+      selectedDishIds.forEach((dishId) => {
+        const config = next[dishId];
+        const rawCode = config?.laneCode?.trim()?.toUpperCase();
+
+        if (rawCode && !claimedLanes.has(rawCode)) {
+          claimedLanes.set(rawCode, dishId);
+          usedLanes.add(rawCode);
+        } else if (config) {
+          // Xóa mã trùng lặp để gán lại mã duy nhất
+          next[dishId] = { ...config, laneCode: "" };
+        }
+      });
+
+      // Bước 2: Tự động gán Mã Lane duy nhất chưa sử dụng cho mọi món ăn
       selectedDishIds.forEach((dishId) => {
         if (!next[dishId] || !next[dishId].laneCode?.trim()) {
           let defaultLane = allLaneOptions.find((l) => !usedLanes.has(l.toUpperCase()));
@@ -776,10 +788,7 @@ export function NewSessionForm({
       errs.finalizationDeadline = "Hạn chốt món phải trước giờ bắt đầu ca.";
     if (availableFrom && availableTo && new Date(availableFrom) >= new Date(availableTo))
       errs.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
-    const totalDishes = new Set([
-      ...selectedDishIds,
-      ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
-    ]);
+    const totalDishes = selectedDishIds;
     if (totalDishes.size === 0) errs.dishes = "Vui lòng chọn ít nhất một món ăn.";
 
     // 1. Chặn tạo phiên khi chưa tạo cấu hình Lane cho các món ăn
@@ -895,12 +904,7 @@ export function NewSessionForm({
         ? { finalizationDeadline: new Date(finalizationDeadline).toISOString() }
         : {}),
       autoFinalizePolicy,
-      dishes: Array.from(
-        new Set([
-          ...selectedDishIds,
-          ...templates.flatMap((t, i) => (i === editingTplIdx ? [] : t.dishIds)),
-        ]),
-      ).map((dishId) => ({ dishId })),
+      dishes: Array.from(selectedDishIds).map((dishId) => ({ dishId })),
       mealTemplates: templates
         .filter((t) => t.name.trim())
         .map((t) => ({
