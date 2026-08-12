@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ChevronRight } from "lucide-react";
 import { StaffSidebar } from "./_components/staff-sidebar";
 import { StaffHeader } from "./_components/staff-header";
 import { StaffBackground } from "./_components/staff-background";
 import { cn } from "@/lib/utils";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-staff",
+});
+
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
@@ -18,7 +25,13 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
   }, [pathname]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden antialiased select-none relative font-sans">
+    <div
+      className={cn(
+        "flex h-screen w-screen overflow-hidden antialiased select-none relative",
+        plusJakartaSans.variable,
+      )}
+      style={{ fontFamily: "var(--font-staff), var(--font-sans), sans-serif" }}
+    >
       <StaffBackground />
 
       {/* Floating Edge Pull Handle - Cục Popup kéo sát mép màn hình màu Xám */}

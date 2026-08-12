@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { cn, getSafeUserAvatar } from "@/lib/utils";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ManagerBackground } from "../manager/_components/manager-background";
 import {
   LayoutDashboard,
@@ -16,6 +17,12 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-admin",
+});
 
 interface MenuItem {
   name: string;
@@ -87,7 +94,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden antialiased select-none relative font-sans">
+    <div
+      className={cn(
+        "flex h-screen w-screen overflow-hidden antialiased select-none relative",
+        plusJakartaSans.variable,
+      )}
+      style={{ fontFamily: "var(--font-admin), var(--font-sans), sans-serif" }}
+    >
       <ManagerBackground />
 
       {/* Floating Edge Pull Handle */}
