@@ -201,17 +201,18 @@ export function NewSessionForm({
   >({});
   const [robotArms, setRobotArms] = useState<RobotArm[]>([]);
 
-  // Tự động sinh danh sách mã Lane từ các RobotArm hiện có (hoặc mặc định S1, S2, S3 nếu chưa có dữ liệu)
+  // Tự động sinh danh sách mã Lane từ các RobotArm hiện có (mỗi RobotArm có 20 Lane L1 - L20)
   const allLaneOptions = useMemo(() => {
-    if (robotArms.length > 0) {
-      const list: string[] = [];
-      robotArms.forEach((arm) => {
-        const code = (arm.code || "S1").toUpperCase();
-        list.push(`${code}_L1`, `${code}_L2`, `${code}_L3`);
-      });
-      return list;
-    }
-    return ["S1_L1", "S1_L2", "S1_L3", "S2_L1", "S2_L2", "S2_L3", "S3_L1", "S3_L2", "S3_L3"];
+    const list: string[] = [];
+    const arms =
+      robotArms.length > 0 ? robotArms : [{ code: "S1" }, { code: "S2" }, { code: "S3" }];
+    arms.forEach((arm) => {
+      const code = (arm.code || "S1").toUpperCase();
+      for (let i = 1; i <= 20; i++) {
+        list.push(`${code}_L${i}`);
+      }
+    });
+    return list;
   }, [robotArms]);
 
   function toDatetimeLocal(iso: string): string {
@@ -225,25 +226,31 @@ export function NewSessionForm({
     setWizardLaneConfigs((prev) => {
       const next = { ...prev };
       const usedLanes = new Set(
-        Object.values(next)
-          .map((c) => c.laneCode)
+        Array.from(selectedDishIds)
+          .map((dishId) => next[dishId]?.laneCode?.trim()?.toUpperCase())
           .filter(Boolean),
       );
 
       selectedDishIds.forEach((dishId) => {
-        if (!next[dishId]) {
-          let defaultLane = allLaneOptions.find((l) => !usedLanes.has(l));
+        if (!next[dishId] || !next[dishId].laneCode?.trim()) {
+          let defaultLane = allLaneOptions.find((l) => !usedLanes.has(l.toUpperCase()));
           if (!defaultLane) {
-            const nextIdx = Object.keys(next).length;
-            defaultLane = allLaneOptions[nextIdx % allLaneOptions.length] || "S1_L1";
+            const armCode = (robotArms[0]?.code || "S1").toUpperCase();
+            let counter = 1;
+            while (usedLanes.has(`${armCode}_L${counter}`)) {
+              counter++;
+            }
+            defaultLane = `${armCode}_L${counter}`;
           }
-          usedLanes.add(defaultLane);
+          usedLanes.add(defaultLane.toUpperCase());
           const armPrefix = defaultLane.split("_")[0];
           const matchingArm = robotArms.find((a) => (a.code || "").toUpperCase() === armPrefix);
           next[dishId] = {
             laneCode: defaultLane,
-            capacity: 12,
-            robotArmId: matchingArm ? matchingArm.id : "",
+            capacity: next[dishId]?.capacity || 12,
+            robotArmId: matchingArm
+              ? matchingArm.id
+              : next[dishId]?.robotArmId || robotArms[0]?.id || "",
           };
         }
       });
@@ -268,7 +275,11 @@ export function NewSessionForm({
         setRobotArms(armsResult);
 
         if (copyFrom) {
-          const detail = await sessionService.getSessionDetail(copyFrom);
+          const [detail, existingConfigs] = await Promise.all([
+            sessionService.getSessionDetail(copyFrom),
+            slotConfigurationService.getBySession(copyFrom).catch(() => []),
+          ]);
+
           setName(detail.name);
           setDescription(detail.description);
           setAvailableFrom(toDatetimeLocal(detail.availableFrom));
@@ -294,6 +305,23 @@ export function NewSessionForm({
               dishIds: idx === 0 ? detail.dishes.map((d) => d.dishId) : [],
             })),
           );
+
+          if (existingConfigs && existingConfigs.length > 0) {
+            const copiedLaneMap: Record<
+              string,
+              { laneCode: string; capacity: number; robotArmId: string }
+            > = {};
+            existingConfigs.forEach((cfg) => {
+              if (cfg.dishId && cfg.laneCode) {
+                copiedLaneMap[cfg.dishId] = {
+                  laneCode: cfg.laneCode,
+                  capacity: cfg.capacity || 12,
+                  robotArmId: cfg.robotArmId || "",
+                };
+              }
+            });
+            setWizardLaneConfigs(copiedLaneMap);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -324,20 +352,45 @@ export function NewSessionForm({
     [dishes, dishSearch],
   );
 
-  const categoryMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c])),
-    [categories],
-  );
+  const categoryMap = useMemo(() => {
+    const map: Record<string, Category> = {};
+    categories.forEach((c) => {
+      if (c.id) {
+        map[c.id] = c;
+        map[c.id.toLowerCase()] = c;
+        map[c.id.toUpperCase()] = c;
+      }
+    });
+    return map;
+  }, [categories]);
 
   const selectedDishes = useMemo(
     () => dishes.filter((d) => selectedDishIds.has(d.id)),
     [dishes, selectedDishIds],
   );
 
-  const selectedCategoryIds = useMemo(
-    () => new Set(selectedDishes.map((d) => d.categoryId).filter(Boolean) as string[]),
-    [selectedDishes],
-  );
+  const selectedCategoryIds = useMemo(() => {
+    const catIds = new Set<string>();
+    selectedDishes.forEach((d) => {
+      const obj = d as unknown as Record<string, unknown>;
+      const catObj = obj.category as { id?: string } | undefined;
+      const rawCatId =
+        d.categoryId ||
+        catObj?.id ||
+        (typeof obj.CategoryId === "string" ? obj.CategoryId : undefined);
+      if (rawCatId) {
+        catIds.add(rawCatId);
+      } else if (d.categoryName) {
+        const matchedCat = categories.find(
+          (c) => c.name?.trim().toLowerCase() === d.categoryName?.trim().toLowerCase(),
+        );
+        if (matchedCat?.id) {
+          catIds.add(matchedCat.id);
+        }
+      }
+    });
+    return catIds;
+  }, [selectedDishes, categories]);
 
   const allSelectedDishIds = useMemo(
     () =>
@@ -348,16 +401,30 @@ export function NewSessionForm({
     [selectedDishIds, templates, editingTplIdx],
   );
 
-  const allSessionCategoryIds = useMemo(
-    () =>
-      new Set(
-        dishes
-          .filter((d) => allSelectedDishIds.has(d.id))
-          .map((d) => d.categoryId)
-          .filter(Boolean) as string[],
-      ),
-    [dishes, allSelectedDishIds],
-  );
+  const allSessionCategoryIds = useMemo(() => {
+    const catIds = new Set<string>();
+    dishes
+      .filter((d) => allSelectedDishIds.has(d.id))
+      .forEach((d) => {
+        const obj = d as unknown as Record<string, unknown>;
+        const catObj = obj.category as { id?: string } | undefined;
+        const rawCatId =
+          d.categoryId ||
+          catObj?.id ||
+          (typeof obj.CategoryId === "string" ? obj.CategoryId : undefined);
+        if (rawCatId) {
+          catIds.add(rawCatId);
+        } else if (d.categoryName) {
+          const matchedCat = categories.find(
+            (c) => c.name?.trim().toLowerCase() === d.categoryName?.trim().toLowerCase(),
+          );
+          if (matchedCat?.id) {
+            catIds.add(matchedCat.id);
+          }
+        }
+      });
+    return catIds;
+  }, [dishes, allSelectedDishIds, categories]);
 
   const toggleDish = useCallback(
     (dishId: string) => {
@@ -638,31 +705,44 @@ export function NewSessionForm({
         };
       }),
     );
+    setSelectedDishIds((prev) => new Set([...prev, ...categoryDishIds]));
   };
 
   useEffect(() => {
+    // Tự động đồng bộ danh sách dishIds và category settings của các template khi thêm/bớt món hoặc sao chép ca
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTemplates((prev) =>
       prev.map((t, i) => {
-        if (t.dishIds.length > 0 && editingTplIdx !== i) return t;
-        const existingIds = new Set(t.settings.map((s) => s.categoryId));
-        const newCats = [...selectedCategoryIds].filter((catId) => !existingIds.has(catId));
-        if (newCats.length === 0) return t;
+        if (editingTplIdx === i) return t;
+
+        const currentDishArr = Array.from(selectedDishIds);
+        const existingCatIds = new Set(t.settings.map((s) => s.categoryId));
+        const missingCats = [...selectedCategoryIds].filter((catId) => !existingCatIds.has(catId));
+
+        const dishIdsMatch =
+          t.dishIds.length === currentDishArr.length &&
+          t.dishIds.every((id, idx) => id === currentDishArr[idx]);
+
+        if (missingCats.length === 0 && dishIdsMatch) return t;
+
+        const newSettings = [
+          ...t.settings,
+          ...missingCats.map((catId) => ({
+            categoryId: catId,
+            minQuantity: 0,
+            maxQuantity: 1,
+            isRequired: false,
+          })),
+        ];
+
         return {
           ...t,
-          settings: [
-            ...t.settings,
-            ...newCats.map((catId) => ({
-              categoryId: catId,
-              minQuantity: 0,
-              maxQuantity: 1,
-              isRequired: false,
-            })),
-          ],
+          settings: newSettings,
+          dishIds: currentDishArr,
         };
       }),
     );
-  }, [selectedCategoryIds, editingTplIdx]);
+  }, [selectedDishIds, selectedCategoryIds, editingTplIdx]);
 
   const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -1711,7 +1791,11 @@ export function NewSessionForm({
 
                     <div className="space-y-3">
                       {template.settings.map((s, sIdx) => {
-                        const cat = categoryMap[s.categoryId];
+                        const cat =
+                          categoryMap[s.categoryId] ||
+                          categories.find(
+                            (c) => c.id?.toLowerCase() === s.categoryId?.toLowerCase(),
+                          );
                         return (
                           <div
                             key={sIdx}
