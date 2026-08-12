@@ -161,7 +161,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
   }
 
   const isResolved = detail.status === 2 || detail.status === 3 || detail.status === 4;
-  const statusLabel = STATUS_LABEL[detail.status as keyof typeof STATUS_LABEL] || "Unknown";
+  const statusLabel = STATUS_LABEL[detail.status as keyof typeof STATUS_LABEL] || "Không xác định";
 
   return (
     <div className="space-y-6">
@@ -348,7 +348,7 @@ export function VerifyDetailsContent({ requestId, onSuccess }: VerifyDetailsCont
                         <span className="text-sm font-bold text-gray-800">
                           {DOCUMENT_TYPE_LABEL[
                             doc.documentType as keyof typeof DOCUMENT_TYPE_LABEL
-                          ] || "Other"}
+                          ] || "Khác"}
                         </span>
                         <button
                           type="button"

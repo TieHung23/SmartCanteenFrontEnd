@@ -101,7 +101,7 @@ export default function VerificationPage() {
 
   const updateFile = (file: File | null) => {
     if (file && file.size > 10 * 1024 * 1024) {
-      toast.error("File must be less than 10MB");
+      toast.error("Dung lượng tập tin phải nhỏ hơn 10MB");
       return;
     }
     setEntries((prev) => (prev.length > 0 ? [{ ...prev[0], file }] : prev));
@@ -111,16 +111,72 @@ export default function VerificationPage() {
     setEntries((prev) => (prev.length > 0 ? [{ ...prev[0], documentType }] : prev));
   };
 
+  const translateVerificationError = (error: unknown): string => {
+    if (!error) return "Gửi yêu cầu xác thực thất bại.";
+
+    let message = "";
+    let errorCode = "";
+
+    if (error instanceof Error) {
+      message = error.message || "";
+      const errWithCode = error as Error & {
+        errorCode?: string;
+        errorData?: Record<string, unknown>;
+      };
+      errorCode = errWithCode.errorCode || (errWithCode.errorData?.errorCode as string) || "";
+      if (!message && errWithCode.errorData?.message) {
+        message = String(errWithCode.errorData.message);
+      }
+    } else if (typeof error === "object" && error !== null) {
+      const obj = error as Record<string, unknown>;
+      message = String(obj.message || "");
+      errorCode = String(obj.errorCode || "");
+    } else if (typeof error === "string") {
+      message = error;
+    }
+
+    const msgLower = message.toLowerCase();
+
+    if (
+      errorCode === "AccountNotAwaitingIdentityVerification" ||
+      errorCode === "AccountNotAwaitingVerification" ||
+      msgLower.includes("not awaiting identity verification") ||
+      msgLower.includes("account is not awaiting")
+    ) {
+      return "Tài khoản của bạn hiện không ở trạng thái chờ xác thực danh tính.";
+    }
+
+    if (
+      errorCode === "PendingRequestExists" ||
+      msgLower.includes("pending verification request") ||
+      msgLower.includes("already have a pending")
+    ) {
+      return "Bạn đã có yêu cầu xác thực đang chờ duyệt. Vui lòng chờ xem xét.";
+    }
+
+    if (msgLower.includes("file must be less than") || msgLower.includes("file size")) {
+      return "Dung lượng tập tin phải nhỏ hơn 10MB.";
+    }
+
+    if (msgLower.includes("please upload at least one")) {
+      return "Vui lòng tải lên ít nhất một tài liệu.";
+    }
+
+    if (message && /[\u00C0-\u1EF9]/.test(message)) {
+      return message;
+    }
+
+    return "Gửi yêu cầu xác thực thất bại. Vui lòng kiểm tra lại.";
+  };
+
   const handleSubmit = async () => {
     if (hasOpenRequest) {
-      toast.error(
-        "You already have a pending verification request. Please wait for it to be reviewed.",
-      );
+      toast.error("Bạn đã có yêu cầu xác thực đang chờ duyệt. Vui lòng chờ xem xét.");
       return;
     }
     const validEntries = entries.filter((e) => e.file !== null);
     if (validEntries.length === 0) {
-      toast.error("Please upload at least one document");
+      toast.error("Vui lòng tải lên ít nhất một tài liệu");
       return;
     }
     setIsSubmitting(true);
@@ -152,22 +208,7 @@ export default function VerificationPage() {
       }
     } catch (error: unknown) {
       console.error("Submit verification error:", error);
-      let msg = "Failed to submit verification";
-      if (error instanceof Error) {
-        const errWithCode = error as Error & {
-          errorCode?: string;
-          errorData?: Record<string, unknown>;
-        };
-        msg = error.message || msg;
-        if (
-          errWithCode.errorCode === "ServerError" ||
-          errWithCode.errorCode === "PendingRequestExists"
-        ) {
-          msg =
-            "You already have a pending verification request. Please wait for it to be reviewed.";
-        }
-      }
-      toast.error(msg);
+      toast.error(translateVerificationError(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -206,9 +247,9 @@ export default function VerificationPage() {
             )}
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-extrabold text-gray-800">Identity Verification</h1>
+            <h1 className="text-xl font-extrabold text-gray-800">Xác thực danh tính</h1>
             <p className="text-gray-400 text-sm mt-1">
-              Verify your identity to start using Smart Canteen
+              Xác thực danh tính của bạn để bắt đầu sử dụng Smart Canteen
             </p>
           </div>
         </div>
@@ -226,15 +267,15 @@ export default function VerificationPage() {
                 )}
                 {status === 2 && (
                   <p className="text-xs text-gray-500 mt-0.5">
-                    You can now access all features of Smart Canteen.
+                    Bạn đã có thể sử dụng tất cả tính năng của Smart Canteen.
                   </p>
                 )}
                 {status === 3 && rejectReason && (
-                  <p className="text-xs text-red-500 mt-0.5">Reason: {rejectReason}</p>
+                  <p className="text-xs text-red-500 mt-0.5">Lý do: {rejectReason}</p>
                 )}
                 {status === 4 && (
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Your previous request has expired. Please submit again.
+                    Yêu cầu trước đó của bạn đã hết hạn. Vui lòng nộp lại.
                   </p>
                 )}
               </div>
@@ -248,7 +289,7 @@ export default function VerificationPage() {
               href={ROUTES.HOME}
               className="w-full py-4 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl transition-all shadow-[0_4px_14px_rgba(211,84,0,0.3)] text-center"
             >
-              Go to Home
+              Về trang chủ
             </Link>
           </div>
         )}
@@ -256,7 +297,7 @@ export default function VerificationPage() {
         {status === 1 && existingRequestId && (
           <div className="flex flex-col items-center gap-4">
             <p className="text-xs text-gray-400 text-center">
-              Request ID: {existingRequestId.slice(0, 12)}...
+              Mã yêu cầu: {existingRequestId.slice(0, 12)}...
             </p>
           </div>
         )}
@@ -265,7 +306,7 @@ export default function VerificationPage() {
           <div className="space-y-5">
             {status === null && (
               <p className="text-xs text-gray-500 text-center">
-                Please upload a document for identity verification
+                Vui lòng tải lên tài liệu để xác thực danh tính
               </p>
             )}
 
@@ -293,7 +334,7 @@ export default function VerificationPage() {
 
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">
-                    File
+                    Tập tin
                   </label>
                   <div className="flex items-center gap-2">
                     <button
@@ -323,7 +364,7 @@ export default function VerificationPage() {
                       ) : (
                         <div className="flex items-center justify-center gap-1.5">
                           <Upload className="w-4 h-4 text-gray-300" />
-                          <span className="text-[11px] text-gray-500">Choose file</span>
+                          <span className="text-[11px] text-gray-500">Chọn tập tin</span>
                         </div>
                       )}
                     </button>
@@ -342,7 +383,7 @@ export default function VerificationPage() {
               ) : (
                 <Upload className="w-5 h-5" />
               )}
-              {isSubmitting ? "Submitting..." : "Submit for Verification"}
+              {isSubmitting ? "Đang gửi..." : "Gửi yêu cầu xác thực"}
             </button>
           </div>
         )}
