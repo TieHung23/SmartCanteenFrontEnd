@@ -42,6 +42,7 @@ import {
 } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 import { useQueryClient } from "@tanstack/react-query";
+import { CancelOrderModal } from "@/components/features/orders/cancel-order-modal";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -75,6 +76,7 @@ export default function OrderDetailPage() {
   const [isSwapping, setIsSwapping] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [isRefundingOrder, setIsRefundingOrder] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const [sessionInfo, setSessionInfo] = useState<{
     name?: string;
@@ -772,6 +774,21 @@ export default function OrderDetailPage() {
               </button>
             )}
 
+            {/* Cancel & Refund Request button for uncancelled eligible orders */}
+            {order.status !== 3 &&
+              order.status !== 7 &&
+              !orderRefund &&
+              !isOrderRefundPending &&
+              !isOrderRefundRejected && (
+                <button
+                  onClick={() => setIsCancelModalOpen(true)}
+                  className="w-full mt-4 py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 font-black text-sm rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <Ban className="w-4 h-4 text-rose-600" />
+                  Yêu cầu hủy & hoàn tiền đơn hàng
+                </button>
+              )}
+
             {order.status === 3 && (
               <div
                 className={`mt-8 border rounded-xl p-5 flex items-start gap-3 ${
@@ -935,6 +952,22 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cancel Order Modal */}
+      {order && (
+        <CancelOrderModal
+          isOpen={isCancelModalOpen}
+          onClose={() => setIsCancelModalOpen(false)}
+          orderId={order.id}
+          totalPrice={order.totalPrice}
+          onSuccess={() => {
+            fetchProposals();
+            fetchRefunds();
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+            queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+          }}
+        />
       )}
     </>
   );

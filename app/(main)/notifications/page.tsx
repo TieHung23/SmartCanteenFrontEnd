@@ -80,9 +80,8 @@ export default function NotificationsPage() {
 
   const handleNotificationClick = async (n: NotificationItem) => {
     if (!n.isRead) handleMarkRead(n.id);
-    if (!n.referenceId) return;
     const targetUrl = await resolveNotificationTargetUrl(n);
-    router.push(targetUrl);
+    if (targetUrl) router.push(targetUrl);
   };
 
   return (
