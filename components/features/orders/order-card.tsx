@@ -73,7 +73,9 @@ export function OrderCard({ order, refundStatus, onClick, onRefundClick }: Order
     bgColor: "bg-amber-50",
   };
 
-  const isEligibleForRefund = refundStatus === undefined && order.status === 2;
+  const isEligibleForRefund =
+    refundStatus === undefined &&
+    (order.status === 0 || order.status === 4 || order.status === 1 || order.status === 2);
 
   return (
     <div
@@ -150,9 +152,9 @@ export function OrderCard({ order, refundStatus, onClick, onRefundClick }: Order
           {isEligibleForRefund && onRefundClick && (
             <button
               onClick={onRefundClick}
-              className="text-xs font-semibold px-3 py-2 rounded-full text-slate-700 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors shrink-0"
+              className="text-xs font-semibold px-3 py-1.5 rounded-full text-rose-700 hover:bg-rose-50 border border-rose-200 transition-colors shrink-0 cursor-pointer"
             >
-              Hoàn tiền
+              Hủy / Hoàn tiền
             </button>
           )}
 

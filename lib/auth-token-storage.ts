@@ -63,6 +63,16 @@ export function clearAuthTokens() {
   local?.removeItem(ACCESS_TOKEN_KEY);
   local?.removeItem(REFRESH_TOKEN_KEY);
   local?.removeItem(LEGACY_TOKEN_KEY);
+
+  // Clear cart storage items to prevent cart data leakage across accounts
+  session?.removeItem("smart_canteen_cart");
+  session?.removeItem("smart_canteen_session");
+  session?.removeItem("smart_canteen_cart_version");
+  session?.removeItem("smart_canteen_selected_sessions");
+  local?.removeItem("smart_canteen_cart");
+  local?.removeItem("smart_canteen_session");
+  local?.removeItem("smart_canteen_cart_version");
+  local?.removeItem("smart_canteen_selected_sessions");
 }
 
 export interface BlockedAccountInfo {
