@@ -65,7 +65,6 @@ export default function OrderDetailPage() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   const [proposals, setProposals] = useState<ChangeProposalDetail[]>([]);
-  const [loadingProposals, setLoadingProposals] = useState(true);
   const [orderRefund, setOrderRefund] = useState<RefundRequest | null>(null);
 
   const [swappingProposal, setSwappingProposal] = useState<ChangeProposalDetail | null>(null);
@@ -131,15 +130,12 @@ export default function OrderDetailPage() {
 
   const fetchProposals = useCallback(async () => {
     if (!orderId) return;
-    setLoadingProposals(true);
     try {
       const all = await changeProposalService.getAll();
       const filtered = all.filter((p) => p.orderId?.toLowerCase() === orderId.toLowerCase());
       setProposals(filtered);
     } catch {
       setProposals([]);
-    } finally {
-      setLoadingProposals(false);
     }
   }, [orderId]);
 
@@ -420,7 +416,6 @@ export default function OrderDetailPage() {
     : isOrderRefundPending
       ? { label: "Chờ duyệt hoàn đơn", color: "#d97706", bg: "#fffbeb", icon: "⏳" }
       : rawMeta;
-  const hasAnyActiveProposal = proposals.some((p) => p.proposalStatus === 0);
 
   return (
     <>
@@ -838,19 +833,6 @@ export default function OrderDetailPage() {
                       : isOrderRefundPending
                         ? "Yêu cầu hoàn tiền đơn hàng đã được gửi tới Quản lý và đang chờ phê duyệt."
                         : "Đơn hàng này đã bị hủy và tiền đã được hệ thống tự động hoàn trực tiếp vào ví của bạn."}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* No active proposals banner */}
-            {!loadingProposals && !hasAnyActiveProposal && order.status !== 3 && (
-              <div className="mt-8 bg-green-50 border border-green-100 rounded-xl p-4 flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-green-700">Tất cả món đã được xử lý</p>
-                  <p className="text-xs text-green-500 mt-1">
-                    Không có món nào cần đổi hoặc hoàn tiền.
                   </p>
                 </div>
               </div>

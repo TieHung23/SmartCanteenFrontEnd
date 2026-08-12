@@ -382,126 +382,123 @@ export default function CheckoutPage() {
 
   if (orderResult) {
     return (
-      <>
-        <Navbar />
-        <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
-          {/* Background image with dark overlay + blur */}
-          <div className="absolute inset-0">
-            <Image src="/uni1.webp" alt="" fill className="object-cover" sizes="100vw" />
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
-          </div>
+      <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
+        {/* Background image with dark overlay + blur */}
+        <div className="absolute inset-0">
+          <Image src="/uni1.webp" alt="" fill className="object-cover" sizes="100vw" />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
+        </div>
 
-          {/* Firework particles */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-            {fireworkParticles.map((p) => (
-              <div
-                key={p.id}
-                className="absolute bottom-1/2 left-1/2 -translate-x-1/2 rounded-full"
-                style={{
-                  width: p.size,
-                  height: p.size,
-                  backgroundColor: p.color,
-                  left: `${50 + (p.x - 50) * 0.3}%`,
-                  animation: `fireworkLaunch ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s forwards`,
-                  opacity: 0,
-                  boxShadow: `0 0 ${p.size}px ${p.color}80`,
-                }}
-              />
-            ))}
-          </div>
+        {/* Firework particles */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          {fireworkParticles.map((p) => (
+            <div
+              key={p.id}
+              className="absolute bottom-1/2 left-1/2 -translate-x-1/2 rounded-full"
+              style={{
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                left: `${50 + (p.x - 50) * 0.3}%`,
+                animation: `fireworkLaunch ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s forwards`,
+                opacity: 0,
+                boxShadow: `0 0 ${p.size}px ${p.color}80`,
+              }}
+            />
+          ))}
+        </div>
 
-          <div className="max-w-lg w-full relative z-10">
-            <div className="bg-white rounded-[2.5rem] shadow-[0_30px_80px_rgba(211,84,0,0.25)] border border-orange-200/50 p-10 text-center">
-              <div className="relative mb-6">
-                <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200/50">
-                  <PartyPopper className="w-12 h-12 text-[#D35400]" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center border-4 border-white shadow-md">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                </div>
+        <div className="max-w-lg w-full relative z-10">
+          <div className="bg-white rounded-[2.5rem] shadow-[0_30px_80px_rgba(211,84,0,0.25)] border border-orange-200/50 p-10 text-center">
+            <div className="relative mb-6">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200/50">
+                <PartyPopper className="w-12 h-12 text-[#D35400]" />
               </div>
-              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt hàng thành công!</h1>
-              <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
-
-              <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
-                <div className="flex items-center gap-3 pb-3 border-b border-orange-100/30">
-                  <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
-                    <Receipt className="w-4 h-4 text-[#D35400]" />
-                  </div>
-                  <span className="text-sm font-bold text-gray-700">Hóa đơn đơn hàng</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Mã đơn hàng</span>
-                  <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
-                    {orderResult.id.slice(0, 12)}...
-                  </span>
-                </div>
-                {orderResult.transactionId && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Mã giao dịch</span>
-                    <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
-                      {orderResult.transactionId.slice(0, 12)}...
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Phương thức thanh toán</span>
-                  <span className="font-bold text-gray-700 flex items-center gap-1.5">
-                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Điểm ví
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
-                  <span className="text-base font-bold text-gray-800">Tổng đã thanh toán</span>
-                  <PtsDisplay
-                    amount={orderResult.totalPrice}
-                    className="text-lg font-black text-[#D35400]"
-                  />
-                </div>
-                <div className="flex justify-between text-sm pt-2">
-                  <span className="text-gray-500">Số dư còn lại</span>
-                  <PtsDisplay
-                    amount={orderResult.userRemainingBalance}
-                    className="font-bold text-[#D35400]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    clearCart();
-                    router.push(ROUTES.ORDERS);
-                  }}
-                  className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
-                >
-                  Xem đơn hàng
-                </button>
-                <button
-                  onClick={() => {
-                    clearCart();
-                    router.push(ROUTES.SESSION);
-                  }}
-                  className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
-                >
-                  Chọn phiên ăn
-                </button>
+              <div className="absolute -top-1 -right-1 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center border-4 border-white shadow-md">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
               </div>
             </div>
-          </div>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt hàng thành công!</h1>
+            <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
 
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-            @keyframes fireworkLaunch {
-              0% { transform: translateY(0) scale(0.5); opacity: 1; }
-              40% { transform: translateY(-160px) scale(1.5); opacity: 0.9; }
-              100% { transform: translateY(-350px) scale(0); opacity: 0; }
-            }
-          `,
-            }}
-          />
-        </main>
-      </>
+            <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
+              <div className="flex items-center gap-3 pb-3 border-b border-orange-100/30">
+                <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
+                  <Receipt className="w-4 h-4 text-[#D35400]" />
+                </div>
+                <span className="text-sm font-bold text-gray-700">Hóa đơn đơn hàng</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Mã đơn hàng</span>
+                <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
+                  {orderResult.id.slice(0, 12)}...
+                </span>
+              </div>
+              {orderResult.transactionId && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Mã giao dịch</span>
+                  <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
+                    {orderResult.transactionId.slice(0, 12)}...
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Phương thức thanh toán</span>
+                <span className="font-bold text-gray-700 flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Điểm ví
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
+                <span className="text-base font-bold text-gray-800">Tổng đã thanh toán</span>
+                <PtsDisplay
+                  amount={orderResult.totalPrice}
+                  className="text-lg font-black text-[#D35400]"
+                />
+              </div>
+              <div className="flex justify-between text-sm pt-2">
+                <span className="text-gray-500">Số dư còn lại</span>
+                <PtsDisplay
+                  amount={orderResult.userRemainingBalance}
+                  className="font-bold text-[#D35400]"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  clearCart();
+                  router.push(ROUTES.ORDERS);
+                }}
+                className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
+              >
+                Xem đơn hàng
+              </button>
+              <button
+                onClick={() => {
+                  clearCart();
+                  router.push(ROUTES.SESSION);
+                }}
+                className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
+              >
+                Chọn phiên ăn
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+          @keyframes fireworkLaunch {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            40% { transform: translateY(-160px) scale(1.5); opacity: 0.9; }
+            100% { transform: translateY(-350px) scale(0); opacity: 0; }
+          }
+        `,
+          }}
+        />
+      </main>
     );
   }
 
