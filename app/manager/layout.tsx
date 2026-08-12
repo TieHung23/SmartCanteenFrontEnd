@@ -5,8 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import { cn } from "@/lib/utils";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { cn, getSafeUserAvatar } from "@/lib/utils";
 import { ManagerBackground } from "./_components/manager-background";
 import {
   BarChart3,
@@ -28,13 +27,6 @@ import {
   BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
-
-import { getSafeUserAvatar } from "@/lib/utils";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-manager",
-});
 
 interface SubMenuItem {
   name: string;
@@ -172,13 +164,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   if (!isAuthenticated) return null;
 
   return (
-    <div
-      className={cn(
-        "flex h-screen w-screen overflow-hidden antialiased select-none relative",
-        plusJakartaSans.variable,
-      )}
-      style={{ fontFamily: "var(--font-manager), var(--font-sans), sans-serif" }}
-    >
+    <div className="flex h-screen w-screen overflow-hidden antialiased select-none relative font-sans">
       <ManagerBackground />
 
       {/* Floating Edge Pull Handle - Cục Popup kéo sát mép màn hình màu Xám */}

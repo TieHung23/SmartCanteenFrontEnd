@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Be_Vietnam_Pro, Comfortaa, Quicksand } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -8,16 +8,25 @@ import { AuthProvider } from "@/context/auth-context";
 import { CartProvider } from "@/context/cart-context";
 import CartDrawer from "@/components/features/orders/CartDrawer";
 
-const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-sans" });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-sans",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const comfortaa = Comfortaa({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "600", "700"],
+  variable: "--font-comfortaa",
+  display: "swap",
+});
+
+const quicksand = Quicksand({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-quicksand",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -35,15 +44,14 @@ export default function RootLayout({
       lang="vi"
       suppressHydrationWarning
       className={cn(
-        "h-full",
-        "antialiased",
-        geistSans.variable,
-        geistMono.variable,
-        "font-sans",
-        inter.variable,
+        "h-full antialiased font-sans",
+        beVietnamPro.variable,
+        beVietnamPro.className,
+        comfortaa.variable,
+        quicksand.variable,
       )}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col">
+      <body suppressHydrationWarning className="min-h-full flex flex-col font-sans">
         <QueryProvider>
           <AuthProvider>
             <CartProvider>
