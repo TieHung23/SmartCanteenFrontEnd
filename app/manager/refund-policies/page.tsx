@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, RotateCcw, Trash2, Edit3, Search, X, Sparkles, Shield } from "lucide-react";
+import {
+  Plus,
+  RotateCcw,
+  Trash2,
+  Edit3,
+  Search,
+  X,
+  Sparkles,
+  Shield,
+  AlertCircle,
+} from "lucide-react";
 import { refundPolicyService } from "@/services/refund-policy.service";
 import type {
   RefundPolicy,
@@ -12,6 +22,92 @@ import Modal from "../_components/modal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
+
+export function extractApiErrorMessage(err: unknown): {
+  message: string;
+  fieldErrors: Record<string, string>;
+} {
+  const fieldErrors: Record<string, string> = {};
+  let message = "Đã có lỗi xảy ra. Vui lòng kiểm tra lại.";
+
+  if (typeof err === "object" && err !== null && "response" in err) {
+    const responseData = (
+      err as {
+        response?: {
+          data?: {
+            errors?: Record<string, string[] | string>;
+            message?: string;
+            detail?: string;
+            reason?: string;
+            title?: string;
+          };
+        };
+      }
+    ).response?.data;
+    if (responseData) {
+      if (responseData.errors && typeof responseData.errors === "object") {
+        const errorList: string[] = [];
+        Object.entries(responseData.errors).forEach(([field, msgs]) => {
+          const fieldMsgs = Array.isArray(msgs) ? msgs : [String(msgs)];
+          fieldMsgs.forEach((msg: string) => {
+            let translated = msg;
+            const fieldLower = field.toLowerCase();
+
+            if (msg.includes("not in the correct format") || msg.includes("format")) {
+              if (fieldLower === "code") {
+                translated =
+                  "Mã chính sách (Code) không đúng định dạng. Chỉ được sử dụng chữ cái tiếng Anh viết hoa không dấu, số và dấu gạch dưới (VD: SPOILED, KHONG_CON_NHU_CAU).";
+              } else {
+                translated = `Trường '${field}' không đúng định dạng.`;
+              }
+            } else if (msg.includes("must not be empty") || msg.includes("required")) {
+              translated = `Trường '${field}' không được để trống.`;
+            } else if (msg.includes("between") || msg.includes("range")) {
+              translated = `Trường '${field}' có giá trị vượt quá phạm vi cho phép (1-100%).`;
+            }
+
+            fieldErrors[fieldLower] = translated;
+            errorList.push(translated);
+          });
+        });
+
+        if (errorList.length > 0) {
+          message = errorList.join("\n");
+          return { message, fieldErrors };
+        }
+      }
+
+      if (responseData.message) {
+        message = responseData.message;
+      } else if (responseData.detail) {
+        message = responseData.detail;
+      } else if (responseData.reason) {
+        message = responseData.reason;
+      } else if (
+        responseData.title &&
+        responseData.title !== "One or more validation errors occurred."
+      ) {
+        message = responseData.title;
+      }
+    }
+  } else if (err instanceof Error) {
+    message = err.message;
+  }
+
+  if (
+    message.includes("Code is not in the correct format") ||
+    message.includes("'Code' is not in the correct format")
+  ) {
+    message =
+      "Mã chính sách (Code) không đúng định dạng. Chỉ được sử dụng chữ cái tiếng Anh viết hoa không dấu, số và dấu gạch dưới (VD: SPOILED, KHONG_CON_NHU_CAU).";
+    fieldErrors["code"] = message;
+  } else if (message.includes("already exists") || message.includes("Duplicate")) {
+    message = "Mã chính sách này đã tồn tại trong hệ thống. Vui lòng dùng mã khác.";
+    fieldErrors["code"] = message;
+  }
+
+  return { message, fieldErrors };
+}
 
 function ShimmerButton({
   children,
@@ -67,6 +163,7 @@ export default function ManagerRefundPoliciesPage() {
   });
 
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const fetchPolicies = async () => {
     try {
@@ -91,27 +188,55 @@ export default function ManagerRefundPoliciesPage() {
 
   const openCreateModal = () => {
     setCreateForm({ code: "", name: "", description: "", percent: 0, requiresImage: false });
+    setFieldErrors({});
     setFormSubmitting(false);
     setIsCreateOpen(true);
   };
 
   const handleCreateSubmit = async () => {
-    if (!createForm.code.trim() || !createForm.name.trim()) {
-      toast.error("Vui lòng nhập Code và Name.");
+    setFieldErrors({});
+
+    const code = createForm.code.trim();
+    const name = createForm.name.trim();
+    const percent = createForm.percent;
+
+    const errors: Record<string, string> = {};
+
+    if (!code) {
+      errors.code = "Vui lòng nhập Mã chính sách (Code).";
+    } else if (!/^[A-Za-z0-9_]+$/.test(code)) {
+      errors.code = "Mã chính sách (Code) không đúng định dạng.";
+    }
+
+    if (!name) {
+      errors.name = "Vui lòng nhập Tên chính sách (Name).";
+    }
+
+    if (!percent || percent <= 0 || percent > 100) {
+      errors.percent = "Phần trăm hoàn tiền (Percent) phải từ 1% đến 100%.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstMsg = Object.values(errors)[0];
+      toast.error(firstMsg);
       return;
     }
-    if (createForm.percent <= 0) {
-      toast.error("Percent phải lớn hơn 0.");
-      return;
-    }
+
     setFormSubmitting(true);
     try {
-      await refundPolicyService.create(createForm);
+      await refundPolicyService.create({
+        ...createForm,
+        code,
+        name,
+      });
       setIsCreateOpen(false);
-      toast.success("Tạo refund policy thành công");
+      toast.success("Tạo chính sách hoàn tiền thành công!");
       fetchPolicies();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Tạo thất bại");
+      const { message, fieldErrors: serverFieldErrors } = extractApiErrorMessage(err);
+      setFieldErrors(serverFieldErrors);
+      toast.error(message);
     } finally {
       setFormSubmitting(false);
     }
@@ -126,28 +251,48 @@ export default function ManagerRefundPoliciesPage() {
       percent: p.percent,
       requiresImage: p.requiresImage,
     });
+    setFieldErrors({});
     setFormSubmitting(false);
     setIsEditOpen(true);
   };
 
   const handleEditSubmit = async () => {
     if (!editCode) return;
-    if (!editForm.name.trim()) {
-      toast.error("Vui lòng nhập Name.");
+    setFieldErrors({});
+
+    const name = editForm.name.trim();
+    const percent = editForm.percent;
+
+    const errors: Record<string, string> = {};
+
+    if (!name) {
+      errors.name = "Vui lòng nhập Tên chính sách (Name).";
+    }
+
+    if (!percent || percent <= 0 || percent > 100) {
+      errors.percent = "Phần trăm hoàn tiền (Percent) phải từ 1% đến 100%.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstMsg = Object.values(errors)[0];
+      toast.error(firstMsg);
       return;
     }
-    if (editForm.percent <= 0) {
-      toast.error("Percent phải lớn hơn 0.");
-      return;
-    }
+
     setFormSubmitting(true);
     try {
-      await refundPolicyService.update(editCode, editForm);
+      await refundPolicyService.update(editCode, {
+        ...editForm,
+        name,
+      });
       setIsEditOpen(false);
-      toast.success("Cập nhật refund policy thành công");
+      toast.success("Cập nhật chính sách hoàn tiền thành công!");
       fetchPolicies();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Cập nhật thất bại");
+      const { message, fieldErrors: serverFieldErrors } = extractApiErrorMessage(err);
+      setFieldErrors(serverFieldErrors);
+      toast.error(message);
     } finally {
       setFormSubmitting(false);
     }
@@ -155,7 +300,7 @@ export default function ManagerRefundPoliciesPage() {
 
   const handleDelete = (code: string, name: string) => {
     Swal.fire({
-      title: "Xoá refund policy?",
+      title: "Xoá chính sách hoàn tiền này?",
       text: `Bạn có chắc muốn xoá "${name}"? Hành động này không thể hoàn tác.`,
       icon: "warning",
       showCancelButton: true,
@@ -202,7 +347,7 @@ export default function ManagerRefundPoliciesPage() {
           </div>
         </div>
         <ShimmerButton onClick={openCreateModal}>
-          <Plus className="w-5 h-5" /> New Policy
+          <Plus className="w-5 h-5" /> Thêm Chính Sách Mới
         </ShimmerButton>
       </div>
 
@@ -334,7 +479,7 @@ export default function ManagerRefundPoliciesPage() {
       <Modal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="New Refund Policy"
+        title="Tạo mới chính sách hoàn tiền"
         size="lg"
       >
         <RefundPolicyForm
@@ -344,6 +489,7 @@ export default function ManagerRefundPoliciesPage() {
           onCancel={() => setIsCreateOpen(false)}
           submitting={formSubmitting}
           mode="create"
+          fieldErrors={fieldErrors}
         />
       </Modal>
 
@@ -351,7 +497,7 @@ export default function ManagerRefundPoliciesPage() {
       <Modal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
-        title="Edit Refund Policy"
+        title="Chỉnh sửa chính sách hoàn tiền"
         size="lg"
       >
         {editCode && (
@@ -362,6 +508,7 @@ export default function ManagerRefundPoliciesPage() {
             onCancel={() => setIsEditOpen(false)}
             submitting={formSubmitting}
             mode="edit"
+            fieldErrors={fieldErrors}
           />
         )}
       </Modal>
@@ -376,6 +523,7 @@ function RefundPolicyForm({
   onCancel,
   submitting,
   mode,
+  fieldErrors,
 }: {
   form: CreateRefundPolicyPayload | UpdateRefundPolicyPayload;
   onChange: (fields: Record<string, string | number | boolean>) => void;
@@ -383,57 +531,109 @@ function RefundPolicyForm({
   onCancel: () => void;
   submitting: boolean;
   mode: "create" | "edit";
+  fieldErrors?: Record<string, string>;
 }) {
   return (
     <div className="space-y-6">
       {mode === "create" && (
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Code *</label>
+          <label className="block text-sm font-bold text-gray-800 mb-2">
+            Mã chính sách (Code) <span className="text-red-400">*</span>
+          </label>
           <input
             value={form.code || ""}
-            onChange={(e) => onChange({ code: e.target.value })}
-            placeholder="e.g. SPOILED"
-            className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs"
+            onChange={(e) => onChange({ code: e.target.value.toUpperCase() })}
+            placeholder="VD: SPOILED hoặc KHONG_CON_NHU_CAU"
+            className={cn(
+              "w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs",
+              fieldErrors?.code
+                ? "border-red-400 bg-red-50/20 ring-2 ring-red-500/20"
+                : "border-gray-200/50",
+            )}
           />
+          {fieldErrors?.code ? (
+            <p className="text-xs text-red-500 font-bold mt-1.5 flex items-center gap-1.5 animate-fade-in">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>{fieldErrors.code}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-1.5 font-medium">
+              Chỉ được sử dụng chữ cái tiếng Anh viết hoa không dấu, số và dấu gạch dưới (VD:
+              SPOILED, KHONG_CON_NHU_CAU).
+            </p>
+          )}
         </div>
       )}
+
       <div>
-        <label className="block text-sm font-bold text-gray-800 mb-2">Name *</label>
+        <label className="block text-sm font-bold text-gray-800 mb-2">
+          Tên hiển thị (Name) <span className="text-red-400">*</span>
+        </label>
         <input
           value={form.name || ""}
           onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="Display name"
-          className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
+          placeholder="VD: Không còn nhu cầu sử dụng"
+          className={cn(
+            "w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs",
+            fieldErrors?.name
+              ? "border-red-400 bg-red-50/20 ring-2 ring-red-500/20"
+              : "border-gray-200/50",
+          )}
         />
+        {fieldErrors?.name && (
+          <p className="text-xs text-red-500 font-bold mt-1.5 flex items-center gap-1.5 animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+            <span>{fieldErrors.name}</span>
+          </p>
+        )}
       </div>
+
       <div>
-        <label className="block text-sm font-bold text-gray-800 mb-2">Description</label>
+        <label className="block text-sm font-bold text-gray-800 mb-2">Mô tả (Description)</label>
         <textarea
           value={form.description || ""}
           onChange={(e) => onChange({ description: e.target.value })}
-          placeholder="Brief description of this policy..."
+          placeholder="Mô tả chi tiết lý do/điều kiện áp dụng..."
           rows={3}
           className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all resize-none shadow-xs"
         />
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Percent *</label>
+          <label className="block text-sm font-bold text-gray-800 mb-2">
+            Phần trăm hoàn tiền (%) <span className="text-red-400">*</span>
+          </label>
           <input
             type="number"
             min={1}
             max={100}
             value={form.percent || ""}
             onChange={(e) => onChange({ percent: parseInt(e.target.value) || 0 })}
-            placeholder="e.g. 20"
-            className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
+            placeholder="VD: 100"
+            className={cn(
+              "w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-xs",
+              fieldErrors?.percent
+                ? "border-red-400 bg-red-50/20 ring-2 ring-red-500/20"
+                : "border-gray-200/50",
+            )}
           />
-          <p className="text-xs text-gray-400 mt-1.5 font-medium">
-            Percentage of order value to refund (1-100)
-          </p>
+          {fieldErrors?.percent ? (
+            <p className="text-xs text-red-500 font-bold mt-1.5 flex items-center gap-1.5 animate-fade-in">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>{fieldErrors.percent}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-1.5 font-medium">
+              Tỷ lệ % hoàn tiền theo giá trị đơn hàng (1 - 100%)
+            </p>
+          )}
         </div>
+
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Requires Image</label>
+          <label className="block text-sm font-bold text-gray-800 mb-2">
+            Yêu cầu hình ảnh minh họa
+          </label>
           <div className="flex items-center gap-4 h-full pt-1">
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -445,28 +645,30 @@ function RefundPolicyForm({
               <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#D35400] peer-focus:ring-2 peer-focus:ring-[#D35400]/20 transition-all after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
             </label>
             <span className="text-sm font-semibold text-gray-700">
-              {form.requiresImage ? "Yes" : "No"}
+              {form.requiresImage ? "Có (Bắt buộc tải ảnh)" : "Không bắt buộc"}
             </span>
           </div>
         </div>
       </div>
+
       <div className="flex items-center justify-end gap-4 border-t border-gray-100 pt-6">
         <button
+          type="button"
           onClick={onCancel}
           className="px-6 py-3 border border-gray-200/60 hover:border-gray-300 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 hover:text-gray-900 transition-all shadow-xs"
         >
-          Cancel
+          Hủy
         </button>
         <ShimmerButton onClick={onSubmit} disabled={submitting}>
           {submitting ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{" "}
-              Saving...
+              Đang lưu...
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />{" "}
-              {mode === "create" ? "Create Policy" : "Save Changes"}
+              {mode === "create" ? "Tạo chính sách" : "Lưu thay đổi"}
             </>
           )}
         </ShimmerButton>

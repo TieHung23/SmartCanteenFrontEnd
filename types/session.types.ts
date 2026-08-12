@@ -135,10 +135,26 @@ export interface SessionDishQuantity {
   orderedQuantity: number;
 }
 
+export interface SessionCategoryQuantity {
+  categoryId: string;
+  categoryName: string;
+  orderedQuantity: number;
+  preparedQuantity: number | null;
+  dishes: {
+    dishId: string;
+    dishName: string;
+    categoryId?: string;
+    categoryName?: string;
+    orderedQuantity: number;
+    preparedQuantity?: number | null;
+  }[];
+}
+
 /** Response of GET /api/sessions/{id}/dish-quantities (Manager only). */
 export interface SessionDishQuantities {
   sessionId: string;
   sessionName: string;
   totalOrderedQuantity: number;
+  categories?: SessionCategoryQuantity[];
   dishes: SessionDishQuantity[];
 }
