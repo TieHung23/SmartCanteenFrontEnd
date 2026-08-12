@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Info,
   Clock,
+  Copy,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -75,7 +76,8 @@ export default function CheckoutPage() {
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState(0);
+  const [topUpAmountStr, setTopUpAmountStr] = useState("50000");
+  const topUpAmount = useMemo(() => Number(topUpAmountStr) || 0, [topUpAmountStr]);
   const [topUpMethod, setTopUpMethod] = useState(4);
   const [isTopUpping, setIsTopUpping] = useState(false);
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
@@ -982,7 +984,7 @@ export default function CheckoutPage() {
                     {!isTopUpOpen ? (
                       <button
                         onClick={() => {
-                          setTopUpAmount(Math.max(50000, neededPoints * 1000));
+                          setTopUpAmountStr(String(Math.max(10000, neededPoints * 1000)));
                           setIsTopUpOpen(true);
                         }}
                         disabled={expiredSessions.length > 0}
@@ -1003,6 +1005,11 @@ export default function CheckoutPage() {
                               <p className="text-sm font-bold text-gray-800">
                                 Tạo yêu cầu nạp tiền thành công!
                               </p>
+                              {topUpResult.gatewayOrderId && (
+                                <p className="text-[10px] text-gray-400 mt-0.5 font-mono">
+                                  Mã GD: {topUpResult.gatewayOrderId}
+                                </p>
+                              )}
                               <p className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
                                 {formatPts(topUpResult.amountVnd)} VND {" → "}
                                 <PtsDisplay
@@ -1037,7 +1044,7 @@ export default function CheckoutPage() {
 
                             {topUpResult.paymentContent && (
                               <div className="bg-white border border-dashed border-gray-200 rounded-xl p-3 text-center">
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">
                                   Nội dung chuyển khoản chuẩn
                                 </p>
                                 <button
@@ -1045,9 +1052,11 @@ export default function CheckoutPage() {
                                     navigator.clipboard.writeText(topUpResult.paymentContent || "");
                                     toast.success("Đã sao chép vào bộ nhớ tạm!");
                                   }}
-                                  className="text-xs font-black text-[#D35400] tracking-wider bg-gray-50 py-2 px-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full truncate"
+                                  className="text-xs font-black text-[#D35400] font-mono tracking-wider bg-orange-50/50 hover:bg-orange-100/60 py-2.5 px-3 rounded-lg border border-orange-100 transition-colors w-full break-all select-all flex items-center justify-center gap-2 group"
+                                  title="Bấm để sao chép"
                                 >
-                                  {topUpResult.paymentContent}
+                                  <span>{topUpResult.paymentContent}</span>
+                                  <Copy className="w-3.5 h-3.5 shrink-0 text-[#D35400] group-hover:scale-110 transition-transform" />
                                 </button>
                               </div>
                             )}
@@ -1070,15 +1079,39 @@ export default function CheckoutPage() {
                           </div>
                         ) : (
                           <>
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                Số tiền (VND)
-                              </label>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                                  Số tiền (VND)
+                                </label>
+                                {topUpAmount > 0 && (
+                                  <span className="text-xs font-black text-[#D35400] flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
+                                    = {formatPts(Math.floor(topUpAmount / 1000))} pts
+                                  </span>
+                                )}
+                              </div>
+
+                              {neededPoints > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTopUpAmountStr(String(Math.max(10000, neededPoints * 1000)))
+                                  }
+                                  className="w-full py-2 px-3 bg-orange-500/10 hover:bg-orange-500/20 text-[#D35400] border border-orange-200 rounded-xl text-xs font-bold transition-all flex items-center justify-between"
+                                >
+                                  <span>⚡ Nạp vừa đủ số điểm thiếu:</span>
+                                  <span className="font-extrabold">
+                                    {formatPts(neededPoints * 1000)} VND ({neededPoints} pts)
+                                  </span>
+                                </button>
+                              )}
+
                               <div className="grid grid-cols-3 gap-1.5">
                                 {[50000, 100000, 200000].map((amt) => (
                                   <button
                                     key={amt}
-                                    onClick={() => setTopUpAmount(amt)}
+                                    type="button"
+                                    onClick={() => setTopUpAmountStr(String(amt))}
                                     className={`py-2 rounded-xl text-xs font-bold transition-all border ${
                                       topUpAmount === amt
                                         ? "bg-white border-[#D35400] text-[#D35400] shadow-xs"
@@ -1089,17 +1122,46 @@ export default function CheckoutPage() {
                                   </button>
                                 ))}
                               </div>
-                              <input
-                                type="number"
-                                value={topUpAmount}
-                                onChange={(e) => setTopUpAmount(Number(e.target.value) || 0)}
-                                min={10000}
-                                step={10000}
-                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400]"
-                              />
+
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={topUpAmountStr}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, "");
+                                    const clean = raw.replace(/^0+/, "") || "";
+                                    setTopUpAmountStr(clean);
+                                  }}
+                                  placeholder="Nhập số tiền VND..."
+                                  className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-[#D35400] focus:ring-1 focus:ring-[#D35400] transition-all pr-8"
+                                />
+                                {topUpAmountStr && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTopUpAmountStr("")}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-5 h-5 flex items-center justify-center transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+
+                              {topUpAmount > 0 && topUpAmount < 10000 && (
+                                <p className="text-[11px] text-amber-600 font-bold flex items-center gap-1 mt-1">
+                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                  Số tiền nạp tối thiểu là 10.000 VND (tương đương 10 pts)
+                                </p>
+                              )}
+                              {topUpAmount > 10000000 && (
+                                <p className="text-[11px] text-red-500 font-bold flex items-center gap-1 mt-1">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  Số tiền nạp tối đa là 10.000.000 VND
+                                </p>
+                              )}
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 pt-1">
                               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                                 Phương thức thanh toán
                               </label>
@@ -1131,7 +1193,9 @@ export default function CheckoutPage() {
                             <div className="flex gap-2 pt-2">
                               <button
                                 onClick={handleTopUp}
-                                disabled={isTopUpping || topUpAmount < 10000}
+                                disabled={
+                                  isTopUpping || topUpAmount < 10000 || topUpAmount > 10000000
+                                }
                                 className="flex-1 py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/10"
                               >
                                 {isTopUpping && <Loader2 className="w-4 h-4 animate-spin" />}
