@@ -14,7 +14,7 @@ import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver"
 import { getSafeUserAvatar } from "@/lib/utils";
 import { toast } from "sonner";
 
-export default function Navbar() {
+export default function Navbar({ isTransparent = false }: { isTransparent?: boolean }) {
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -24,6 +24,40 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY < 100) {
+        setShowNavbar(true);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
   const { getCartCount, openCart } = useCart();
   const totalCount = getCartCount();
 
@@ -113,9 +147,21 @@ export default function Navbar() {
   const getSafeAvatar = (url: string | null | undefined, id?: string, name?: string) => {
     return getSafeUserAvatar(url, id || name);
   };
+  const headerClass = `w-full px-4 sm:px-6 py-4 z-50 flex justify-center transition-all duration-300 ${
+    isTransparent ? "fixed left-0" : "sticky"
+  } top-0 ${showNavbar ? "translate-y-0" : "-translate-y-full"}`;
+
+  const containerClass = `w-full max-w-5xl flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16 gap-2 transition-all duration-300 rounded-full ${
+    isScrolled
+      ? "bg-white/90 backdrop-blur-xl shadow-lg"
+      : isTransparent
+        ? "bg-white/30 backdrop-blur-md border border-white/50"
+        : "bg-white shadow-sm"
+  }`;
+
   return (
-    <header className="w-full px-3 sm:px-6 py-3 bg-[#ffefe7]">
-      <div className="max-w-7xl mx-auto flex items-center justify-between bg-white border border-gray-100 rounded-full shadow-sm px-3 sm:px-5 h-14 sm:h-16 gap-1 sm:gap-3">
+    <header className={headerClass}>
+      <div className={containerClass}>
         <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Image
             src="/logo.png"
