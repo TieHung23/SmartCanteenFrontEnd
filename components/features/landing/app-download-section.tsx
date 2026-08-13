@@ -83,15 +83,10 @@ export default function AppDownloadSection() {
                       Khu A, ĐHQG <span className="text-[#D35400]">▼</span>
                     </p>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-orange-200 overflow-hidden border border-orange-300">
-                    <Image
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&w=100&q=80"
-                      alt="Avatar"
-                      fill
-                      sizes="32px"
-                      className="object-cover"
-                    />
-                  </div>
+                  <div
+                    className="w-8 h-8 rounded-full bg-white border border-orange-300"
+                    aria-label="Food image placeholder"
+                  />
                 </div>
 
                 {/* Banner */}
