@@ -7,7 +7,7 @@ import { userService, type UpdateProfilePayload } from "@/services/user.service"
 import { authService } from "@/services/auth.service";
 import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getSafeUserAvatar } from "@/lib/utils";
 
 export default function StaffProfilePage() {
   const [activeTab, setActiveTab] = useState<"info" | "password">("info");
@@ -157,52 +157,53 @@ export default function StaffProfilePage() {
       </div>
 
       {/* ── USER BANNER CARD ── */}
-      <div className="bg-white rounded-3xl border border-gray-100 p-7 shadow-xs flex flex-col sm:flex-row items-center gap-6">
-        <div className="relative group shrink-0">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden bg-orange-50 border-2 border-orange-200 flex items-center justify-center text-[#D35400] shadow-xs relative">
-            {previewUrl ? (
-              <Image src={previewUrl} alt="Avatar" fill className="object-cover" />
-            ) : (
-              <User className="w-12 h-12" />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="absolute inset-0 bg-black/50 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-          >
-            <Camera className="w-8 h-8 text-white" />
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*"
-            className="hidden"
-          />
-        </div>
+      {(() => {
+        const avatarSrc = getSafeUserAvatar(previewUrl, profile?.id || profile?.name);
+        return (
+          <div className="bg-white rounded-3xl border border-gray-100 p-7 shadow-xs flex flex-col sm:flex-row items-center gap-6">
+            <div className="relative group shrink-0">
+              <div className="w-24 h-24 rounded-3xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center shadow-xs relative">
+                <Image src={avatarSrc} alt="Avatar" fill className="object-cover" />
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/50 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+              >
+                <Camera className="w-8 h-8 text-white" />
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+            </div>
 
-        <div className="text-center sm:text-left flex-1 min-w-0 space-y-1">
-          <h2 className="text-2xl font-black text-gray-900 truncate">
-            {profile.name || "Nhân viên Canteen"}
-          </h2>
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 pt-1">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-              <ShieldCheck className="w-4 h-4" />
-              {profile.role}
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-              <Mail className="w-3.5 h-3.5" />
-              {profile.email}
-            </span>
-            {avatarFile && (
-              <span className="inline-flex items-center text-xs text-amber-700 font-bold bg-amber-50 border border-amber-200 px-3.5 py-1 rounded-full">
-                Ảnh đại diện chưa lưu
-              </span>
-            )}
+            <div className="text-center sm:text-left flex-1 min-w-0 space-y-1">
+              <h2 className="text-2xl font-black text-gray-900 truncate">
+                {profile?.name || "Nhân viên Canteen"}
+              </h2>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 pt-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                  <ShieldCheck className="w-4 h-4" />
+                  {profile?.role || "Staff"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                  <Mail className="w-3.5 h-3.5" />
+                  {profile?.email || "Chưa cập nhật email"}
+                </span>
+                {avatarFile && (
+                  <span className="inline-flex items-center text-xs text-amber-700 font-bold bg-amber-50 border border-amber-200 px-3.5 py-1 rounded-full">
+                    Ảnh đại diện chưa lưu
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── TAB SWITCHER BAR ── */}
       <div className="flex bg-gray-100/80 border border-gray-200/80 p-1.5 rounded-3xl">

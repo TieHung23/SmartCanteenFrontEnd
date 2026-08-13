@@ -3,17 +3,17 @@ export type VerificationDocumentType = 1 | 2 | 3;
 export type VerificationStatusType = 0 | 1 | 2 | 3 | 4;
 
 export const DOCUMENT_TYPE_LABEL: Record<VerificationDocumentType, string> = {
-  1: "Student Card",
-  2: "Transcript",
-  3: "Other",
+  1: "Thẻ sinh viên",
+  2: "Bảng điểm",
+  3: "Khác",
 };
 
 export const STATUS_LABEL: Record<VerificationStatusType, string> = {
-  0: "Pending",
-  1: "Pending",
-  2: "Approved",
-  3: "Rejected",
-  4: "Expired",
+  0: "Chưa nộp",
+  1: "Đang chờ duyệt",
+  2: "Đã duyệt",
+  3: "Bị từ chối",
+  4: "Hết hạn",
 };
 
 export interface VerificationMeResponse {

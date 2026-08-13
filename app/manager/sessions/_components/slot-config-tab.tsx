@@ -54,7 +54,7 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
 
   const handleOpenArmDetail = async (armId: string) => {
     try {
-      const data = await robotArmService.getById(armId);
+      const data = await robotArmService.getById(armId, sessionId);
       setDetailArm(data);
     } catch {
       toast.error("Không thể tải chi tiết tay máy robot.");
@@ -80,7 +80,7 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
       setError(null);
       const [configsData, armsData, traysData, slotsData] = await Promise.all([
         slotConfigurationService.getBySession(sessionId),
-        robotArmService.getList().catch(() => [] as RobotArm[]),
+        robotArmService.getList(sessionId).catch(() => [] as RobotArm[]),
         trayService.getPool().catch(() => null),
         pickupSlotService.getList().catch(() => null),
       ]);

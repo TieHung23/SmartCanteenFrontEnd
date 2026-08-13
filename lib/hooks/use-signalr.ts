@@ -16,13 +16,51 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 
 type EventHandler = (data: NotificationItem) => void;
 
+export interface OrderStatusChangedPayload {
+  orderId: string;
+  status: number;
+  statusName: string;
+}
+
+export type OrderStatusChangedHandler = (data: OrderStatusChangedPayload) => void;
+
+export const ORDER_STATUS_LABELS_VI: Record<string | number, string> = {
+  0: "Chờ xử lý",
+  Pending: "Chờ xử lý",
+  4: "Đang chuẩn bị",
+  Preparing: "Đang chuẩn bị",
+  1: "Sẵn sàng nhận món",
+  ReadyForPickup: "Sẵn sàng nhận món",
+  2: "Đã hoàn thành",
+  Completed: "Đã hoàn thành",
+  3: "Đã hủy đơn",
+  Cancelled: "Đã hủy đơn",
+  7: "Đã hết hạn",
+  Expired: "Đã hết hạn",
+};
+
+export function getOrderStatusLabelVi(status: number | string, statusName?: string): string {
+  if (statusName && ORDER_STATUS_LABELS_VI[statusName]) {
+    return ORDER_STATUS_LABELS_VI[statusName];
+  }
+  if (status !== undefined && ORDER_STATUS_LABELS_VI[status]) {
+    return ORDER_STATUS_LABELS_VI[status];
+  }
+  return statusName || `Trạng thái ${status}`;
+}
+
 let globalConnection: HubConnection | null = null;
 let eventHandlers: EventHandler[] = [];
+let orderStatusHandlers: OrderStatusChangedHandler[] = [];
 let isStarting = false;
 let reconnectAttempts = 0;
 
 function notifyHandlers(notification: NotificationItem) {
   eventHandlers.forEach((handler) => handler(notification));
+}
+
+function notifyOrderStatusHandlers(payload: OrderStatusChangedPayload) {
+  orderStatusHandlers.forEach((handler) => handler(payload));
 }
 
 async function startConnection() {
@@ -55,6 +93,10 @@ async function startConnection() {
 
     globalConnection.on("NotificationReceived", (notification: NotificationItem) => {
       notifyHandlers(notification);
+    });
+
+    globalConnection.on("OrderStatusChanged", (payload: OrderStatusChangedPayload) => {
+      notifyOrderStatusHandlers(payload);
     });
 
     globalConnection.onreconnecting(() => {
@@ -109,28 +151,43 @@ async function restartConnection() {
   await startConnection();
 }
 
-export function useSignalr(handler?: EventHandler) {
+export function useSignalr(
+  handler?: EventHandler,
+  onOrderStatusChanged?: OrderStatusChangedHandler,
+) {
   const handlerRef = useRef<EventHandler | undefined>(handler);
+  const orderStatusHandlerRef = useRef<OrderStatusChangedHandler | undefined>(onOrderStatusChanged);
 
   useEffect(() => {
     handlerRef.current = handler;
+    orderStatusHandlerRef.current = onOrderStatusChanged;
   });
 
   useEffect(() => {
+    if (!handler) return;
     const wrappedHandler: EventHandler = (notification) => {
       handlerRef.current?.(notification);
     };
 
-    if (handler) {
-      eventHandlers.push(wrappedHandler);
-    }
+    eventHandlers.push(wrappedHandler);
 
     return () => {
-      if (handler) {
-        eventHandlers = eventHandlers.filter((h) => h !== wrappedHandler);
-      }
+      eventHandlers = eventHandlers.filter((h) => h !== wrappedHandler);
     };
   }, [handler]);
+
+  useEffect(() => {
+    if (!onOrderStatusChanged) return;
+    const wrappedOrderStatusHandler: OrderStatusChangedHandler = (payload) => {
+      orderStatusHandlerRef.current?.(payload);
+    };
+
+    orderStatusHandlers.push(wrappedOrderStatusHandler);
+
+    return () => {
+      orderStatusHandlers = orderStatusHandlers.filter((h) => h !== wrappedOrderStatusHandler);
+    };
+  }, [onOrderStatusChanged]);
 
   const connect = useCallback(async () => {
     await startConnection();
@@ -141,6 +198,10 @@ export function useSignalr(handler?: EventHandler) {
   }, []);
 
   return { connect, disconnect };
+}
+
+export function useOrderStatusSignalr(handler: OrderStatusChangedHandler) {
+  return useSignalr(undefined, handler);
 }
 
 export {

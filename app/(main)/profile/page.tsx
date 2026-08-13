@@ -24,6 +24,7 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  Copy,
 } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 import {
@@ -39,6 +40,8 @@ import { useSignalr } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 
 import { getSafeUserAvatar } from "@/lib/utils";
+import { verificationService } from "@/services/verification.service";
+import type { VerificationStatusType } from "@/types/verification.types";
 
 const getRoleName = (roleId: number) => {
   switch (roleId) {
@@ -197,10 +200,22 @@ export default function ProfilePage() {
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatusType | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchVerificationStatus = useCallback(async () => {
+    try {
+      const res = await verificationService.getMyVerification();
+      if (res) {
+        setVerificationStatus(res.status);
+      }
+    } catch (error) {
+      console.error("Failed to fetch verification status:", error);
+    }
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     try {
@@ -234,12 +249,13 @@ export default function ProfilePage() {
       (notification: NotificationItem) => {
         refreshProfile();
         fetchWalletTransactions();
+        fetchVerificationStatus();
         if (notification.type === "Payment.Completed") {
           toast.success("Nạp tiền thành công! Số dư đã được cập nhật.");
           setTopUpResult(null);
         }
       },
-      [refreshProfile, fetchWalletTransactions],
+      [refreshProfile, fetchWalletTransactions, fetchVerificationStatus],
     ),
   );
 
@@ -250,7 +266,7 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const initProfile = async () => {
       try {
         const response = (await userService.getProfile()) as unknown as UserProfileResponse & {
           value?: UserProfileResponse;
@@ -265,9 +281,10 @@ export default function ProfilePage() {
       } finally {
         setIsLoading(false);
       }
+      await fetchVerificationStatus();
     };
-    fetchProfile();
-  }, []);
+    initProfile();
+  }, [fetchVerificationStatus]);
 
   useEffect(() => {
     if (activeTab === "wallet") {
@@ -721,26 +738,92 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    <Link
-                      href={ROUTES.VERIFICATION}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                          <ShieldCheck className="w-4 h-4 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Định danh tài khoản</p>
-                          <p className="text-xs font-medium text-amber-600">Chưa định danh</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#D35400] group-hover:underline">
-                          Nộp giấy tờ
-                        </span>
-                        <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-[#D35400]" />
-                      </div>
-                    </Link>
+                    {(() => {
+                      const isIdentityVerified =
+                        verificationStatus === 2 ||
+                        (profile?.status === 1 &&
+                          verificationStatus !== 1 &&
+                          verificationStatus !== 3);
+                      const isPendingVerification = verificationStatus === 1;
+                      const isRejectedVerification = verificationStatus === 3;
+
+                      return (
+                        <Link
+                          href={ROUTES.VERIFICATION}
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-all group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                isIdentityVerified
+                                  ? "bg-emerald-100"
+                                  : isPendingVerification
+                                    ? "bg-blue-100"
+                                    : isRejectedVerification
+                                      ? "bg-red-100"
+                                      : "bg-amber-100"
+                              }`}
+                            >
+                              <ShieldCheck
+                                className={`w-4 h-4 ${
+                                  isIdentityVerified
+                                    ? "text-emerald-600"
+                                    : isPendingVerification
+                                      ? "text-blue-600"
+                                      : isRejectedVerification
+                                        ? "text-red-500"
+                                        : "text-amber-600"
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-800">Định danh tài khoản</p>
+                              <p
+                                className={`text-xs font-medium ${
+                                  isIdentityVerified
+                                    ? "text-emerald-600"
+                                    : isPendingVerification
+                                      ? "text-blue-600"
+                                      : isRejectedVerification
+                                        ? "text-red-500"
+                                        : "text-amber-600"
+                                }`}
+                              >
+                                {isIdentityVerified
+                                  ? "Đã định danh"
+                                  : isPendingVerification
+                                    ? "Đang chờ duyệt"
+                                    : isRejectedVerification
+                                      ? "Bị từ chối"
+                                      : "Chưa định danh"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-xs font-bold ${
+                                isIdentityVerified
+                                  ? "text-emerald-600"
+                                  : "text-[#D35400] group-hover:underline"
+                              }`}
+                            >
+                              {isIdentityVerified
+                                ? "Đã xác thực"
+                                : isPendingVerification
+                                  ? "Xem tiến độ"
+                                  : isRejectedVerification
+                                    ? "Nộp lại giấy tờ"
+                                    : "Nộp giấy tờ"}
+                            </span>
+                            {isIdentityVerified ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            ) : (
+                              <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-[#D35400]" />
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1115,9 +1198,11 @@ export default function ProfilePage() {
                                 navigator.clipboard.writeText(topUpResult.paymentContent || "");
                                 toast.success("Đã copy nội dung chuyển khoản!");
                               }}
-                              className="text-sm font-black text-[#D35400] tracking-wider bg-white px-4 py-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full"
+                              className="text-sm font-black text-[#D35400] font-mono tracking-wider bg-white px-4 py-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full break-all select-all flex items-center justify-center gap-2 group"
+                              title="Bấm để sao chép"
                             >
-                              {topUpResult.paymentContent}
+                              <span>{topUpResult.paymentContent}</span>
+                              <Copy className="w-4 h-4 shrink-0 text-[#D35400] group-hover:scale-110 transition-transform" />
                             </button>
                           </div>
                         )}

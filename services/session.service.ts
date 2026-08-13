@@ -6,6 +6,7 @@ import {
   type SessionListItem,
   type CreateSessionRequest,
   type SessionCalendarData,
+  type SessionDishQuantities,
 } from "@/types/session.types";
 import { SessionDetailSchema } from "@/types/session.types";
 
@@ -105,7 +106,7 @@ export const sessionService = {
 
   finalizeSession: async (
     id: string,
-    preparedDishes: { dishId: string; preparedQuantity: number }[],
+    preparedDishes: { dishId: string; preparedQuantity: number; suggestedDishId?: string | null }[],
   ): Promise<ApiResponse<{ message: string }>> => {
     const response = (await apiClient.post<ApiResponse<{ message: string }>>(
       API_ENDPOINTS.SESSION.FINALIZE(id),
@@ -113,6 +114,30 @@ export const sessionService = {
     )) as unknown as ApiResponse<{ message: string }>;
 
     return response;
+  },
+
+  finalizeSessionNow: async (
+    id: string,
+    preparedDishes: { dishId: string; preparedQuantity: number; suggestedDishId?: string | null }[],
+  ): Promise<ApiResponse<{ message: string }>> => {
+    const response = (await apiClient.post<ApiResponse<{ message: string }>>(
+      API_ENDPOINTS.SESSION.FINALIZE_NOW(id),
+      { preparedDishes },
+    )) as unknown as ApiResponse<{ message: string }>;
+
+    return response;
+  },
+
+  /**
+   * Portions currently on order per dish — the minimum the kitchen must prepare.
+   * Throws on failure so callers can tell "no orders" apart from "could not load".
+   */
+  getSessionDishQuantities: async (id: string): Promise<SessionDishQuantities> => {
+    const response = (await apiClient.get<ApiResponse<SessionDishQuantities>>(
+      API_ENDPOINTS.SESSION.DISH_QUANTITIES(id),
+    )) as unknown as ApiResponse<SessionDishQuantities>;
+
+    return response.value;
   },
 
   getAllDishes: async (): Promise<Dish[]> => {

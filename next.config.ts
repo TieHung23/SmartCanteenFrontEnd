@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "*.gstatic.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "encrypted-tbn0.gstatic.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.dicebear.com",
         pathname: "/**",
       },
@@ -36,7 +46,17 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "lh3.googleusercontent.com", // Cực kỳ quan trọng để hiện avatar tài khoản Google OAuth
+        hostname: "*.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ggpht.com",
         pathname: "/**",
       },
       {
@@ -58,6 +78,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "api.sepay.vn",
         pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
       },
     ],
   },

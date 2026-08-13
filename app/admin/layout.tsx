@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import { cn } from "@/lib/utils";
+import { cn, getSafeUserAvatar } from "@/lib/utils";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ManagerBackground } from "../manager/_components/manager-background";
 import {
@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-admin",
 });
 
@@ -75,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const displayName = user?.name || "Quản Trị Viên";
   const displayEmail = user?.email || "admin@canteen.vn";
-  const avatarUrl = user?.imgUrl || null;
+  const avatarUrl = getSafeUserAvatar(user?.imgUrl, user?.id || user?.name);
 
   if (loading) {
     return (
@@ -207,18 +208,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {user && (
           <div className="border-t border-gray-100 pt-4 bg-white shrink-0">
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50/80 border border-gray-100/50">
-              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shrink-0 shadow-xs font-black text-base">
-                {avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    alt={displayName}
-                    width={40}
-                    height={40}
-                    className="object-cover w-full h-full"
-                  />
-                ) : (
-                  displayName.charAt(0).toUpperCase()
-                )}
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 text-white flex items-center justify-center shrink-0 shadow-xs border border-gray-200">
+                <Image
+                  src={avatarUrl}
+                  alt={displayName}
+                  width={40}
+                  height={40}
+                  className="object-cover w-full h-full"
+                />
               </div>
               <div className="flex-1 min-w-0 space-y-0.5">
                 <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>

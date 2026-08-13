@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import {
   Loader2,
@@ -22,6 +22,11 @@ import { sessionService } from "@/services/session.service";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 import type { OrderStatus } from "@/types/order.types";
+import {
+  useOrderStatusSignalr,
+  getOrderStatusLabelVi,
+  type OrderStatusChangedPayload,
+} from "@/lib/hooks/use-signalr";
 
 interface OrderItem {
   dishName?: string;
@@ -67,47 +72,70 @@ export default function StaffOrdersPage() {
   const [manualQrToken, setManualQrToken] = useState("");
   const [cancelReason, setCancelReason] = useState("");
 
+  const fetchOrders = useCallback(async () => {
+    try {
+      const statusFilter = filter !== "all" ? (filter as OrderStatus) : undefined;
+
+      const data = await orderService.getAll({
+        pageSize: 100,
+        pageNumber: 1,
+        ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+      });
+      let items = (data?.items || []) as unknown as StaffOrder[];
+
+      if (items.length === 0) {
+        const activeSessions = await sessionService.getSessions({ pageSize: 10 });
+        const currentSession =
+          activeSessions.items.find(
+            (s) => s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date()),
+          ) || activeSessions.items[0];
+        if (currentSession) {
+          const sessionData = await orderService.getManagerOrdersBySession(currentSession.id, {
+            pageSize: 100,
+            pageNumber: 1,
+            ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+          });
+          items = (sessionData?.items || []) as unknown as StaffOrder[];
+        }
+      }
+
+      setOrders(items);
+    } catch {
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-
-    const fetchOrders = async () => {
-      try {
-        const statusFilter = filter !== "all" ? (filter as OrderStatus) : undefined;
-
-        const data = await orderService.getAll({
-          pageSize: 100,
-          pageNumber: 1,
-          ...(statusFilter !== undefined ? { status: statusFilter } : {}),
-        });
-        let items = (data?.items || []) as unknown as StaffOrder[];
-
-        if (items.length === 0) {
-          const activeSessions = await sessionService.getSessions({ pageSize: 10 });
-          const currentSession =
-            activeSessions.items.find(
-              (s) => s.isActive && (!s.availableTo || new Date(s.availableTo) > new Date()),
-            ) || activeSessions.items[0];
-          if (currentSession) {
-            const sessionData = await orderService.getManagerOrdersBySession(currentSession.id, {
-              pageSize: 100,
-              pageNumber: 1,
-              ...(statusFilter !== undefined ? { status: statusFilter } : {}),
-            });
-            items = (sessionData?.items || []) as unknown as StaffOrder[];
-          }
-        }
-
-        setOrders(items);
-      } catch {
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
-  }, [filter]);
+  }, [fetchOrders]);
+
+  useOrderStatusSignalr(
+    useCallback(
+      (evt: OrderStatusChangedPayload) => {
+        const labelVi = getOrderStatusLabelVi(evt.status, evt.statusName);
+        const shortId = evt.orderId ? evt.orderId.slice(0, 8) : "";
+        toast({
+          title: "Cập nhật đơn hàng real-time",
+          description: `Đơn #${shortId} vừa đổi sang: ${labelVi}`,
+        });
+        setOrders((prev) =>
+          prev.map((o) => {
+            const id = o.id || o.Id;
+            if (id && id.toLowerCase() === evt.orderId.toLowerCase()) {
+              return { ...o, status: evt.status, Status: evt.status };
+            }
+            return o;
+          }),
+        );
+        fetchOrders();
+      },
+      [fetchOrders, toast],
+    ),
+  );
 
   const filteredOrders = orders.filter((order) => {
     const query = searchQuery.toLowerCase().trim();

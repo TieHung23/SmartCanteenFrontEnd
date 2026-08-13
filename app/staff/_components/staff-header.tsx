@@ -5,7 +5,7 @@ import { Bell, Search, Menu, X } from "lucide-react";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 import { useUser } from "@/lib/stores/use-user";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
+import { cn, getSafeUserAvatar } from "@/lib/utils";
 
 export function StaffHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const { query, setQuery } = useGlobalSearch();
@@ -39,7 +39,7 @@ export function StaffHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   }, []);
 
   const displayName = profile?.name || "Nhân Viên";
-  const avatarUrl = profile?.imgUrl || null;
+  const avatarUrl = getSafeUserAvatar(profile?.imgUrl, profile?.id || profile?.name);
 
   return (
     <header className="h-20 border-b border-gray-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between px-4 md:px-8 shrink-0 gap-4">
@@ -97,20 +97,14 @@ export function StaffHeader({ onMenuClick }: { onMenuClick?: () => void }) {
         </button>
         <div className="h-8 w-px bg-gray-200 hidden sm:block" />
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-[#FF4C24]/10 flex items-center justify-center overflow-hidden border-2 border-white shadow-xs shrink-0">
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={displayName}
-                width={44}
-                height={44}
-                className="object-cover w-full h-full"
-              />
-            ) : (
-              <span className="text-[#FF4C24] font-extrabold text-lg">
-                {displayName.charAt(0).toUpperCase()}
-              </span>
-            )}
+          <div className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-xs shrink-0">
+            <Image
+              src={avatarUrl}
+              alt={displayName}
+              width={44}
+              height={44}
+              className="object-cover w-full h-full"
+            />
           </div>
           <div className="hidden sm:block">
             <p className="text-sm font-bold text-gray-900 leading-tight">{displayName}</p>

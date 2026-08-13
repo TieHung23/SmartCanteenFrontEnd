@@ -11,8 +11,13 @@ import { normalizeRefundStatus } from "@/types/refund.types";
 import { ROUTES } from "@/config/routes";
 import { ShoppingBag, Calendar, Filter, X, ChevronDown, Search, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSignalr } from "@/lib/hooks/use-signalr";
+import {
+  useSignalr,
+  getOrderStatusLabelVi,
+  type OrderStatusChangedPayload,
+} from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
+import { toast } from "sonner";
 import { OrdersStats } from "@/components/features/orders/orders-stats";
 import { OrderCard } from "@/components/features/orders/order-card";
 
@@ -70,6 +75,25 @@ export default function OrdersPage() {
             })
             .catch(() => {});
         }
+      },
+      [queryClient],
+    ),
+    useCallback(
+      (evt: OrderStatusChangedPayload) => {
+        const labelVi = getOrderStatusLabelVi(evt.status, evt.statusName);
+        const shortId = evt.orderId ? evt.orderId.slice(0, 8) : "";
+        toast.info(`Đơn hàng #${shortId} chuyển sang: ${labelVi}`);
+        queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+        refundService
+          .getMyRefunds()
+          .then((res) => {
+            const map: Record<string, number> = {};
+            (res?.items || []).forEach((r: { orderId: string; status: unknown }) => {
+              map[r.orderId] = normalizeRefundStatus(r.status);
+            });
+            setRefundMap(map);
+          })
+          .catch(() => {});
       },
       [queryClient],
     ),

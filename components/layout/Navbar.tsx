@@ -78,22 +78,33 @@ export default function Navbar({ isTransparent = false }: { isTransparent?: bool
       "Order.Created",
       "ChangeProposal.Created",
       "Refund.StatusChanged",
+      "Verification.Approved",
+      "Verification.Rejected",
+      "Verification.StatusChanged",
     ];
+    const refType = (n.referenceType || "").toLowerCase();
+    const notifType = (n.type || "").toLowerCase();
+    const title = (n.title || "").toLowerCase();
     const shouldNotify =
       navigableTypes.includes(n.type) ||
-      (n.referenceType && ["Order", "ChangeProposal", "Refund"].includes(n.referenceType));
+      (n.referenceType &&
+        ["Order", "ChangeProposal", "Refund", "Verification", "VerificationRequest"].includes(
+          n.referenceType,
+        )) ||
+      refType.includes("verification") ||
+      notifType.includes("verification") ||
+      title.includes("xác minh");
+
     if (shouldNotify) {
       toast.info(n.title, {
         description: n.message,
-        action: n.referenceId
-          ? {
-              label: "Xem",
-              onClick: async () => {
-                const targetUrl = await resolveNotificationTargetUrl(n);
-                window.location.href = targetUrl;
-              },
-            }
-          : undefined,
+        action: {
+          label: "Xem",
+          onClick: async () => {
+            const targetUrl = await resolveNotificationTargetUrl(n);
+            window.location.href = targetUrl;
+          },
+        },
         duration: 8000,
       });
     }

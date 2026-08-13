@@ -4,14 +4,47 @@ import type { NotificationItem } from "@/types/notification.types";
 
 /**
  * Resolves the destination URL for a given notification item.
- * Handles cases where referenceId is an orderId, proposalId, or refundId.
+ * Handles cases where referenceId/referenceType relates to order, proposal, refund, verification, wallet, etc.
  */
 export async function resolveNotificationTargetUrl(n: NotificationItem): Promise<string> {
-  if (!n.referenceId) return "/notifications";
-
-  const refId = n.referenceId.trim();
+  const refId = (n.referenceId || "").trim();
   const refType = (n.referenceType || "").toLowerCase();
   const notifType = (n.type || "").toLowerCase();
+  const title = (n.title || "").toLowerCase();
+  const message = (n.message || "").toLowerCase();
+
+  // Verification / Identity notifications
+  if (
+    refType.includes("verification") ||
+    notifType.includes("verification") ||
+    refType.includes("identity") ||
+    notifType.includes("identity") ||
+    title.includes("xác minh") ||
+    title.includes("xác thực") ||
+    message.includes("xác minh") ||
+    message.includes("xác thực") ||
+    title.includes("verification")
+  ) {
+    if (refType.includes("admin") || notifType.includes("admin") || title.includes("admin")) {
+      return "/manager/verify";
+    }
+    return "/verification";
+  }
+
+  // Wallet / Transaction notifications
+  if (
+    refType.includes("wallet") ||
+    notifType.includes("wallet") ||
+    refType.includes("transaction") ||
+    notifType.includes("transaction") ||
+    title.includes("ví") ||
+    title.includes("nạp tiền") ||
+    title.includes("rút tiền")
+  ) {
+    return "/wallet/transactions";
+  }
+
+  if (!refId) return "/notifications";
 
   // ChangeProposal notifications
   if (refType.includes("changeproposal") || notifType.includes("changeproposal")) {
@@ -39,6 +72,6 @@ export async function resolveNotificationTargetUrl(n: NotificationItem): Promise
     return `/orders/${refId}`;
   }
 
-  // Default for Order or any other referenceType
+  // Default for Order or any other referenceType with referenceId
   return `/orders/${refId}`;
 }

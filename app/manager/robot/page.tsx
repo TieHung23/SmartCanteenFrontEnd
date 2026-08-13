@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -14,12 +14,13 @@ import {
   WifiOff,
   Clock,
   RefreshCw,
-  Eye,
+  Calendar,
 } from "lucide-react";
 import { robotArmService } from "@/services/robot-arm.service";
+import { sessionService } from "@/services/session.service";
+import type { SessionListItem } from "@/types/session.types";
 import type {
   RobotArm,
-  RobotArmDetail,
   RobotArmStatus,
   CreateRobotArmPayload,
   UpdateRobotArmPayload,
@@ -34,7 +35,7 @@ const STATUS_CONFIG: Record<
   { label: string; dot: string; bg: string; text: string; border: string; icon: typeof Cpu }
 > = {
   Idle: {
-    label: "Rảnh",
+    label: "Sẵn sàng",
     dot: "bg-emerald-400",
     bg: "bg-emerald-50",
     text: "text-emerald-700",
@@ -42,7 +43,7 @@ const STATUS_CONFIG: Record<
     icon: Zap,
   },
   Busy: {
-    label: "Đang hoạt động",
+    label: "Đang gắp món",
     dot: "bg-amber-400",
     bg: "bg-amber-50",
     text: "text-amber-700",
@@ -50,7 +51,7 @@ const STATUS_CONFIG: Record<
     icon: Clock,
   },
   Error: {
-    label: "Lỗi",
+    label: "Gặp sự cố",
     dot: "bg-red-400",
     bg: "bg-red-50",
     text: "text-red-700",
@@ -66,7 +67,7 @@ const STATUS_CONFIG: Record<
     icon: Wrench,
   },
   Offline: {
-    label: "Mất kết nối",
+    label: "Ngoại tuyến",
     dot: "bg-gray-300",
     bg: "bg-gray-50",
     text: "text-gray-500",
@@ -101,58 +102,67 @@ export default function ManagerRobotPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchArms = async () => {
+  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+
+  const fetchSessions = useCallback(async () => {
     try {
-      setError(null);
-      const data = await robotArmService.getList();
-      setArms(data);
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 401) {
-        setError(
-          "Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập. Vui lòng đăng nhập bằng tài khoản Manager.",
-        );
-      } else if (status === 403) {
-        setError("Tài khoản của bạn không có quyền truy cập chức năng này.");
-      } else {
-        setError("Không thể tải danh sách tay máy. Vui lòng thử lại.");
+      const res = await sessionService.getSessions({ pageSize: 100 });
+      const items = res.items || [];
+      setSessions(items);
+      if (items.length > 0 && !selectedSessionId) {
+        const active = items.find((s) => s.isActive) || items[0];
+        setSelectedSessionId(active.id);
+        return active.id;
       }
-      console.error(err);
+    } catch (err) {
+      console.error("Failed to fetch sessions:", err);
     }
-  };
+    return selectedSessionId;
+  }, [selectedSessionId]);
 
-  const [detailArm, setDetailArm] = useState<RobotArmDetail | null>(null);
+  const fetchArms = useCallback(
+    async (sessId?: string) => {
+      try {
+        setError(null);
+        const targetSessionId = sessId !== undefined ? sessId : selectedSessionId;
+        const data = await robotArmService.getList(targetSessionId || undefined);
+        setArms(data);
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 401) {
+          setError(
+            "Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập. Vui lòng đăng nhập bằng tài khoản Manager.",
+          );
+        } else if (status === 403) {
+          setError("Tài khoản của bạn không có quyền truy cập chức năng này.");
+        } else {
+          setError("Không thể tải danh sách tay máy. Vui lòng thử lại.");
+        }
+        console.error(err);
+      }
+    },
+    [selectedSessionId],
+  );
 
-  const handleOpenDetail = async (armId: string) => {
-    const armFromList = arms.find((a) => a.id === armId);
-    if (!armFromList) {
-      toast.error("Không tìm thấy tay máy.");
-      return;
-    }
-    try {
-      const data = await robotArmService.getById(armId);
-      setDetailArm(data);
-    } catch {
-      setDetailArm({
-        ...armFromList,
-        lanes: [],
-        createdAtUtc: armFromList.lastHeartbeatUtc ?? "",
-        updatedAtUtc: "",
-      });
-    }
+  const handleSessionChange = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setLoading(true);
+    fetchArms(sessionId).finally(() => setLoading(false));
   };
 
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       try {
-        await fetchArms();
+        const activeId = await fetchSessions();
+        await fetchArms(activeId);
       } finally {
         setLoading(false);
       }
     };
     init();
-  }, []);
+  }, [fetchSessions, fetchArms]);
 
   const openCreateModal = () => {
     setCreateForm({ code: "", ipAddress: "", stationIndex: 0, name: "" });
@@ -367,31 +377,48 @@ export default function ManagerRobotPage() {
         </div>
       )}
 
-      {/* ── Search Bar ── */}
-      <div className="flex items-center gap-4 w-full sm:w-auto flex-1 max-w-lg">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            placeholder="Tìm theo code, tên, IP..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+      {/* ── Search & Session Filter Bar ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto flex-1 max-w-lg">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              placeholder="Tìm theo code, tên, IP..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-12 pr-10 py-3.5 text-base bg-white border border-gray-200 rounded-3xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 transition-all shadow-2xs"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
-        <button
-          onClick={() => {}}
-          className="px-6 py-3.5 bg-gray-900 text-white rounded-3xl text-base font-bold hover:bg-gray-800 transition-all shadow-xs active:scale-98 shrink-0"
-        >
-          Tìm kiếm
-        </button>
+
+        {sessions.length > 0 && (
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-3xl border border-gray-200 shadow-2xs self-start sm:self-auto">
+            <Calendar className="w-4 h-4 text-[#D35400] shrink-0" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0">
+              Phiên phục vụ:
+            </span>
+            <select
+              value={selectedSessionId}
+              onChange={(e) => handleSessionChange(e.target.value)}
+              className="px-2 py-1 bg-transparent text-xs font-bold text-gray-800 outline-none cursor-pointer border-none"
+            >
+              <option value="">-- Tất cả phiên --</option>
+              {sessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} {s.isActive ? "(Đang hoạt động)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* ── Content ── */}
@@ -515,13 +542,6 @@ export default function ManagerRobotPage() {
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleOpenDetail(arm.id)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-all hover:bg-[#D35400] hover:text-white"
-                            title="Xem chi tiết"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
                             onClick={() => openEditModal(arm)}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-all hover:bg-[#D35400] hover:text-white"
                             title="Chỉnh sửa"
@@ -551,94 +571,6 @@ export default function ManagerRobotPage() {
             </p>
           </div>
         </div>
-      )}
-
-      {/* ── DETAIL MODAL ── */}
-      {detailArm && (
-        <Modal
-          isOpen={!!detailArm}
-          onClose={() => setDetailArm(null)}
-          title={`Chi tiết Tay Máy Robot ${detailArm.code} - ${detailArm.name}`}
-          size="lg"
-        >
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-2xl text-xs font-bold text-gray-700">
-              <div>
-                <p className="text-gray-400 uppercase text-[10px]">Mã trạm</p>
-                <p className="text-gray-900 text-sm font-black mt-0.5">{detailArm.code}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 uppercase text-[10px]">IP Address</p>
-                <p className="text-[#D35400] text-sm font-mono font-black mt-0.5">
-                  {detailArm.ipAddress}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 uppercase text-[10px]">Vị trí trạm</p>
-                <p className="text-gray-900 text-sm font-black mt-0.5">
-                  Trạm {detailArm.stationIndex}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 uppercase text-[10px]">Trạng thái</p>
-                <p className="text-emerald-700 text-sm font-black mt-0.5 uppercase">
-                  {detailArm.status}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-600 bg-white border border-gray-100 p-4 rounded-2xl">
-              <div>
-                <span className="text-gray-400">Heartbeat gần nhất:</span>{" "}
-                <span className="font-bold text-gray-800">
-                  {detailArm.lastHeartbeatUtc
-                    ? new Date(detailArm.lastHeartbeatUtc).toLocaleString("vi-VN")
-                    : "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400">Ngày tạo:</span>{" "}
-                <span className="font-bold text-gray-800">
-                  {detailArm.createdAtUtc
-                    ? new Date(detailArm.createdAtUtc).toLocaleString("vi-VN")
-                    : "—"}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">
-                Danh sách Lane phục vụ ({detailArm.lanes?.length || 0})
-              </h4>
-              {!detailArm.lanes || detailArm.lanes.length === 0 ? (
-                <p className="text-xs text-gray-400 italic bg-gray-50 p-4 rounded-xl text-center">
-                  Tay máy này chưa được gán phụ trách Lane nào.
-                </p>
-              ) : (
-                <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden shadow-xs">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-gray-50 font-black uppercase text-gray-400">
-                      <tr>
-                        <th className="px-4 py-3">Mã Lane</th>
-                        <th className="px-4 py-3">Món ăn</th>
-                        <th className="px-4 py-3">Sức chứa</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 font-bold">
-                      {detailArm.lanes.map((lane, idx) => (
-                        <tr key={lane.slotConfigurationId || idx} className="hover:bg-orange-50/20">
-                          <td className="px-4 py-3 font-mono text-[#D35400]">{lane.laneCode}</td>
-                          <td className="px-4 py-3 text-gray-900">{lane.dishName || "—"}</td>
-                          <td className="px-4 py-3 text-gray-700">{lane.capacity} khay</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </Modal>
       )}
 
       {/* ── CREATE MODAL ── */}
