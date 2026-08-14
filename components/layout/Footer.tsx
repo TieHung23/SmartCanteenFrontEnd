@@ -56,7 +56,7 @@ export default function Footer() {
             <ul className="flex flex-col gap-3 text-sm font-medium text-gray-300">
               <li className="flex gap-2">
                 <span className="font-bold text-orange-400">•</span>
-                <span>Khu Phố 6, P. Linh Trung, Tp. Thủ Đức, Tp. Hồ Chí Minh</span>
+                <span>Campus Đại học FPT, Khu Công nghệ cao, Quận 9, TP. HCM</span>
               </li>
               <li className="flex gap-2">
                 <span className="font-bold text-orange-400">•</span>

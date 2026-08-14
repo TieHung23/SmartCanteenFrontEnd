@@ -52,11 +52,11 @@ export default function HeroSection() {
       />
       <div className="max-w-7xl mx-auto w-full relative grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-4 items-center">
         <div className="flex flex-col items-start gap-5 z-20 w-full max-w-2xl">
-          <h1 className="text-5xl md:text-6xl lg:text-[4rem] xl:text-[4.5rem] text-gray-800 leading-[1.2] tracking-tight font-bold">
-            Giải Pháp <span className="text-[#c2410c]">Ăn Uống</span>
+          <h1 className="text-5xl md:text-6xl lg:text-[4rem] xl:text-[4.5rem] text-gray-900 leading-[1.2] tracking-tight font-black">
+            Giải Pháp <span className="text-[#c2410c] italic font-medium">Ăn Uống</span>
             <br />
             Thông Minh Cho <br />
-            <span className="text-[#f97316]">{currentText}</span>
+            <span className="text-[#f97316] italic font-medium">{currentText}</span>
             <span className="animate-pulse text-[#f97316] font-light">|</span>
           </h1>
 

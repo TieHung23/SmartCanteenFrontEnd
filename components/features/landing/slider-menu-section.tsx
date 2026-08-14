@@ -91,7 +91,7 @@ export default function SliderMenuSection() {
       <div className="w-full max-w-[75rem] mb-10 flex items-center gap-4 pl-4 md:pl-0">
         <div className="orange-motion w-2.5 h-16 md:h-20 bg-[#D35400] shrink-0 shadow-sm"></div>
         <div className="flex flex-col text-left">
-          <h2 className="text-3xl md:text-4xl font-black text-gray-900 font-serif drop-shadow-sm">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 drop-shadow-sm">
             Phiên Ăn Hôm Nay
           </h2>
           <p className="text-gray-500 mt-1 font-medium">Khám phá các ca phục vụ trong ngày</p>

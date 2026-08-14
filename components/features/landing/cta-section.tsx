@@ -14,7 +14,7 @@ export default function CtaSection() {
           <span className="text-[#D35400] font-bold tracking-widest text-xs uppercase flex items-center gap-2">
             SMART CANTEEN
           </span>
-          <h2 className="text-4xl md:text-5xl lg:text-[3.5rem] font-black text-gray-900 leading-tight tracking-tight">
+          <h2 className="text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-gray-900 leading-tight tracking-tight">
             Bắt Đầu Trải Nghiệm Ngay!
           </h2>
           {/* Decorative short orange line */}
