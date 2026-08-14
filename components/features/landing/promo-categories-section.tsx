@@ -45,7 +45,9 @@ export default function PromoCategoriesSection() {
         {/* Right Column: Our Categories */}
         <div className="flex flex-col justify-center px-4 md:px-8 mt-8 lg:mt-0">
           <div className="mb-10">
-            <h3 className="text-3xl font-black text-gray-800 tracking-tight">Tiện Ích Nổi Bật</h3>
+            <h3 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+              Tiện Ích Nổi Bật
+            </h3>
             <div className="orange-motion w-16 h-1 bg-[#D35400] mt-3 rounded-full"></div>
           </div>
 

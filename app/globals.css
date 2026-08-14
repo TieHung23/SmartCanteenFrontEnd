@@ -252,6 +252,15 @@
   animation: shimmerBorder 2s ease-in-out infinite;
 }
 
+header.not-transparent-nav + main {
+  border-top: 88px solid transparent;
+}
+@media (min-width: 640px) {
+  header.not-transparent-nav + main {
+    border-top: 96px solid transparent;
+  }
+}
+
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
 }
