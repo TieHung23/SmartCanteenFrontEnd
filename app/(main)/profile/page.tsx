@@ -600,36 +600,36 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Mã số sinh viên
-                    </label>
-                    <input
-                      type="text"
-                      name="studentId"
-                      value={
-                        profile.category === 2
-                          ? "Không áp dụng cho Giảng viên"
-                          : s(profile.studentId)
-                      }
-                      disabled
-                      className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
-                    />
-                  </div>
+                  {profile.category !== 2 && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Mã số sinh viên
+                        </label>
+                        <input
+                          type="text"
+                          name="studentId"
+                          value={s(profile.studentId)}
+                          disabled
+                          className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
+                        />
+                      </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Chuyên ngành / Lớp
-                    </label>
-                    <input
-                      type="text"
-                      name="majorOrClass"
-                      value={s(profile.majorOrClass)}
-                      onChange={handleInputChange}
-                      placeholder="VD: Công nghệ phần mềm"
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
-                    />
-                  </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Chuyên ngành / Lớp
+                        </label>
+                        <input
+                          type="text"
+                          name="majorOrClass"
+                          value={s(profile.majorOrClass)}
+                          onChange={handleInputChange}
+                          placeholder="VD: Công nghệ phần mềm"
+                          className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
