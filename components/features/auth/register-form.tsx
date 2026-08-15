@@ -7,22 +7,52 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/ui/password-input";
 import Image from "next/image";
 import { ROUTES } from "@/config/routes";
 import { authService } from "@/services/auth.service";
-import { RegisterBodyType, RegisterSchema } from "@/types/auth.types";
+import { RegisterBodyType, RegisterSchema, UserCategory } from "@/types/auth.types";
+import { PasswordInput } from "@/components/ui/password-input";
+import {
+  GraduationCap,
+  UserCheck,
+  User,
+  CreditCard,
+  Mail,
+  Phone,
+  Lock,
+  ShieldCheck,
+  Calendar,
+  BookOpen,
+  MapPin,
+  Users,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
 
 export const RegisterForm = () => {
   const router = useRouter();
+
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
-  } = useForm<RegisterBodyType & { category?: number }>({
+  } = useForm<RegisterBodyType>({
     resolver: zodResolver(RegisterSchema) as never,
+    defaultValues: {
+      category: UserCategory.Student,
+      gender: 1,
+    },
   });
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const selectedCategory = watch("category", UserCategory.Student);
+  const isStudent = Number(selectedCategory) === UserCategory.Student;
+
+  const handleSelectRole = (role: UserCategory) => {
+    setValue("category", role);
+  };
 
   const getError = (key: string) => {
     const fieldError = (errors as Record<string, { message?: string } | undefined>)[key];
@@ -32,19 +62,35 @@ export const RegisterForm = () => {
   const registerMutation = useMutation({
     mutationFn: (data: RegisterBodyType) => authService.register(data),
     onSuccess: (data, variables) => {
-      toast.success(
-        data.message || "Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.",
-      );
-      router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
+      const requiresVerification = data.value?.requiresEmailVerification ?? isStudent;
+      if (requiresVerification) {
+        toast.success(
+          data.message || "Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.",
+        );
+        router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
+      } else {
+        toast.success(data.message || "Đăng ký thành công. Bạn có thể đăng nhập ngay.");
+        router.push(ROUTES.LOGIN);
+      }
     },
-    onError: (error: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
-      const serverMsg = error.response?.data?.message;
-      const serverErrors = error.response?.data?.errors;
+    onError: (
+      error: AxiosError<{
+        message?: string;
+        errorCode?: string;
+        errors?: Record<string, string[]>;
+      }>,
+    ) => {
+      const serverData = error.response?.data;
+      const serverMsg = serverData?.message;
+      const serverErrors = serverData?.errors;
+
       if (serverErrors) {
         const msgs = Object.entries(serverErrors).map(([field, errs]) =>
           errs.map((e) => `${field}: ${e}`).join("\n"),
         );
         toast.error(msgs.join("\n"));
+      } else if (serverData?.errorCode === "UnsupportedUserCategory") {
+        toast.error(serverMsg || "Loại tài khoản này không hỗ trợ đăng ký tự do.");
       } else {
         toast.error(serverMsg || "Đăng ký thất bại. Vui lòng kiểm tra lại tất cả các trường.");
       }
@@ -57,7 +103,7 @@ export const RegisterForm = () => {
       return;
     }
 
-    if (!data.studentId || data.studentId.trim() === "") {
+    if (isStudent && (!data.studentId || data.studentId.trim() === "")) {
       toast.error("Vui lòng nhập Mã số sinh viên.");
       return;
     }
@@ -72,7 +118,7 @@ export const RegisterForm = () => {
       return;
     }
 
-    if (!data.majorOrClass || data.majorOrClass.trim() === "") {
+    if (isStudent && (!data.majorOrClass || data.majorOrClass.trim() === "")) {
       toast.error("Vui lòng nhập Chuyên ngành / Lớp.");
       return;
     }
@@ -84,12 +130,13 @@ export const RegisterForm = () => {
 
     const formattedDate = data.dateOfBirth.split("T")[0];
 
-    const sanitizedData = {
+    const sanitizedData: RegisterBodyType = {
       ...data,
-      studentId: data.studentId.trim(),
-      majorOrClass: data.majorOrClass.trim(),
-      phoneNumber: data.phoneNumber.trim(),
-      address: data.address.trim(),
+      category: Number(data.category) || UserCategory.Student,
+      studentId: isStudent && data.studentId ? data.studentId.trim() : "",
+      majorOrClass: data.majorOrClass ? data.majorOrClass.trim() : "",
+      phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : "",
+      address: data.address ? data.address.trim() : "",
       dateOfBirth: formattedDate,
     };
 
@@ -98,163 +145,271 @@ export const RegisterForm = () => {
 
   return (
     <div className="w-full space-y-4">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-        <input type="hidden" defaultValue={1} {...register("category", { valueAsNumber: true })} />
+      {/* Segmented Switcher chọn vai trò ở đầu form */}
+      <div className="p-1.5 rounded-2xl bg-slate-100/80 border border-slate-200/60 flex items-center gap-1 shadow-inner">
+        <button
+          type="button"
+          onClick={() => handleSelectRole(UserCategory.Student)}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
+            isStudent
+              ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+          }`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          <span>Sinh viên</span>
+        </button>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Input
-              {...register("name")}
-              placeholder="Họ và tên"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
-            {getError("name") && <p className="text-xs text-red-500 mt-1">{getError("name")}</p>}
-          </div>
+        <button
+          type="button"
+          onClick={() => handleSelectRole(UserCategory.Lecturer)}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
+            !isStudent
+              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+          }`}
+        >
+          <UserCheck className="w-4 h-4" />
+          <span>Giảng viên</span>
+        </button>
+      </div>
 
-          <div>
-            <Input
-              {...register("studentId")}
-              placeholder="Mã số sinh viên"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
-            {getError("studentId") && (
-              <p className="text-xs text-red-500 mt-1">{getError("studentId")}</p>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {/* Họ và tên */}
+          <div className={isStudent ? "" : "md:col-span-2"}>
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <User className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                {...register("name")}
+                placeholder="Họ và tên *"
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+              />
+            </div>
+            {getError("name") && (
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("name")}
+              </p>
             )}
           </div>
 
+          {/* Mã số sinh viên */}
+          {isStudent && (
+            <div>
+              <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+                <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
+                <input
+                  {...register("studentId")}
+                  placeholder="Mã SV * (ví dụ: SE170001)"
+                  className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+                />
+              </div>
+              {getError("studentId") && (
+                <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {getError("studentId")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Email */}
           <div>
-            <Input
-              {...register("email")}
-              placeholder="Email"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
-            {getError("email") && <p className="text-xs text-red-500 mt-1">{getError("email")}</p>}
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                {...register("email")}
+                placeholder="Địa chỉ Email *"
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+              />
+            </div>
+            {getError("email") && (
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("email")}
+              </p>
+            )}
           </div>
 
+          {/* Số điện thoại */}
           <div>
-            <Input
-              {...register("phoneNumber")}
-              placeholder="Số điện thoại"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                {...register("phoneNumber")}
+                placeholder="Số điện thoại *"
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+              />
+            </div>
             {getError("phoneNumber") && (
-              <p className="text-xs text-red-500 mt-1">{getError("phoneNumber")}</p>
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("phoneNumber")}
+              </p>
             )}
           </div>
 
+          {/* Mật khẩu */}
           <div>
-            <PasswordInput
-              {...register("password")}
-              placeholder="Mật khẩu"
-              inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+              <PasswordInput
+                {...register("password")}
+                placeholder="Mật khẩu *"
+                inputClassName="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+                className="w-full"
+              />
+            </div>
             {getError("password") && (
-              <p className="text-xs text-red-500 mt-1">{getError("password")}</p>
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("password")}
+              </p>
             )}
           </div>
 
+          {/* Xác nhận mật khẩu */}
           <div>
-            <PasswordInput
-              {...register("confirmPassword")}
-              placeholder="Xác nhận mật khẩu"
-              inputClassName="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
+              <PasswordInput
+                {...register("confirmPassword")}
+                placeholder="Xác nhận mật khẩu *"
+                inputClassName="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+                className="w-full"
+              />
+            </div>
             {getError("confirmPassword") && (
-              <p className="text-xs text-red-500 mt-1">{getError("confirmPassword")}</p>
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("confirmPassword")}
+              </p>
             )}
           </div>
 
+          {/* Giới tính */}
           <div>
-            <select
-              {...register("gender", { valueAsNumber: true })}
-              className="w-full border-0 border-b border-gray-200 rounded-none bg-transparent px-2 text-base text-slate-700 py-2.5 focus:outline-none focus:border-orange-500"
-            >
-              <option value={1}>Nam</option>
-              <option value={2}>Nữ</option>
-              <option value={3}>Khác</option>
-            </select>
-            {getError("gender") && (
-              <p className="text-xs text-red-500 mt-1">{getError("gender")}</p>
-            )}
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <Users className="w-4 h-4 text-slate-400 shrink-0" />
+              <select
+                {...register("gender", { valueAsNumber: true })}
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 font-medium cursor-pointer"
+              >
+                <option value={1}>Giới tính: Nam</option>
+                <option value={2}>Giới tính: Nữ</option>
+                <option value={3}>Giới tính: Khác</option>
+              </select>
+            </div>
           </div>
 
+          {/* Ngày sinh */}
           <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-              Ngày sinh
-            </p>
-            <Input
-              type="date"
-              {...register("dateOfBirth")}
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                type="date"
+                {...register("dateOfBirth")}
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 font-medium"
+              />
+            </div>
             {getError("dateOfBirth") && (
-              <p className="text-xs text-red-500 mt-1">{getError("dateOfBirth")}</p>
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("dateOfBirth")}
+              </p>
             )}
           </div>
 
+          {/* Chuyên ngành / Lớp */}
           <div className="md:col-span-2">
-            <Input
-              {...register("majorOrClass")}
-              placeholder="Chuyên ngành / Lớp"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <BookOpen className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                {...register("majorOrClass")}
+                placeholder={
+                  isStudent
+                    ? "Chuyên ngành / Lớp * (ví dụ: SE1701)"
+                    : "Chuyên ngành / Lớp (không bắt buộc với Giảng viên)"
+                }
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+              />
+            </div>
             {getError("majorOrClass") && (
-              <p className="text-xs text-red-500 mt-1">{getError("majorOrClass")}</p>
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("majorOrClass")}
+              </p>
             )}
           </div>
 
+          {/* Địa chỉ */}
           <div className="md:col-span-2">
-            <Input
-              {...register("address")}
-              placeholder="Địa chỉ"
-              className="border-0 border-b border-gray-200 rounded-none focus-visible:ring-0 focus-visible:border-orange-500 px-2 shadow-none text-base placeholder:text-gray-400 py-2.5"
-            />
+            <div className="relative flex items-center rounded-xl bg-slate-50/80 border border-slate-200/90 focus-within:bg-white focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all duration-200 px-3.5 py-1">
+              <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                {...register("address")}
+                placeholder="Địa chỉ liên hệ *"
+                className="w-full bg-transparent border-none outline-none px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 font-medium"
+              />
+            </div>
             {getError("address") && (
-              <p className="text-xs text-red-500 mt-1">{getError("address")}</p>
+              <p className="flex items-center gap-1 text-xs text-red-500 mt-1 pl-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {getError("address")}
+              </p>
             )}
           </div>
 
+          {/* Nút Tạo Tài Khoản */}
           <div className="md:col-span-2 pt-1">
             <Button
               type="submit"
               disabled={registerMutation.isPending}
-              className="w-full h-12 rounded-xl bg-orange-500 text-white text-base font-semibold shadow-lg shadow-orange-200 transition-all hover:bg-orange-600"
+              className="w-full h-11 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white text-sm sm:text-base font-bold shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.005] active:scale-[0.995] transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              {registerMutation.isPending ? "Đang tạo..." : "Tạo tài khoản"}
+              {registerMutation.isPending ? (
+                <>
+                  <Sparkles className="w-4 h-4 animate-spin" />
+                  <span>Đang tạo tài khoản...</span>
+                </>
+              ) : (
+                <span>Tạo tài khoản ngay</span>
+              )}
             </Button>
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-1 text-sm text-slate-500 pt-1">
-          <span>Đã có tài khoản?</span>
+        <div className="flex items-center justify-center gap-1.5 text-xs sm:text-sm text-slate-500 pt-1">
+          <span>Đã có tài khoản Canteen?</span>
           <button
             type="button"
             onClick={() => router.push(ROUTES.LOGIN)}
-            className="font-semibold text-blue-400 hover:underline"
+            className="font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
           >
-            Đăng nhập
+            Đăng nhập ngay
           </button>
         </div>
       </form>
-      <div className="relative py-2">
+
+      <div className="relative py-1">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-gray-200"></span>
+          <span className="w-full border-t border-slate-200"></span>
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-400 font-medium">HOẶC</span>
+          <span className="bg-white px-3 text-slate-400 font-bold tracking-wider">HOẶC</span>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3">
+
+      <div>
         <Button
           type="button"
           onClick={() => (window.location.href = "/api/auth/google")}
           variant="outline"
-          className="h-12 w-full rounded-xl border border-gray-200 bg-white/90 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 mb-10"
+          className="h-11 w-full rounded-xl border border-slate-200/90 bg-white text-slate-700 shadow-xs hover:bg-slate-50 transition-all cursor-pointer flex items-center justify-center gap-3"
         >
-          <span className="flex items-center gap-3 pt-0.5">
-            <Image src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
-            <span className="text-sm font-semibold">Tiếp tục với Google</span>
-          </span>
+          <Image src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
+          <span className="text-sm font-bold text-slate-700">Tiếp tục với Google</span>
         </Button>
       </div>
     </div>
