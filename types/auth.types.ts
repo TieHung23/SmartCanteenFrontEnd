@@ -25,6 +25,13 @@ const DateOfBirthSchema = z
     return age >= 10 && age <= 100;
   }, "Date of birth must indicate the user is between 10 and 100 years old.");
 
+export enum UserCategory {
+  Student = 1,
+  Lecturer = 2,
+  Staff = 3,
+  External = 4,
+}
+
 export const LoginSchema = z.object({
   email: z.string().email("Email is invalid"),
   password: PasswordSchema,
@@ -36,6 +43,10 @@ export const RegisterSchema = z
     email: z.string().email("Email is invalid"),
     password: PasswordSchema,
     confirmPassword: PasswordSchema,
+    category: z.preprocess(
+      (val) => (val === undefined || val === null ? UserCategory.Student : Number(val)),
+      z.nativeEnum(UserCategory),
+    ),
     studentId: z.string().nullable().or(z.literal("")),
     dateOfBirth: DateOfBirthSchema,
     majorOrClass: z.string().nullable().or(z.literal("")),
@@ -53,9 +64,25 @@ export const RegisterSchema = z
       z.number().int().min(1).max(3).nullable(),
     ),
   })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Passwords do not match",
+        path: ["confirmPassword"],
+      });
+    }
+
+    if (
+      data.category === UserCategory.Student &&
+      (!data.studentId || data.studentId.trim() === "")
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Vui lòng nhập Mã số sinh viên.",
+        path: ["studentId"],
+      });
+    }
   });
 
 export const UpdateProfileSchema = z.object({
@@ -103,15 +130,24 @@ export interface LoginResponse {
   value: {
     accessToken: string;
     refreshToken?: string;
+    accessTokenExpiresAt?: string;
+    refreshTokenExpiresAt?: string;
+    category?: number;
   };
   statusCode?: number;
   message?: string;
 }
 
 export interface RegisterResponse {
-  value?: unknown;
+  value?: {
+    userId?: string;
+    category?: number;
+    requiresEmailVerification?: boolean;
+  };
+  isSuccess?: boolean;
   statusCode?: number;
   message?: string;
+  errorCode?: string;
 }
 
 export const ForgotPasswordSchema = z.object({

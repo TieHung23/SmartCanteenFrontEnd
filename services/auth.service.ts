@@ -5,6 +5,7 @@ import {
   RegisterBodyType,
   LoginResponse,
   RegisterResponse,
+  UserCategory,
 } from "@/types/auth.types";
 import { ForgotPasswordBody, ResetPasswordBody, ChangePasswordBody } from "@/types/auth.types";
 import { clearAuthTokens, getAccessToken } from "@/lib/auth-token-storage";
@@ -19,13 +20,17 @@ export const authService = {
 
   register: async (body: RegisterBodyType): Promise<RegisterResponse> => {
     const b = body as unknown as Record<string, unknown>;
+    const category = typeof b.category === "number" ? Number(b.category) : UserCategory.Student;
 
     const payload = {
       name: (body.name || "").toString().trim(),
       email: (body.email || "").toString().trim(),
       password: (body.password || "").toString(),
-      category: typeof b.category === "number" ? (b.category as unknown as number) : 1,
-      studentId: (body.studentId || "").toString().trim(),
+      category: category,
+      studentId:
+        category === UserCategory.Lecturer
+          ? null
+          : (body.studentId || "").toString().trim() || null,
       dateOfBirth: (body.dateOfBirth || "").toString(),
       majorOrClass: (body.majorOrClass || "").toString().trim(),
       phoneNumber: (body.phoneNumber || "").toString().trim(),
