@@ -28,6 +28,7 @@ import type { RobotArm, RobotArmDetail } from "@/types/robot-arm.types";
 import type { TrayPoolSummary } from "@/types/tray.types";
 import type { PickupSlotSummary } from "@/types/pickup-slot.types";
 import Modal from "../../_components/modal";
+import { ServingJobsSection } from "@/components/features/robot/serving-jobs-section";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 
@@ -486,6 +487,9 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
           </div>
         )}
       </div>
+
+      {/* ── SERVING JOBS DASHBOARD ── */}
+      <ServingJobsSection className="mt-8" />
 
       {/* Create / Edit Modal */}
       <Modal

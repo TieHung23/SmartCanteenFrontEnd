@@ -15,11 +15,13 @@ import {
   Layers,
   Sparkles,
   Pencil,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGlobalSearch } from "@/lib/stores/use-search";
 import { sessionService } from "@/services/session.service";
 import { dishService } from "@/services/dish.service";
+import { shelfStockService } from "@/services/shelf-stock.service";
 import { toast } from "sonner";
 import apiClient from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
@@ -151,6 +153,23 @@ export default function StockPage() {
       fetchData();
     } catch {
       toast.error("Không thể cập nhật số lượng tồn kho.");
+    } finally {
+      setSavingStock(false);
+    }
+  };
+
+  const handleRefillStock = async (stockId: string, qtyToAdd: number = 5) => {
+    if (!stockId || qtyToAdd <= 0) return;
+    setSavingStock(true);
+    try {
+      const res = await shelfStockService.refill(stockId, qtyToAdd);
+      toast.success(
+        `Nạp thêm ${qtyToAdd} suất thành công! (Số lượng sau nạp: ${res.quantityAfter})`,
+      );
+      fetchData();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Không thể nạp thêm tồn kệ.");
     } finally {
       setSavingStock(false);
     }
@@ -537,6 +556,15 @@ export default function StockPage() {
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRefillStock(dish.id, 5)}
+                                      className="px-3 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF4C24] border border-orange-200/60 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-3xs"
+                                      title="Nạp thêm +5 phần món ăn lên kệ"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      <span>Nạp +5</span>
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => {

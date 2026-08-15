@@ -124,7 +124,8 @@ export const API_ENDPOINTS = {
       CREATE: "/api/manager/robot-arms",
       UPDATE: (id: string) => `/api/manager/robot-arms/${id}`,
       DELETE: (id: string) => `/api/manager/robot-arms/${id}`,
-      MAINTENANCE: (id: string) => `/api/manager/robot-arms/${id}/maintenance`,
+      MAINTENANCE: (id: string, inMaintenance: boolean) =>
+        `/api/manager/robot-arms/${id}/maintenance?inMaintenance=${inMaintenance}`,
     },
     TRAYS: {
       LIST: "/api/manager/trays",
@@ -147,12 +148,25 @@ export const API_ENDPOINTS = {
       UPDATE: (id: string) => `/api/manager/slot-configurations/${id}`,
       DELETE: (id: string) => `/api/manager/slot-configurations/${id}`,
     },
+    SERVING_JOBS: {
+      LIST: (status?: string, take?: number) => {
+        const params = new URLSearchParams();
+        if (status) params.append("status", status);
+        if (take) params.append("take", take.toString());
+        const query = params.toString();
+        return `/api/manager/serving-jobs${query ? `?${query}` : ""}`;
+      },
+      REQUEUE: (id: string) => `/api/manager/serving-jobs/${id}/requeue`,
+      MANUAL_COMPLETE: (id: string) => `/api/manager/serving-jobs/${id}/manual-complete`,
+      EVENTS: (id: string) => `/api/manager/serving-jobs/${id}/events`,
+    },
     SHELF_STOCKS: {
       LIST_BY_SESSION: (sessionId: string) => `/api/manager/shelf-stocks?sessionId=${sessionId}`,
       GET: (id: string) => `/api/manager/shelf-stocks/${id}`,
       CREATE: "/api/manager/shelf-stocks",
       UPDATE: (id: string) => `/api/manager/shelf-stocks/${id}`,
       DELETE: (id: string) => `/api/manager/shelf-stocks/${id}`,
+      REFILL: (id: string) => `/api/manager/shelf-stocks/${id}/refill`,
       LIST_BY_ARM: (armId: string) => `/api/manager/shelf-stocks?armId=${armId}`,
       LIST_BY_DISH: (dishId: string) => `/api/manager/shelf-stocks?dishId=${dishId}`,
     },

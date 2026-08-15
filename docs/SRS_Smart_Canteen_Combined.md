@@ -354,24 +354,28 @@ Figure 10 - Checkout & Payment Page
 #### 3.2.11 Order History Page (`/orders`)
 
 Function Trigger
-● User navigates to Order History Page via navbar header navigation item "Lịch sử đơn hàng"
+○ User clicks navbar header link "Lịch sử đơn hàng" or navigates to `/orders`
 
 Function Description
-● Overview dashboard displaying student's order history, summary metrics, status tab filters, date range filter, and text search.
+○ Overview dashboard displaying student's meal order history, summary KPI metrics, status filter tabs, date filter dropdown, text search, and order detail navigation.
 
 Function Details
-● Layout & Elements:
-○ Header & Search Bar: Title and realtime search input (filters by Order ID or Session Name)
-○ Date Filter Dropdown: Filter by Session Serving Date (`sessionDate`) or Order Placement Date (`created`)
-○ Orders Summary Metrics Bar (`OrdersStats`): Displays Total Orders count, Pending orders count, Completed count, and Total Spent Points
-○ Status Tabs Filter (`Tabs`): Filter tabs: "Tất cả", "Chờ xử lý" (`0`), "Đang chuẩn bị" (`4`), "Sẵn sàng" (`1`), "Hoàn thành" (`2`), "Đã hủy" (`3`), "Quá hạn" (`7`)
-○ Order Cards List (`OrderCard`): Card view displaying Order ID, Session Name, Created Date, Status Badge, Total Amount, and Quick Action buttons ("Xem chi tiết", "Yêu cầu hoàn tiền")
-● Associated Modals:
-○ `CancelOrderModal`: Confirmation modal to cancel an order (allowed only when status is `Pending`)
-● Actions:
-○ Click Order Card / "Xem chi tiết" → Navigates to Order Detail page `/orders/[id]`
-○ Click "Yêu cầu hoàn tiền" → Navigates to `/refund?orderId=[id]`
-○ Click "Hủy đơn hàng" → Opens `CancelOrderModal`
+Layout & Elements:
+○ Header Bar: Title "Lịch sử đơn hàng" with subtitle ("Theo dõi quá trình chuẩn bị và lịch sử tất cả các đơn món ăn"), realtime search input ("Tìm đơn hàng, ca ăn..."), and "Lọc ngày v" dropdown button
+○ Summary Metrics Cards (`OrdersStats`):
+■ "Tổng đơn hàng": Total order count (e.g., 53)
+■ "Đang xử lý": Count of active preparing orders (e.g., 9)
+■ "Hoàn thành": Count of completed retrieved orders (e.g., 4)
+■ "Tổng xu đã tiêu": Cumulative points spent in canteen (e.g., 721 xu)
+○ Status Filter Tabs (`Tabs`): Filter buttons showing order count badges: "Tất cả", "Chờ xử lý" (`0`), "Đang chuẩn bị" (`4`), "Sẵn sàng" (`1`), "Hoàn thành" (`2`), "Đã hủy" (`3`), "Quá hạn" (`7`)
+○ Order Items Table / Card List:
+■ Columns: `ĐƠN HÀNG & CA ĂN`, `TRẠNG THÁI`, `TỔNG TIỀN`, `THAO TÁC`
+■ Order Card Row: Displays Order ID (`#...`), Session Name, Item Count, Placement Date/Time, Status Badge (`Đang chuẩn bị`, `Hoàn thành`, `Đã hủy`, `Quá hạn`), Refund approval badges (`Đã duyệt`, `Từ chối`), Total Amount (xu), and action buttons
+Actions:
+○ UI Button "Chi tiết >" (or click row) → Navigates to Order Detail page `/orders/[id]`
+○ UI Button "Hủy / Hoàn tiền" → Opens refund request modal or navigates to `/refund?orderId=[id]`
+Result:
+○ Success: Displays paginated, filterable audit list of student orders fetched from `/api/Orders`
 
 Screen Layout
 Figure 11 - Order History Page
@@ -381,51 +385,68 @@ Figure 11 - Order History Page
 #### 3.2.12 Order Detail & Realtime Tracking Page (`/orders/[id]`)
 
 Function Trigger
-● User clicks an order item from `/orders` page or is automatically redirected after completing payment at `/checkout`
+○ User clicks an order card from Order History (`/orders`) or is automatically redirected after completing checkout payment at `/checkout`
 
 Function Description
-● Detailed realtime tracking workspace displaying order status progress, QR Code & OTP pickup credentials, dish items list, session serving time window, kitchen change proposal resolution, and pickup confirmation.
+○ Detailed realtime tracking workspace displaying order status progress, session serving time window, dish items list, QR Code & OTP pickup credentials, kitchen change proposal resolution, and order cancellation actions.
 
 Function Details
-● Layout & Elements:
-○ Order Header & Status Badge: Displays Order ID, Created Date, and live status badge (`Pending`, `Preparing`, `ReadyForPickup`, `Completed`, `Cancelled`, `Expired`)
-○ Session Info Banner: Displays Session Name, Session Serving Time Range (`availableFrom` - `availableTo`), and Session Date
-○ QR Code & OTP Pickup Credentials Card: Rendered only when status reaches `ReadyForPickup` (`1`), allowing automated pickup at smart canteen slots/counter
-○ Order Items List: Thumbnail, Dish Name, Quantity, Unit Price (Points), Item Status (`OrderItemStatus`), and Change Proposal Action Panel if kitchen issued a substitution proposal
-● Associated Modals:
-○ `SwapItemModal`: Modal to select an alternative dish from the same session when accepting kitchen proposal
-○ `ConfirmPickupModal`: Confirmation modal when user retrieves meal at slot/counter
-● Actions:
-○ Click "Xác nhận đã nhận" → Sends confirmation to backend when customer retrieves meal, updating status to `Completed` (`2`)
+Layout & Elements:
+○ Navigation & Header: Back link (`← Quay lại đơn hàng`), Title "Chi tiết đơn hàng", Full Order ID, and live Status Badge (`Cấu hình Đang chế biến`, `Chờ xử lý`, `Sẵn sàng lấy món`, `Hoàn thành`, `Đã hủy`, `Quá hạn`)
+○ Session & Order Info Banner:
+■ "CA / PHIÊN ĂN": Displays meal session name (e.g. "Bữa Trưa năng lượng mạnh")
+■ "GIỜ PHỤC VỤ CA": Displays session serving window (e.g. "14:00 - 16:10", date)
+■ "NGÀY GIỜ ĐẶT ĐƠN": Exact order placement timestamp
+○ Order Items List ("Món ăn"): Thumbnail, Dish Name, Portion quantity (`Số lượng: X`), Unit price in Canteen Points (xu), and Item Status badge (`Đang xử lý`)
+○ Summary Footer: Total Amount (`Tổng tiền`), Transaction ID (`Mã giao dịch`)
+○ QR Code & OTP Pickup Credentials Card: Dynamically rendered when order reaches `ReadyForPickup` (`1`), enabling automated meal retrieval at smart canteen pickup slots or manual counter
+○ Kitchen Proposal Panel: Renders out-of-stock warning banner and action buttons if kitchen staff issued a substitution proposal
+Actions:
+○ UI Button "Yêu cầu hủy & hoàn tiền đơn hàng" → Opens `RefundModal` to cancel order and request wallet refund
+○ UI Button "Xác nhận đã nhận" → Confirms meal retrieval, updating order status to `Completed` (`2`)
 ○ Respond to Kitchen Change Proposal:
 ■ "Đồng ý đổi món" (`SwapItem`) → Opens `SwapItemModal` to select replacement dish
-■ "Từ chối đổi món & Hoàn tiền món" (`RefundItem`) → Refunds specific out-of-stock dish value to Smart Canteen Wallet
-■ "Từ chối đổi món & Hủy toàn bộ đơn" (`RefundOrder`) → Cancels entire order and refunds full amount to Smart Canteen Wallet
+■ "Từ chối đổi món & Hoàn tiền món" (`RefundItem`) → Credits specific dish value to wallet
+■ "Từ chối đổi món & Hủy toàn bộ đơn" (`RefundOrder`) → Cancels entire order with full wallet refund
 
 Screen Layout
 Figure 12 - Order Detail Page
 
 ---
 
-#### 3.2.13 Wallet & Topup Page (`/wallet`)
+#### 3.2.13 Wallet & Topup Page (`/wallet` / `/profile?tab=wallet`)
 
 Function Trigger
-● User clicks UI Wallet balance card on Header or navigates to `/wallet`
+○ User clicks UI Wallet balance card on Header or navigates to `/profile` (Tab "Ví & Thẻ của tôi") / `/wallet`
 
 Function Description
-● Allows students to check available wallet balance, select topup amount presets, and initiate wallet topup via payment gateways.
+○ Allows students to check available wallet balance, customize virtual canteen card theme, view recent transactions, select topup presets, choose payment methods, and execute instant VietQR payment topups.
 
 Function Details
-● Layout & Elements:
-○ Wallet Balance Card: Displays current available balance (in Points / VNĐ)
-○ Topup Amount Preset Buttons: `50.000 VNĐ`, `100.000 VNĐ`, `200.000 VNĐ`, `500.000 VNĐ` or custom amount input
-○ Payment Method Selector: Radio selection for "Cổng VNPAY" or "Cổng PayOS"
-● Actions:
-○ UI Button "Nạp tiền vào ví" → Initiates topup payment gateway request to `/api/Payments/top-up` and redirects user to external gateway URL
-○ UI Button "Lịch sử giao dịch" → Navigates to `/wallet/transactions`
-● Result:
-○ Success: Redirects to payment gateway URL
-○ Failure: Show UI Toast error "Không thể tạo giao dịch nạp tiền."
+Layout & Sub-tabs:
+○ Sub-tab "Tổng quan" (Overview):
+■ Header: Displays available balance (`SỐ DƯ KHẢ DỤNG`) in Canteen Points (xu / VNĐ)
+■ Virtual Canteen Card Preview: Displays customized card theme, card number, and student name
+■ Card Theme Customizer ("Tùy chỉnh giao diện thẻ"): Allows choosing from 12 card design themes
+■ Recent Transactions Panel ("Giao dịch gần đây"): Paginated list of recent order payments, topups, and refund credits with link to full history ("Xem tất cả giao dịch")
+○ Sub-tab "Nạp tiền" (Top Up Wallet):
+■ Amount Preset Buttons: `20.000`, `50.000`, `100.000`, `200.000`, `500.000` or custom amount input (e.g. `50000`)
+■ Rate Conversion Note: "Bạn sẽ nhận được khoảng X Point (1 Point = 1.000 VND)"
+■ Payment Method Selectors: "Chuyển khoản ngân hàng" (active), "MoMo" (Sắp ra mắt), "ZaloPay" (Sắp ra mắt), "VNPay" (Sắp ra mắt)
+■ Action Button: "+ Nạp tiền [Số tiền] VND" (submits to `/api/Payments/top-up`)
+○ VietQR Topup Result State (Post-submit):
+■ Transaction Summary Card: Displays "Tạo nạp tiền thành công!", Transaction ID (`SC...`), converted points (`50.000 VND → 50 xu`), and status (`Pending`)
+■ VietQR Scan Panel: Dynamically generated VietQR code card (Napas247 / TPBank) for instant mobile banking app scanning
+■ Transfer Content Box: Displays exact transfer syntax (`TKPSCN [TransactionID]`) with one-click copy button
+■ UI Button "Nạp thêm": Resets form to initiate a new topup transaction
+Actions:
+○ UI Button "+ Nạp tiền [Số tiền] VND" → Initiates topup request to `/api/Payments/top-up` and displays VietQR card
+○ UI Button "Copy nội dung chuyển khoản" → Copies transfer syntax (`TKPSCN...`) to clipboard
+○ UI Button "Nạp thêm" → Resets topup workspace
+○ UI Link "Xem tất cả giao dịch" → Navigates to `/wallet/transactions`
+Result:
+○ Success: Renders live VietQR code with exact transfer syntax
+○ Failure: Displays UI Toast error "Không thể tạo giao dịch nạp tiền."
 
 Screen Layout
 Figure 13 - Wallet & Topup Page
@@ -435,93 +456,187 @@ Figure 13 - Wallet & Topup Page
 #### 3.2.14 Wallet Transaction History Page (`/wallet/transactions`)
 
 Function Trigger
-● User clicks UI Link "Lịch sử giao dịch" on Wallet page or navigates to `/wallet/transactions`
+○ User clicks UI Link "Xem tất cả giao dịch" on Wallet page or navigates to `/wallet/transactions`
 
 Function Description
-● Displays complete audit log of all wallet transactions (Topups, Order payments, Refund credits).
+○ Displays complete audit log of all wallet transactions (Topups, Order payments, Refund credits) with realtime balance tracking and category filters.
 
 Function Details
-● Layout & Elements:
-○ Transaction Filter Tabs: "Tất cả", "Nạp tiền" (`+`), "Thanh toán" (`-`), "Hoàn tiền" (`+`)
-○ Transaction Items List: Transaction ID, Type, Amount, Description, and Timestamp (`createdAt`). Fetches data from `/api/wallet-transactions`
-● Result:
-○ Success: Displays paginated audit log of wallet transactions
+Layout & Elements:
+○ Page Header: "Lịch sử giao dịch ví" with Back button (`←`) and transaction counter (`Hiển thị X trên tổng số Y giao dịch`)
+○ Transaction Filter Tabs: "Tất cả", "Nạp tiền", "Thanh toán", "Hoàn tiền"
+○ Transaction Items List:
+■ Direction Arrow Icon: Red `↗` for payments / Green `↙` for topups and refunds
+■ Transaction Title & Type Badge: e.g. "Thanh toán đơn hàng" (red badge), "Hoàn tiền đơn hàng" (green badge), "Nạp tiền vào ví" (blue badge)
+■ Timestamp & Balance Progression: Exact time (`HH:mm DD/MM/YYYY`) and balance change tracking (`Số dư: [Trước] → [Sau]`)
+■ Amount Display: Red negative amount (`-38 xu`) for payments or green positive amount (`+32 xu`) for topups/refunds
+Actions:
+○ Click Filter Tabs: Filters transaction list by category ("Tất cả", "Nạp tiền", "Thanh toán", "Hoàn tiền")
+○ Click Back Button (`←`): Navigates back to Profile / Wallet page (`/profile?tab=wallet`)
+Result:
+○ Success: Displays paginated audit log of wallet transactions fetched from `/api/wallet-transactions`
 
 Screen Layout
 Figure 14 - Wallet Transaction History Page
 
 ---
 
-#### 3.2.15 Refund Request Page (`/refund`)
+#### 3.2.15 Quick Order Cancellation & Refund Modal (`/orders/[id]`)
 
 Function Trigger
-● User clicks UI Button "Yêu cầu hoàn tiền" on Order History or Order Detail page, or accesses `/refund`
+○ User clicks UI Button "Yêu cầu hủy & hoàn tiền" inside Order Detail Page (`/orders/[id]`)
 
 Function Description
-● Submit a refund claim for item issues or cancellations according to refund policy.
+○ Pop-up modal allowing students to instantly select a refund policy reason, attach optional manager notes, and submit a refund claim for an order without leaving the order tracking page.
 
 Function Details
-● Layout & Form Fields:
-○ Select "Chọn đơn hàng" (`orderId`)
-○ Select "Chọn lý do hoàn tiền" (`policyCode`): "Sai món ăn", "Thiếu món ăn", "Vấn đề chất lượng thực phẩm", "Lý do khác"
-○ Input "Mô tả chi tiết" (`description`)
-○ Upload "Tải ảnh minh chứng" (`proofImages`)
-● Actions:
-○ UI Button "Gửi yêu cầu hoàn tiền" → Submits request to `/api/refunds` for manager approval queue
-● Result:
-○ Success: Show UI Toast "Đã gửi yêu cầu hoàn tiền thành công!" → Redirect to `/orders`
-○ Failure: Show UI Toast "Gửi yêu cầu hoàn tiền thất bại."
+Layout & Modal Elements:
+○ Modal Header: Title "Yêu cầu hủy & hoàn tiền" with Order ID preview (`#...`) and close icon (`✕`)
+○ Estimated Refund Banner: Yellow card displaying "SỐ TIỀN SẼ ĐƯỢC HOÀN TRẢ" (e.g. `38 xu`) and payout note ("Tiền sẽ được cộng trực tiếp vào ví sau khi quản lý duyệt.")
+○ Refund Reason Selector ("LÝ DO HỦY ĐƠN \*"): Radio selection list of active canteen refund policies (`policyCode` - e.g. "Change proposal item refund", "Full refund without image", "Hư Hỏng", "Không còn nhu cầu", "Thiếu món", "Vấn đề vệ sinh thực phẩm")
+○ Additional Notes Input ("GHI CHÚ THÊM (KHÔNG BẮT BUỘC)"): Textarea for custom notes to canteen manager
+Actions:
+○ UI Button "Xác nhận gửi yêu cầu" → Submits refund claim payload to `/api/refunds` for manager approval queue
+○ UI Button "Hủy bỏ" → Closes modal without submitting payload
+Result:
+○ Success: Displays UI Toast "Đã gửi yêu cầu hủy đơn thành công!", updating order refund status badge
+○ Failure: Displays UI Toast "Không thể gửi yêu cầu hủy đơn."
 
 Screen Layout
-Figure 15 - Refund Request Page
+Figure 15 - Quick Order Cancellation & Refund Modal
 
 ---
 
-#### 3.2.16 Dish Change Proposals Page (`/change-proposals`, `/notifications`)
+#### 3.2.16 Detailed Refund Claim Page (`/refund`)
 
 Function Trigger
-● User receives system notification when an ordered dish runs out during tray assembly and kitchen staff issues a substitution proposal
+○ User accesses standalone refund URL `/refund?orderId=[id]` or selects refund claim link from notifications / order history
 
 Function Description
-● Review replacement dish details and select resolution action.
+○ Allows students to submit a formal refund claim for damaged meals, missing items, or quality issues, complete with detailed text description and up to 5 evidence proof photos.
 
 Function Details
-● Layout & Action Panels:
-○ Proposal Header: Out-of-stock dish name, suggested replacement dish, price difference, and response deadline
-● Actions:
-○ UI Action "Đồng ý đổi món" (`SwapItem`) → Opens replacement dish confirmation
-○ UI Action "Từ chối đổi món & Hoàn tiền món" (`RefundItem`) → Credits dish value back to wallet
-○ UI Action "Từ chối đổi món & Hủy toàn bộ đơn" (`RefundOrder`) → Cancels order and refunds full amount
+Layout & Form Fields:
+○ Navigation Header: Back link (`← Quay lại`), Title "Yêu cầu hoàn tiền", and Order ID preview (`Mã đơn: ...`)
+○ Refund Reason Grid ("Lý do hoàn tiền _"): 2-column interactive radio selection grid of canteen refund policies (`policyCode` - e.g. "Change proposal item refund", "Full refund without image", "Hư Hỏng", "Không còn nhu cầu", "Thiếu món", "Vấn đề vệ sinh thực phẩm")
+○ Issue Description Area ("Mô tả chi tiết _"): Textarea input ("Mô tả vấn đề bạn gặp phải...") with real-time character counter ("0 ký tự (tối thiểu 10 ký tự)")
+○ Evidence Photo Dropzone ("Hình ảnh minh chứng"): Photo upload component supporting up to 5 proof images (`Tải ảnh 0/5`)
+Actions:
+○ UI Button " Gửi yêu cầu hoàn tiền" → Uploads evidence photos to Cloudinary and submits claim payload to `/api/refunds` for manager approval
+Result:
+○ Success: Displays UI Toast "Đã gửi yêu cầu hoàn tiền thành công!" and redirects user to Order History (`/orders`)
+○ Failure: Displays UI Toast "Gửi yêu cầu hoàn tiền thất bại."
 
 Screen Layout
-Figure 16 - Dish Change Proposals Page
+Figure 16 - Detailed Refund Claim Page
 
 ---
 
-#### 3.2.17 User Profile & Security Settings Page (`/profile`)
+#### 3.2.17 Change Proposals Dashboard Page (`/change-proposals`)
 
 Function Trigger
-● User selects UI Avatar menu option "Hồ sơ cá nhân" or navigates to `/profile`
+○ User receives system notification when an ordered dish runs out during tray assembly, or navigates to `/change-proposals`
 
 Function Description
-● Manage personal profile information, update avatar, change password in security settings, and upload Student ID card for verification.
+○ Displays a consolidated dashboard of all pending and resolved kitchen dish substitution proposals for the student's orders.
 
 Function Details
-● Tab Navigation Structure (`Tabs`):
-○ Tab 1: Personal Info (`Thông tin cá nhân`)
-■ Layout: "Họ và tên" (`name`), "Email" (`email`), "Số điện thoại" (`phoneNumber`), "Mã sinh viên" (`studentId`), "Lớp / Chuyên ngành" (`majorOrClass`)
-■ Upload: "Ảnh đại diện" (`avatar`), "Ảnh thẻ sinh viên" (`studentCardPhoto`)
-■ Actions: "Lưu thay đổi" (updates profile info via `/api/Auth/me`), "Gửi xác minh sinh viên" (submits ID photo to `/api/Verification/submit`)
-○ Tab 2: Wallet & Cards (`Ví & Thẻ của tôi`)
-■ Layout: Displays current wallet balance summary, linked bank cards, and quick topup shortcut
-○ Tab 3: Security Settings (`Đổi mật khẩu` / `Cài đặt bảo mật`)
-■ Layout: "MẬT KHẨU HIỆN TẠI" (`currentPassword`), "MẬT KHẨU MỚI" (`newPassword`), "XÁC NHẬN MẬT KHẨU" (`confirmPassword`)
-■ Actions: "Cập nhật mật khẩu" (submits to `/api/Auth/change-password`)
-■ Validation (`ChangePasswordSchema`): `currentPassword` required; `newPassword` follows `PasswordSchema` and differs from current; `confirmPassword` matches 100%
-■ Result: Success → "Cập nhật mật khẩu thành công!"; Failure → "Mật khẩu hiện tại không chính xác."
+Layout & Elements:
+○ Page Header: "Đề xuất đổi món" with pending proposals counter ("Bạn có X đề xuất đang chờ xử lý") and "Làm mới" refresh button
+○ Grouped Order Proposal Cards: Displays Order ID (`#...`), Session Name, Serving Time Range, and item proposal resolution badges (`Đã đổi món`, `Đã hoàn tiền món`, `Đã hoàn tiền & hủy đơn`)
+○ Action Link: "Xem đơn hàng >" (navigates directly to the specific order detail page `/orders/[id]`)
+Result:
+○ Success: Displays real-time list of dish change proposals grouped by order
 
 Screen Layout
-Figure 17 - User Profile & Security Settings Page
+Figure 17 - Change Proposals Dashboard Page
+
+---
+
+#### 3.2.18 Order Item Dish Swap Modal (`SwapItemModal` on `/orders/[id]`)
+
+Function Trigger
+○ User clicks UI Action Button "Làm mới Đổi món" on an out-of-stock dish alert banner inside Order Detail Page (`/orders/[id]`)
+
+Function Description
+○ Pop-up modal allowing students to select a candidate replacement dish from the same meal session or execute item refund resolution.
+
+Function Details
+Layout & Modal Elements:
+○ Item Alert Banner (Order Detail): "Món này bị thiếu số lượng! Vui lòng chọn hành động thay thế." with button "Làm mới Đổi món"
+○ Modal Header: "Chọn Món Thay Thế" showing target out-of-stock dish name ("Đổi món: [Tên món]")
+○ Available Replacements Grid: Candidate replacement dishes in the same meal session, displaying thumbnails, item names, prices in Canteen Points (xu), and "Chọn →" selection buttons
+Actions:
+○ UI Action "Chọn →" (inside Modal) → Confirms replacement dish selection and updates order item
+○ UI Action "Từ chối đổi món & Hoàn tiền món" (`RefundItem`) → Credits out-of-stock dish value back to student wallet
+○ UI Action "Từ chối đổi món & Hủy toàn bộ đơn" (`RefundOrder`) → Cancels entire order and refunds full amount to wallet
+Result:
+○ Success: Displays UI Toast "Đổi món thành công!" or "Đã hoàn tiền món vào ví!", updating order item status in real time
+
+Screen Layout
+Figure 18 - Order Item Dish Swap Selection Modal
+
+---
+
+#### 3.2.19 User Profile & Security Settings Page (`/profile`)
+
+Function Trigger
+○ User selects UI Avatar menu option "Hồ sơ cá nhân" or navigates to `/profile`
+
+Function Description
+○ Manage personal profile details, inspect email/identity verification status badges, switch wallet tabs, and update security password.
+
+Function Details
+Layout & Side Menu Structure:
+○ Left Sidebar Menu:
+■ User Card: Avatar thumbnail, Full Name (`name`), and Role badge (`Người dùng`)
+■ Navigation Items: "Thông tin cá nhân" (active tab), "Ví & Thẻ của tôi", "Đổi mật khẩu", "Đăng xuất"
+○ Tab 1: Personal Info ("Thông tin cá nhân"):
+■ Form Fields: "Họ và tên" (`name`), "Địa chỉ Email" (`email` - with green `Đã xác thực` badge), "Mã số sinh viên" (`studentId`), "Chuyên ngành / Lớp" (`majorOrClass`), "Số điện thoại" (`phoneNumber`), "Ngày sinh" (`dateOfBirth` date picker), "Giới tính" (`gender` select: Nam/Nữ/Khác), "Địa chỉ" (`address`)
+■ Verification Status Section ("Trạng thái xác thực"): Displays status badges for "Xác thực Email" (`Đã xác thực`) and "Định danh tài khoản" (`Đã định danh` / `Đã xác thực`)
+■ Actions: UI Button "Lưu thay đổi" (submits updates to `/api/Auth/me`) & "Hủy thay đổi" (resets form fields)
+○ Tab 2: Wallet & Cards ("Ví & Thẻ của tôi"):
+■ Layout: Displays current wallet balance summary, 12 virtual card design templates, topup shortcuts, and recent transaction history
+○ Tab 3: Security Settings ("Đổi mật khẩu"):
+■ Header: "Cài đặt bảo mật"
+■ Form Fields: "MẬT KHẨU HIỆN TẠI" (`currentPassword`), "MẬT KHẨU MỚI" (`newPassword`), "XÁC NHẬN MẬT KHẨU" (`confirmPassword`) - all featuring show/hide password eye toggle icons (Chi tiết)
+■ Actions: UI Button "Cập nhật mật khẩu" (submits change password payload to `/api/Auth/change-password`)
+■ Validation (`ChangePasswordSchema`): `currentPassword` required; `newPassword` follows `PasswordSchema` (min 8 chars, 1 uppercase, 1 digit, 1 special char); `confirmPassword` matches `newPassword` 100%
+■ Result: Success → UI Toast "Cập nhật mật khẩu thành công!"; Failure → "Mật khẩu hiện tại không chính xác."
+
+Screen Layout
+Figure 19 - User Profile & Security Settings Page
+
+---
+
+#### 3.2.20 Notifications Center & Dropdown (`/notifications`)
+
+Function Trigger
+○ User clicks UI Bell Icon (``) on Navbar or navigates to `/notifications`
+
+Function Description
+○ Displays realtime system notifications (order updates, dish change proposals, refund approvals, verification results) via SignalR WebSocket and API fallback.
+
+Function Details
+Layout & Features:
+○ **Navbar Notification Dropdown** (`NotificationDropdown`):
+■ Pop-up Panel: Quick list of 20 most recent notifications
+■ Status Indicator: Unread red dot and highlight background
+■ Quick Action: UI Button "Đánh dấu đã đọc" (marks all dropdown items as read)
+■ Navigation Link: "Xem tất cả thông báo" (navigates to `/notifications`)
+○ **Full Notifications Center Page** (`/notifications`):
+■ Header: Title "Thông báo", page counter ("Trang X/Y"), and Back button (`←`)
+■ Filter Tabs: "Tất cả" & "Chưa đọc"
+■ Action Button: "Đọc tất cả" (marks all account notifications as read)
+■ Notifications List: Title, message snippet, and relative timestamp ("Vài giây trước", "X phút trước")
+■ Pagination Controls: "Trước" & "Sau" navigation buttons
+Actions:
+○ Click Notification Item: Marks item as read and auto-redirects user to target detail URL (e.g. Order Detail `/orders/[id]` or Proposals `/change-proposals`)
+Result:
+○ Success: Realtime update of unread count badge and list items
+
+Screen Layout
+Figure 20 - Notifications Center & Dropdown Page
 
 ---
 
@@ -532,466 +647,500 @@ Figure 17 - User Profile & Security Settings Page
 #### 3.3.1 Manager Dashboard Page (`/manager`)
 
 Function Trigger
-● Canteen Manager authenticates and accesses `/manager`
+○ Canteen Manager authenticates and accesses `/manager` (or clicks Manager Dashboard link)
 
 Function Description
-● High-level overview dashboard displaying realtime business KPIs, daily revenue, active session stats, tray packing progress, and hardware connectivity telemetry.
+○ Comprehensive executive dashboard displaying realtime business KPIs, revenue trends over time, active session statistics, top-selling dish analytics, refund claim rates, and order status breakdown charts.
 
 Function Details
-● Layout & Telemetry:
-○ KPI Cards: Daily Revenue, Total Orders Today, Fulfillment Rate (%), Active Sessions Count
-○ Realtime Order Distribution Chart: Order status pie chart (`Pending`, `Preparing`, `Ready`, `Completed`, `Cancelled`)
-○ System Status Bar: Live WebSocket status of Robot Arm, Pickup Slots, and RFID Trays ("Rảnh", "Bận", "Lỗi", "Bảo trì", "Ngoại tuyến")
-● Actions:
-○ Navigation shortcuts to manage sessions, dishes, orders, and hardware devices
+Layout & Elements:
+○ Header & Export Bar: Title "Báo cáo", subtitle ("Báo cáo tổng quan, ca phục vụ, vấn đề đơn hàng và chính sách hoàn tiền"), and UI Action Button "Xuất báo cáo" (exports report data to Excel/CSV)
+○ Date Range Preset Selector: Quick period tabs ("Hôm nay", "7 ngày", "30 ngày", "Tháng trước") and custom date range picker ("Tùy chọn")
+○ Report Sub-tab Navigation: "Tổng quan" (active overview), "Ca phục vụ", "Vấn đề đơn hàng", "Chính sách hoàn tiền"
+○ KPI Summary Metrics Cards:
+■ "ĐƠN HÀNG": Total order count with percentage growth vs previous period (e.g. `144`, `+108.7%`)
+■ "DOANH THU": Cumulative revenue currency value with growth trend (e.g. `288 đ`, `+251.2%`)
+■ "KHIẾU NẠI": Total refund claim count (e.g. `119`)
+■ "KHÁCH HÀNG": Active student customer count with trend (e.g. `6`, `-72.7%`)
+■ "TỶ LỆ HOÀN TIỀN": Refund rate percentage with trend (e.g. `666.7%`)
+■ "CA ĐANG HOẠT ĐỘNG": Active operational meal sessions count (e.g. `1`)
+■ "MÓN BÁN CHẠY": Top performing dish name preview (e.g. "Gà nướng mật ong")
+○ Interactive Analytics Charts:
+■ "Doanh thu theo thời gian": Dual-axis time series line chart comparing Order Volume (`Đơn hàng`) vs Total Revenue (`Doanh thu`) with interactive date hover tooltips
+■ "Món ăn bán chạy": Bar chart analyzing top sold dish quantities with filter toggles ("Món chạy nhất" / "Cầu mua nhiều")
+■ "Đơn hàng theo trạng thái": Donut/Pie chart displaying order distribution across status states (`Pending`, `Preparing`, `Ready`, `Completed`, `Cancelled`)
+Actions:
+○ UI Button "Xuất báo cáo" → Generates and downloads export report file
+○ Tab Filters → Switches between overview, session, order issue, and refund policy reporting views
+Result:
+○ Success: Real-time visualization of canteen business KPIs and interactive charts
 
 Screen Layout
-Figure 18 - Manager Dashboard Page
+Figure 21 - Manager Dashboard Page
 
 ---
 
 #### 3.3.2 Revenue & Session Reports Page (`/manager/reports`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Báo cáo & Thống kê" or accesses `/manager/reports`
+○ Manager clicks UI Sidebar item "Báo cáo & Thống kê" or accesses `/manager/reports?tab=session`
 
 Function Description
-● Analytics workspace for analyzing canteen revenue, peak-hour order volume, and session performance.
+○ Analytics workspace for analyzing meal session performance, total orders placed, generated revenue vs refund losses, completion rates, and status history per meal session.
 
 Function Details
-● Elements & Metrics:
-○ Revenue chart breakdown by date, session, and dish category
-○ Sales volume summary metrics
-● Associated Modals:
-○ `SessionReportDetailModal`: Modal showing popular dish sales and refund losses for a specific meal session
-● Actions:
-○ UI Button "Xuất báo cáo (Excel/PDF)" → Exports report data file
+Layout & Elements:
+○ Header Bar: Title "Báo cáo ca phục vụ", subtitle ("Theo dõi doanh thu, số lượng đơn hàng và xu hướng đặt món theo từng ca"), and refresh button (`Làm mới`)
+○ Search & View Switcher Bar: Realtime session search input ("Tìm kiếm ca phục vụ..."), "Tìm kiếm" action button, and view mode toggle buttons (" Bảng" Table view / " Thẻ" Card view)
+○ Session Audit Table:
+■ Columns: `TÊN CA PHỤC VỤ`, `THỜI GIAN HOẠT ĐỘNG`, `TỔNG ĐƠN HÀNG`, `DOANH THU`, `TỶ LỆ HOÀN THÀNH`, `TRẠNG THÁI`, `THAO TÁC`
+■ Session Row Items: Displays Session Title (`Bữa xế chiều`, `Webcam + Arm`, `Bữa sáng lành mạnh`...), Session ID (`ID: ...`), Serving start/end timestamps, Total Orders (`X đơn`), Net Revenue & Refund losses (`0 đ`, `Hoàn: X đ`), Completion Rate badge (`100%`), Status Badges (`LIVE`, `ĐÃ ĐÓNG`, `ĐÃ CHỐT`), and detail view action icon (`Chi tiết`)
+○ Associated Modal: `SessionReportDetailModal` displaying popular dish sales distribution, item breakdown, and refund losses for a clicked session
+Actions:
+○ Click Eye Icon (`Chi tiết`) → Opens `SessionReportDetailModal` to inspect deep session metrics
+○ Toggle " Bảng" / " Thẻ" → Switches between table audit view and visual card grid
+Result:
+○ Success: Filterable, paginated audit list of meal session reports fetched from `/api/reports/sessions`
 
 Screen Layout
-Figure 19 - Revenue & Session Reports Page
+Figure 22 - Revenue & Session Reports Page
 
 ---
 
 #### 3.3.3 Meal Session Management Page (`/manager/sessions`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Ca phục vụ" (`/manager/sessions`)
+○ Manager clicks UI Sidebar item "Ca phục vụ" or accesses `/manager/sessions`
 
 Function Description
-● Create new sessions, edit active sessions, finalize sessions, and view session calendar.
+○ Session management workspace for orchestrating daily meal sessions, viewing annual session activity heatmaps, monitoring 24-hour serving timelines, creating new meal sessions, and accessing session details.
 
 Function Details
-● View Modes:
-○ List View / Calendar View (`Session Calendar Heatmap`)
-● Associated Modals:
-○ `CreateSessionModal` / `EditSessionModal`: Modal to create/edit session parameters (`title` - "Tên ca", `availableFrom` - "Giờ mở bán", `availableTo` - "Giờ đóng ca", `availableForOrder` - "Giờ khóa nhận đơn", `finalizationDeadline` - "Hạn chốt ca")
-○ `SlotConfigModal`: Modal to assign pickup slots for the session
-● Actions:
-○ UI Button "Chốt ca ngay" (`Finalize Now`): Finalizes meal session. Validates that Category Prepared Quantities meet or exceed total Ordered Quantities
-○ UI Button "Khóa đơn khẩn cấp": Emergency lock preventing new order placements
-○ UI Toggle Button "Mở rộng tất cả" / "Thu gọn tất cả": Toggles category dish lists collapse state
+Layout & Features:
+○ Header Bar: Title "Ca phục vụ", subtitle ("Quản lý và điều phối các phiên/ca ăn phục vụ.")
+○ Annual Session Calendar Heatmap (`Lịch ca phục vụ`): Interactive 12-month heatmap calendar grid, year selector tabs (`2025`, `2026`, `2027`), total session counter, and selected date indicator ("Đang chọn ngày: DD/MM/YYYY (X ca)")
+○ Session Statistics Card (`Thống kê ca ăn`): Metrics for "TỔNG CA ĂN" (annual total), "TỶ LỆ PHỦ CA" (percentage coverage), and primary action button "+ Tạo ca ăn ngày DD/MM/YYYY" (navigates to session creation form `/manager/sessions/new`)
+○ 24-Hour Serving Timeline Bar (`Khung giờ 24h & Ca ăn ngày`): Interactive horizontal 24h timeline graph displaying exact time slots of scheduled meal sessions across the day
+○ Daily Meal Session Cards Grid: Session cards for selected date displaying Session Name, Serving time range (`Khung giờ: HH:mm - HH:mm`), Total dishes offered (`X món`), Finalization deadline (`Hạn chốt đơn: HH:mm`), active toggle switch, and detail navigation link ("Chi tiết ->" navigating to `/manager/sessions/[id]`)
+○ Associated Modals / Forms:
+■ `CreateSessionModal` / `new-session-form`: Form to create/copy session parameters, select dishes, auto-sync categories, and assign unique robot arm pickup lanes (`S1_L1`...)
+■ `SlotConfigModal`: Modal to configure pickup slot assignments for the session
+Actions:
+○ UI Button "+ Tạo ca ăn ngày DD/MM/YYYY" → Opens session creation workflow
+○ Click Session Card / "Chi tiết ->" → Navigates to Session Detail Page (`/manager/sessions/[id]`)
+○ Click Heatmap Date Cell → Filters 24h timeline and session card grid by selected date
+Result:
+○ Success: Real-time visual timeline and calendar management of all canteen meal sessions
 
 Screen Layout
-Figure 20 - Meal Session Management Page
+Figure 23 - Meal Session Management Page
 
 ---
 
 #### 3.3.4 Dish Management Page (`/manager/menu`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Quản lý món ăn" (`/manager/menu`)
+○ Manager clicks UI Sidebar item "Quản lý món ăn" or accesses `/manager/menu`
 
 Function Description
-● CRUD operations for menu dishes, pricing, dish descriptions, image upload, and kitchen portion stock management.
+○ Menu management workspace for performing CRUD operations on dishes, assigning categories, setting point prices, uploading high-resolution food images, and toggling availability.
 
 Function Details
-● Layout & Dish Grid:
-○ Dish table/grid displaying image, title, category, unit price (Points), stock, and active status
-● Associated Modals:
-○ `CreateDishModal` / `EditDishModal`: Form modal for dish details, unit price in points, and Cloudinary image upload
-○ `UpdateStockModal`: Modal for updating kitchen dish portion stock
-● Actions:
-○ UI Button "Tạo món mới" → Opens `CreateDishModal`
-○ UI Button "Cập nhật tồn kho bếp" (`UPDATE_STOCK`)
-○ UI Toggle Button "Ẩn / Hiện món ăn" (`isActive`)
+Layout & Elements:
+○ Header Bar: Title "Thiết lập thực đơn", subtitle ("Quản lý thực đơn và điều chỉnh trạng thái các món ăn."), and primary action button "+ Món ăn mới"
+○ Search & Filter Bar: Realtime dish name search input ("Tìm kiếm tên món ăn..."), category dropdown filter ("Tất cả danh mục v"), and view mode switcher (" Thẻ" Card grid view / " Bảng" Table list view)
+○ Interactive Dish Cards Grid:
+■ Image Thumbnail: High-resolution food photo
+■ Dish Details: Dish Name (`BÁNH MÌ THẬP CẨM`, `BẮP LUỘC`, `BÒ LÚC LẮC`...), Category tag (`Thức ăn nhanh`, `Tinh bột`, `Đạm động vật`, `Rau củ...`), Unit Price in Canteen Points (xu)
+■ Active Status Badge: Green toggle badge (`Bật` / `Tắt`)
+■ Quick Action Icons: Edit Pencil icon (`Chỉnh sửa`) and Delete bin icon (`Xóa`)
+○ Associated Modals:
+■ `CreateDishModal`: Modal form to create new dish with title, description, category, unit price (Points), and Cloudinary image upload
+■ `EditDishModal`: Modal form to update dish details, price, category, and photo
+■ `DeleteDishConfirmModal`: Confirmation dialog before deleting a dish item
+Actions:
+○ UI Button "+ Món ăn mới" → Opens `CreateDishModal`
+○ Click Edit Pencil Icon (`Chỉnh sửa`) → Opens `EditDishModal` for target dish
+○ Click Delete Bin Icon (`Xóa`) → Opens deletion confirmation dialog
+○ Click Active Status Badge (`Bật`/`Tắt`) → Toggles dish availability status
+Result:
+○ Success: Real-time update of dish menu items fetched from `/api/dishes`
 
 Screen Layout
-Figure 21 - Dish Management Page
+Figure 24 - Dish Management Page
 
 ---
 
 #### 3.3.5 Category Management Page (`/manager/categories`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Quản lý danh mục" (`/manager/categories`)
+○ Manager clicks UI Sidebar item "Danh mục" or accesses `/manager/categories`
 
 Function Description
-● CRUD operations for meal categories (Cơm, Bún/Phở, Đồ uống, Tráng miệng), category icons, display order, and active state.
+○ Category management workspace for executing CRUD operations on food categories, assigning category cover images, descriptions, display order, and active state.
 
 Function Details
-● Layout & Order List:
-○ Category list with name, icon, display order, item count, and status
-● Associated Modals:
-○ `CreateCategoryModal` / `EditCategoryModal`
-○ `ReorderCategoriesModal`: Modal for drag-and-drop reordering of categories
-● Actions:
-○ UI Button "Tạo danh mục mới"
-○ UI Button "Sắp xếp thứ tự hiển thị"
+Layout & Elements:
+○ Header Bar: Title "Danh mục", subtitle ("Quản lý và thiết lập danh mục món ăn."), and primary action button "+ Danh mục mới"
+○ Search Bar: Realtime category search input ("Tìm kiếm danh mục..."), "Tìm kiếm" action button, and view mode switcher (" Thẻ" Card grid view / " Bảng" Table list view)
+○ Interactive Category Cards Grid:
+■ Category Cover Image: Representative category food photo
+■ Category Details: Category Title in uppercase (`ĐẠM ĐỘNG VẬT`, `ĐẠM THỰC VẬT`, `MÓN CHAY`, `RAU CỦ VÀ CHẤT XƠ`, `THỨC ĂN NHANH`, `TINH BỘT`, `TRÁI CÂY`...)
+■ Category Description: Sub-description text explaining included food items (e.g. "Thịt, cá, hải sản, trứng", "Bánh, chè, pudding")
+■ Quick Action Buttons: Edit Pencil icon (`Chỉnh sửa`) and Delete bin icon (`Xóa`)
+○ Associated Modals:
+■ `CreateCategoryModal`: Modal form to create new food category with title, description, display order, and image upload
+■ `EditCategoryModal`: Modal form to edit category details and image
+■ `DeleteCategoryConfirmModal`: Confirmation modal before removing a category
+Actions:
+○ UI Button "+ Danh mục mới" → Opens `CreateCategoryModal`
+○ Click Edit Pencil Icon (`Chỉnh sửa`) → Opens `EditCategoryModal` for target category
+○ Click Delete Bin Icon (`Xóa`) → Opens deletion confirmation modal
+Result:
+○ Success: Real-time update of canteen dish categories fetched from `/api/categories`
 
 Screen Layout
-Figure 22 - Category Management Page
+Figure 25 - Category Management Page
 
 ---
 
 #### 3.3.6 Order Management Page (`/manager/orders`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Đơn hàng" (`/manager/orders`)
+○ Manager clicks UI Sidebar item "Đơn hàng" or accesses `/manager/orders`
 
 Function Description
-● Search, filter, and inspect customer orders by meal session, student name, or order ID; intervene and update order status when technical errors occur.
+○ Order monitoring workspace for filtering orders by meal session, searching by student name/order ID, monitoring revenue and order status metrics, and inspecting order details.
 
 Function Details
-● Layout & Order Table:
-○ Search bar, session filter, status tabs, and order rows
-● Associated Modals:
-○ `ManagerOrderDetailModal`: Inspects detailed order timeline and item statuses
-○ `EmergencyCancelOrderModal`: Cancels order and triggers full wallet refund
-● Actions:
-○ UI Button "Xem chi tiết đơn"
-○ UI Button "Hủy đơn khẩn cấp"
+Layout & Elements:
+○ Header Bar: Title "Đơn Hàng", subtitle ("Theo dõi và quản lý đơn hàng theo từng ca phục vụ")
+○ Session Selector Bar ("CHỌN CA PHỤC VỤ"): Scrollable session selector pills displaying session titles and order counts (e.g. "Bữa xế chiều [7]", "Bữa sáng lành mạnh [8]"), quick session search ("Tìm nhanh ca phục vụ..."), and date range picker ("Từ ngày - Đến")
+○ Metric Summary Bar: "TỔNG ĐƠN" (Total orders count), "HOÀN THÀNH" (Green completed count box), "ĐÃ HỦY" (Red cancelled count box), "DOANH THU" (Blue currency box xu)
+○ Search & Filter Controls: Realtime search input ("Tìm theo mã đơn, tên hoặc user ID..."), "Tìm kiếm" action button, status dropdown filter ("Tất cả", "Chờ xử lý", "Đang chuẩn bị", "Sẵn sàng", "Hoàn thành", "Đã hủy", "Hết hạn"), and refresh button (`Làm mới`)
+○ Order Audit Table:
+■ Columns: `#` (Order ID preview), `KHÁCH HÀNG` (Avatar thumbnail & Full Name), `MÓN ĂN` (Dishes list with quantities `DishName x1`), `TỔNG TIỀN` (xu), `TRẠNG THÁI` (`ĐÃ HỦY`, `ĐÃ HẾT HẠN`, `SẴN SÀNG`, `HOÀN THÀNH`), `THỜI GIAN` (HH:mm timestamp), `THAO TÁC` (`Chi tiết` Eye detail icon)
+○ Associated Modals:
+■ `ManagerOrderDetailModal`: Modal for inspecting order timeline, dish item statuses, and customer details
+■ `EmergencyCancelOrderModal`: Modal to cancel order and execute full wallet refund in error scenarios
+Actions:
+○ Click Session Selector Pill → Filters order table by target meal session
+○ Click Eye Icon (`Chi tiết`) → Opens `ManagerOrderDetailModal` for order details
+Result:
+○ Success: Real-time filterable, paginated audit list of canteen orders fetched from `/api/manager/orders`
 
 Screen Layout
-Figure 23 - Order Management Page
+Figure 26 - Order Management Page
 
 ---
 
 #### 3.3.7 Refund Requests Approval Page (`/manager/refunds`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Yêu cầu hoàn tiền" (`/manager/refunds`)
+○ Manager clicks UI Sidebar item "Yêu cầu hoàn tiền" or accesses `/manager/refunds`
 
 Function Description
-● Review student refund claims, inspect attached proof images, and approve or reject claims with reason feedback.
+○ Refund claim approval workspace for reviewing student refund claims, inspecting attached proof images, and approving or rejecting claims with refund payout to Smart Canteen Wallet.
 
 Function Details
-● Layout & Claim Cards:
-○ Refund claim list displaying order ID, student name, policy code, description, proof images, and status
-● Associated Modals:
-○ `RefundDetailsModal`: Zoom proof images and claim details
-○ `ApproveRefundModal`: Confirms approval → System automatically credits refund amount to student's Smart Canteen Wallet via `/api/manager/refunds/[id]/approve`
-○ `RejectRefundModal`: Requires entering rejection reason `rejectionReason` in UI input via `/api/manager/refunds/[id]/reject`
-● Actions:
-○ UI Button "Phê duyệt"
-○ UI Button "Từ chối"
+Layout & Elements:
+○ Header Bar: Title "Yêu cầu hoàn tiền", subtitle ("Phê duyệt hoặc từ chối các yêu cầu hoàn tiền của người dùng.")
+○ Search & Filter Bar: Realtime search input ("Tìm theo user ID, tên khách, chính sách..."), "Tìm kiếm" action button, and status dropdown filter ("Tất cả trạng thái", "Chờ duyệt", "Đã duyệt", "Từ chối", "Tự động hoàn")
+○ Refund Approval Audit Table:
+■ Columns: `NGƯỜI DÙNG` (Full Name & User ID), `MÓN ĂN` (Dish name or "Toàn bộ đơn"), `CHÍNH SÁCH` (Policy code description e.g. "Full refund without image", "Change proposal item refund...", "Không còn nhu cầu"), `SỐ TIỀN HOÀN` (xu), `TỶ LỆ` (`100%`), `TRẠNG THÁI` (`TỰ ĐỘNG HOÀN` blue badge, `ĐÃ DUYỆT` green badge, `CHỜ DUYỆT` amber badge, `TỪ CHỐI` red badge), `NGÀY YÊU CẦU` (DD/MM/YYYY), `THAO TÁC` (`Chi tiết` Eye action icon)
+○ Pagination Bar: Total request count indicator ("Hiển thị X–Y trong Z yêu cầu") and page numbers navigation (`< 1 2 3 ... N >`)
+○ Associated Modals:
+■ `RefundDetailsModal`: Inspects detailed claim information, reason text, and proof photo dropzone images
+■ `ApproveRefundModal`: Confirms refund approval → System automatically credits refund amount to student's Smart Canteen Wallet via `/api/manager/refunds/[id]/approve`
+■ `RejectRefundModal`: Confirms rejection and submits manager rejection reason `rejectionReason` via `/api/manager/refunds/[id]/reject`
+Actions:
+○ Click Eye Icon (`Chi tiết`) → Opens `RefundDetailsModal` to review claim proof photos and execute approval/rejection actions
+○ Filter Status Dropdown → Filters table list by claim status (`Tự động hoàn`, `Đã duyệt`, `Chờ duyệt`, `Từ chối`)
+Result:
+○ Success: Real-time update of student refund claim statuses and wallet payouts
 
 Screen Layout
-Figure 24 - Refund Requests Approval Page
+Figure 27 - Refund Requests Approval Page
 
 ---
 
 #### 3.3.8 Refund Policy Management Page (`/manager/refund-policies`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Chính sách hoàn tiền" (`/manager/refund-policies`)
+○ Manager clicks UI Sidebar item "Chính sách hoàn tiền" or accesses `/manager/refund-policies`
 
 Function Description
-● Configure automated refund policy rules (% refund rate, proof photo requirements, and policy codes).
+○ Administrative workspace for configuring canteen refund policies, setting percentage refund rates, requiring proof photos, and managing policy codes.
 
 Function Details
-● Form Fields & Table:
-○ UI Field "Mã chính sách (Code)": Uppercase letters, numbers, underscores only (e.g. `SPOILED`, `KHONG_CON_NHU_CAU`)
-○ UI Field "Tên hiển thị (Name)": Text input
-○ UI Field "Mô tả (Description)": Textarea
-○ UI Field "Phần trăm hoàn tiền (%)": Numeric input (1 - 100%)
-○ UI Toggle "Yêu cầu hình ảnh minh họa": Toggle ("Có (Bắt buộc tải ảnh)" / "Không bắt buộc")
-● Associated Modals:
-○ `CreatePolicyModal` ("Tạo mới chính sách hoàn tiền"): Modal to create refund policy rule
-○ `EditPolicyModal` ("Chỉnh sửa chính sách hoàn tiền"): Modal to edit policy rule
-● Actions:
-○ UI Button "Thêm Chính Sách Mới"
-○ UI Button "Tạo chính sách" / "Lưu thay đổi"
-○ UI Action "Xoá chính sách hoàn tiền này?"
+Layout & Elements:
+○ Header Bar: Title "Refund Policies", subtitle ("Manage refund policy rules and percentages"), and primary action button "+ THÊM CHÍNH SÁCH MỚI"
+○ Search Bar: Realtime search input ("Search by code, name or description...")
+○ Refund Policies Table:
+■ Columns: `CODE` (e.g. `PROPOSAL_ITEM_REFUND_NO_IMAGE`, `FULL_REFUND_NO_IMAGE`, `SPOILED`, `KHONG_CON_NHU_CAU`, `NOT_RECEIVED`, `MISSING_ITEM`), `NAME` (Display name e.g. "Change proposal item refund without image", "Hư Hỏng", "Không còn nhu cầu", "Thiếu món"), `DESCRIPTION`, `PERCENT` (`100%`, `20%`, `10%`, `5%`), `REQUIRES IMAGE` (Badge `Requires Image` / `—`), `ACTIONS` (Edit `Chỉnh sửa` & Delete `Xóa`)
+○ Associated Modals:
+■ `CreatePolicyModal`: Form modal to create a new refund policy rule
+■ `EditPolicyModal`: Form modal to update policy name, percentage, description, and image requirement
+■ `DeletePolicyConfirmModal`: Confirmation dialog to delete a policy rule
+Actions:
+○ UI Button "+ THÊM CHÍNH SÁCH MỚI" → Opens `CreatePolicyModal`
+○ Click Edit Pencil Icon (`Chỉnh sửa`) → Opens `EditPolicyModal`
+○ Click Delete Bin Icon (`Xóa`) → Opens deletion confirmation dialog
+Result:
+○ Success: Real-time update of canteen refund policy rules fetched from `/api/manager/refund-policies`
 
 Screen Layout
-Figure 25 - Refund Policy Management Page
+Figure 28 - Refund Policy Management Page
 
 ---
 
-#### 3.3.9 Robot Arm Management Page (`/manager/robot`)
+#### 3.3.9 Hardware Control & Robot Arm Page (`/manager/robot`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Cánh tay Robot" (`/manager/robot`)
+○ Manager clicks UI Sidebar item "Tay máy Robot" or accesses `/manager/robot`
 
 Function Description
-● Monitor Robotic Arm operational telemetry, execution speed, error logs, and toggle maintenance modes.
+○ Telemetry dashboard for monitoring robotic arms status, tracking heartbeat timestamps, assigning stations, and registering hardware stations.
 
 Function Details
-● Layout & Controls:
-○ Status indicators, operational state, motion speed controls, and hardware error codes
-● Associated Modals:
-○ `ResetRobotModal`: Clears hardware fault flags and re-homes robot arm
-○ `ArmTelemetryLogsModal`: Shows detailed movement coordinate logs
-● Actions:
-○ UI Toggle Button "Bật Chế độ bảo trì"
-○ UI Button "Reset Robot"
+Layout & Elements:
+○ Header Bar: Title "Robot Arms", subtitle ("Đăng ký và giám sát các tay máy phục vụ"), refresh button (`Làm mới`), and primary action button "+ ĐĂNG KÝ TAY MÁY"
+○ Status Metric Cards: " Sẵn sàng", " Đang gắp món", " Gặp sự cố", " Bảo trì", " Ngoại tuyến"
+○ Search & Session Filter Bar: Search input ("Tìm theo code, tên, IP..."), and session filter dropdown ("PHIÊN PHỤC VỤ: [SessionName] v")
+○ Robot Arms Table:
+■ Columns: `MÃ` (Station code e.g. `S1`, `S2`, `S3`), `TÊN TRẠM` (e.g. "Trạm đạm tốt", "Trạm súp, canh", "Trạm chất xơ"), `IP ADDRESS` (`192.168.58.2`), `STATION` (`Trạm 1`, `Trạm 2`, `Trạm 3`), `TRẠNG THÁI` (`Ngoại tuyến` grey badge, `Sẵn sàng` green badge), `HEARTBEAT` (Timestamp HH:mm DD-MM), `HÀNH ĐỘNG` (Edit `Chỉnh sửa` & Delete `Xóa`)
+○ Associated Modals:
+■ `RegisterRobotModal`: Form modal to register a new robotic arm station
+■ `EditRobotModal`: Form modal to update robot arm IP address, station assignment, and status
+Actions:
+○ UI Button "+ ĐĂNG KÝ TAY MÁY" → Opens `RegisterRobotModal`
+○ Click Edit Pencil Icon (`Chỉnh sửa`) → Opens `EditRobotModal`
+Result:
+○ Success: Real-time telemetry monitoring of canteen robotic arm hardware
 
 Screen Layout
-Figure 26 - Robot Arm Management Page
+Figure 29 - Hardware Control & Robot Arm Page
 
 ---
 
-#### 3.3.10 RFID Tray Management Page (`/manager/trays`)
+#### 3.3.10 RFID Tray Pool Management Page (`/manager/trays`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Khay ăn RFID" (`/manager/trays`)
+○ Manager clicks UI Sidebar item "Pool Khay" or accesses `/manager/trays`
 
 Function Description
-● Track physical RFID tray inventory, tray assignment states, and perform bulk tray registration or emergency tray release.
+○ Resource management workspace for monitoring physical RFID tray inventory, tracking order bindings, and registering new RFID tray tags.
 
 Function Details
-● Status Badges:
-○ "Sẵn sàng" (`Available`), "Đã giữ chỗ" (`Reserved`), "Đang sử dụng" (`InUse`)
-● Associated Modals:
-○ `TrayDetailModal`: Shows tray details and currently assigned order
-○ `BatchCreateTraysModal`: Bulk registers trays by index range `from` - `to`
-○ `ForceReleaseTrayModal`: Emergency releases stuck tray
-● Actions:
-○ UI Button "Thêm khay ăn hàng loạt"
-○ UI Button "Giải phóng khay khẩn cấp"
+Layout & Elements:
+○ Header Bar: Title "Pool Khay", subtitle ("Quản lý khay tài nguyên — mượn / trả tự động"), refresh button (`Làm mới`), and primary action button "+ ĐĂNG KÝ KHAY"
+○ Status Metric Cards: "KHAY SẴN SÀNG" (Count), "ĐANG GIỮ ĐƠN" (Count), "ĐANG SỬ DỤNG" (Count)
+○ Search Bar: Search input ("Tìm theo mã khay, trạng thái, đơn hàng...") and "Tìm kiếm" action button
+○ Tray Inventory Table:
+■ Columns: `MÃ KHAY` (`MINH01`, `SM01`, `SM02`, `TEST`, `TRAY001`...), `TRẠNG THÁI` (`Sẵn sàng` green badge, `Đang giữ đơn` yellow badge), `ĐƠN HIỆN TẠI` (Order ID preview `#...` or `—`), `CẬP NHẬT LÚC` (Timestamp HH:mm DD-MM), `THAO TÁC` (`Chi tiết` View detail icon)
+○ Associated Modals:
+■ `RegisterTrayModal`: Form modal to register a new RFID tray
+■ `TrayDetailModal`: Modal showing detailed tray binding history and active order payload
+Actions:
+○ UI Button "+ ĐĂNG KÝ KHAY" → Opens `RegisterTrayModal`
+○ Click Eye Icon (`Chi tiết`) → Opens `TrayDetailModal`
+Result:
+○ Success: Real-time tracking of RFID tray pool inventory
 
 Screen Layout
-Figure 27 - RFID Tray Management Page
+Figure 30 - RFID Tray Pool Management Page
 
 ---
 
-#### 3.3.11 Pickup Slot Management Page (`/manager/pickup-slots`)
+#### 3.3.11 Pickup Slots & Lockers Page (`/manager/slots`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Ô lấy món" (`/manager/pickup-slots`)
+○ Manager clicks UI Sidebar item "Ô Kệ Pickup" or accesses `/manager/slots`
 
 Function Description
-● Monitor physical pickup slot doors, tray occupation status, solenoid lock state, and clear occupied slots manually.
+○ Hardware monitoring workspace for supervising smart canteen pickup locker doors, tracking order bindings, and registering new pickup locker slots.
 
 Function Details
-● Status Badges:
-○ "Trống" (`Empty`), "Đã có khay" (`Occupied`), "Đang khóa" (`Locked`), "Bảo trì" (`Maintenance`)
-● Associated Modals:
-○ `ForceClearSlotModal`: Manually clears slot state
-○ `ForceOpenDoorModal`: Manually triggers solenoid door unlock
-● Actions:
-○ UI Button "Dọn dẹp ô kệ khẩn cấp"
-○ UI Button "Mở cửa ô lấy món khẩn cấp"
+Layout & Elements:
+○ Header Bar: Title "Ô Kệ Pickup", subtitle ("Quản lý ô kệ nơi khách đến lấy món"), refresh button (`Làm mới`), and primary action button "+ ĐĂNG KÝ Ô KỆ"
+○ Status Metric Cards: "Ô TRỐNG" (Count), "ĐANG GIỮ ĐƠN" (Count)
+○ Search Bar: Search input ("Tìm theo mã ô, trạng thái, đơn hàng...") and "Tìm kiếm" action button
+○ Pickup Slots Table:
+■ Columns: `MÃ Ô` (`CODX_..._SLOT_A`, `CODX_..._SLOT_B`, `SLOT01`, `SLOT02`...), `TRẠNG THÁI` (`Trống` green badge, `Đang giữ đơn` yellow badge), `ĐƠN HÀNG` (Order ID or `—`), `KHAY` (Tray ID or `—`), `BIND LÚC` (Timestamp HH:mm DD-MM)
+○ Associated Modals:
+■ `RegisterSlotModal`: Form modal to register a new pickup locker slot
+■ `ForceOpenDoorModal`: Emergency manual unlock trigger for solenoid locker doors
+Actions:
+○ UI Button "+ ĐĂNG KÝ Ô KỆ" → Opens `RegisterSlotModal`
+Result:
+○ Success: Real-time hardware monitoring of smart pickup locker slots
 
 Screen Layout
-Figure 28 - Pickup Slot Management Page
+Figure 31 - Pickup Slots & Lockers Page
 
 ---
 
-#### 3.3.12 Pickup Slot Mappings Configuration Page (`/manager/slot-configs`)
+#### 3.3.12 Meal Session Lane & Robot Station Mapping Configuration Modal (`new-session-form` Step 2)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Cấu hình ô kệ" (`/manager/slot-configs`)
+○ Manager progresses to Step 2 ("Cấu hình Lane & Sức chứa") during meal session creation or editing
 
 Function Description
-● Configure spatial coordinates and robot arm motion path mapping coordinates for each pickup slot.
+○ Configuration modal allowing managers to assign unique hardware robot arm pickup lanes (`S1_L1`, `S1_L2`, `S1_L3`...), maximum tray capacities per dish, and designated robot arm stations.
 
 Function Details
-● Layout & Matrix:
-○ Pickup slot coordinate table listing X/Y/Z parameters and trajectory mapping IDs
-● Associated Modals:
-○ `EditSlotCoordinatesModal`: Form to update X/Y/Z spatial coordinates
-● Actions:
-○ UI Button "Lưu tọa độ ô kệ"
+Layout & Form Fields:
+○ Step Header: "TẠO CA PHỤC VỤ MỚI" - Step 2: "Cấu hình Lane & Sức chứa"
+○ Configuration Instruction Box: "Cấu hình Lane & Sức chứa cho các món ăn trong ca" ("Gán Mã Lane ('S1_L1', 'S1_L2'...), sức chứa tối đa và Robot Arm phụ trách cho từng món ăn.")
+○ Dish Lane Mapping Table:
+■ Columns: `MÓN ĂN` (Dish title), `MÃ LANE` (Dropdown selecting unique lane codes `S1_L1`, `S1_L2`, `S1_L3`...), `SỨC CHỨA (KHAY)` (Numeric input, e.g. `12`), `TAY MÁY ROBOT` (Dropdown selecting robot arm station e.g. `S1 - Trạm đạm tốt`)
+Actions:
+○ Select Lane Dropdown → Auto-deduplicates and assigns unique lane code per dish
+○ UI Button "Hoàn tất tạo ca" → Submits complete meal session configuration to `/api/sessions`
+Result:
+○ Success: Generates meal session with 100% unique robot arm lane codes and station parameters
 
 Screen Layout
-Figure 29 - Pickup Slot Mappings Configuration Page
+Figure 32 - Meal Session Lane & Robot Station Mapping Configuration Modal
 
 ---
 
-#### 3.3.13 User Management & Suspension Page (`/manager/users`)
+#### 3.3.13 User Management Page (`/manager/users`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Người dùng" (`/manager/users`)
+○ Manager clicks UI Sidebar item "Người dùng" or accesses `/manager/users`
 
 Function Description
-● Manage student and staff account list, perform account suspension (`Suspend`), ban (`Ban`), or reactivation (`Reactivate`).
+○ User management workspace for monitoring student and staff account lists, checking verification statuses, inspecting wallet balances, and performing account lock/ban/reactivate actions.
 
 Function Details
-● Status Badges:
-○ "Hoạt động" (`1`), "Không hoạt động" (`2`), "Tạm khóa" (`4`), "Cấm tài khoản" (`5`)
-● Associated Modals:
-○ `UserSuspendModal`: Suspends account with reason via `/api/manager/users/[id]/suspend`
-○ `UserBanModal`: Bans account permanently with reason via `/api/manager/users/[id]/ban`
-○ `ReactivateUserModal`: Reactivates account via `/api/manager/users/[id]/reactivate`
-● Actions:
-○ UI Button "Tạm khóa"
-○ UI Button "Cấm tài khoản"
-○ UI Button "Kích hoạt lại"
-
-Screen Layout
-Figure 30 - User Management & Suspension Page
+Layout & Elements:
+○ Header Bar: Title "Quản lý người dùng", subtitle ("Theo dõi tài khoản, xác thực, trạng thái khóa và các quy trình hỗ trợ"), and refresh button (`Làm mới`)
+○ Metric Summary Cards: "SINH VIÊN HOẠT ĐỘNG" (Verified count), "NHÂN VIÊN" (Staff count), "BỊ KHÓA / CẤM" (Locked/Banned count)
+○ Quick Action Navigation Bar: Link cards "Hàng đợi xác thực" (navigates to `/manager/verify`) and "Lịch sử hoàn tiền" (navigates to `/manager/refunds`)
+○ Search & Filter Bar: Realtime search input ("Tìm theo tên, email hoặc mã sinh viên..."), role dropdown filter ("Tất cả vai trò"), status dropdown filter ("Tất cả trạng thái"), and "Tìm kiếm" button
+○ User Audit Table:
+■ Columns: `NGƯỜI DÙNG` (Avatar, Full Name, Email, StudentID), `VAI TR### 3.4 KITCHEN STAFF APPLICATION (Ứng dụng Nhân viên Bếp `/staff`)
 
 ---
 
-#### 3.3.14 Counter Identity Verification Page (`/manager/verify`)
+#### 3.4.1 Staff Operations Dashboard Page (`/staff`)
 
 Function Trigger
-● Manager clicks UI Sidebar item "Xác thực tại quầy" (`/manager/verify`)
+○ Kitchen Staff authenticates and accesses `/staff`
 
 Function Description
-● Search student accounts and manually verify OTP pickup codes or QR Codes at canteen counter during student device battery/network failure.
+○ Real-time operational control center for kitchen staff to monitor RFID tray pool levels, pickup locker availability, active robot arm lanes, robotic station health, and meal session order queues.
 
 Function Details
-● Layout & Form:
-○ Search input (Student ID / Order OTP / Phone number)
-○ Matching order credentials preview card
-● Associated Modals:
-○ `ConfirmCounterPickupModal`: Modal confirming manual counter meal retrieval
-● Actions:
-○ UI Button "Xác nhận nhận món tại quầy"
+Layout & Elements:
+○ Top Header Bar: Global search bar ("Tìm kiếm dữ liệu đơn hàng, món ăn, sinh viên..."), Staff Profile badge ("Staff Smart Canteen" with green online indicator)
+○ Dashboard Title Bar: Title "Trung Tâm Điều Hành", subtitle ("Giám sát thời gian thực thiết bị Robot, Khay đồ, Ô kệ nhận hàng và danh sách đơn hàng"), and refresh button (`Làm mới dữ liệu`)
+○ Metric Telemetry Cards Row (4 Cards):
+■ `KHAY ĐỒ (TRAYS POOL)`: Total tray inventory count, Available count ("Sẵn sàng: X"), Reserved count ("Đang giữ hàng: Y")
+■ `Ô KỆ NHẬN HÀNG`: Total locker slots count, Empty count ("Trống: X"), Occupied count ("Có hàng: Y")
+■ `LANE ROBOT TRONG CA`: Active lane count and assigned lane codes (e.g. `S2_L1, S2_L2`)
+■ `CÁNH TAY ROBOT`: Total robotic arm station count and status health indicator ("Tất cả máy hoạt động tốt")
+○ Section 1 - Robot Lane Configurations (`Cấu Hình Lane Robot`): Cards displaying Lane Code (`S1_L1`, `S2_L1`), Maximum Capacity ("Sức chứa: 12"), Assigned Dish ("Món gán: Bắp luộc", "Cơm trắng"), and Robot Station ("Robot: S1")
+○ Section 2 - Robot Arm Stations (`Cánh Tay Robot Trạm Phục Vụ`): Station status cards displaying Station Title ("Trạm đạm tốt", "Trạm súp, canh", "Trạm chất xơ"), Station Code (`S1`, `S2`, `S3`), Station Index (`#1`, `#2`, `#3`), and Status Badge (`NGOẠI TUYẾN`, `SẴN SÀNG`)
+○ Section 3 - Session Monitoring Selector (`CHỌN CA PHỤC VỤ CẦN GIÁM SÁT`): Scrollable session pills (`Webcam + Arm`, `Bữa xế chiều`...), quick search input, date range filter, and active session details banner ("Thực đơn: X món", "ĐÃ ĐÓNG")
+○ Section 4 - Session Orders Audit Table (`Danh Sách Đơn Hàng Trong Phiên`):
+■ Columns: `MÃ ĐƠN` (`#70b1da7e`...), `KHÁCH HÀNG` (Avatar & Full Name), `MÓN ĂN` (`Cơm trắng x1`), `TỔNG TIỀN` (xu), `TRẠNG THÁI` (`ĐÃ HẾT HẠN`, `SẴN SÀNG`, `ĐANG CHẾ BIẾN`), `THỜI GIAN`, `THAO TÁC` (`Chi tiết` View detail icon)
+Actions:
+○ Click Session Selector Pill → Filters live order table and lane configurations by selected meal session
+○ UI Button "Làm mới dữ liệu" → Refreshes hardware telemetry and order queue status
+Result:
+○ Success: Real-time telemetry monitoring of all canteen kitchen hardware and order queue operations
 
 Screen Layout
-Figure 31 - Counter Identity Verification Page
+Figure 36 - Staff Operations Dashboard Page
 
 ---
 
-### 3.4 KITCHEN STAFF APPLICATION (Ứng dụng Nhân viên Bếp `/staff`)
-
----
-
-#### 3.4.1 Staff Operations Dashboard (`/staff`)
+#### 3.4.2 Staff Meal Sessions View Page (`/staff/sessions`)
 
 Function Trigger
-● Kitchen Staff authenticates and navigates to `/staff`
+○ Staff clicks UI menu "Ca Phục Vụ" or accesses `/staff/sessions`
 
 Function Description
-● Realtime operational dashboard displaying total portions packed onto trays, live order queue count, and low portion alerts.
+○ Read-only meal session schedule workspace for kitchen staff to inspect daily serving windows, total offered dish counts, and session menus.
 
 Function Details
-● Layout & Metrics:
-○ Portion counter summary cards, station status alerts, and shift metrics banner
+Layout & Elements:
+○ Header Bar: Title "Ca Phục Vụ", subtitle ("Xem thông tin và chi tiết các phiên/ca ăn phục vụ (Chế độ xem)")
+○ Search & Filter Bar: Realtime session search input ("Tìm kiếm ca ăn..."), status filter tabs ("TẤT CẢ", "HOẠT ĐỘNG", "ĐÃ ĐÓNG")
+○ Session Cards List:
+■ Session Details: Title (`Bữa xế chiều`, `Webcam + Arm`, `Bữa sáng lành mạnh`...), Status Badge (`ĐÃ ĐÓNG` grey badge, `HOẠT ĐỘNG` green badge), Description ("cung cấp năng lượng cho nửa ngày còn lại"), Serving timestamps (`Bắt đầu: HH:mm DD/MM/YYYY`, `Kết thúc: HH:mm DD/MM/YYYY`), Total dishes tag (`X món`)
+■ Action Link: "Xem chi tiết"
+○ Associated Modal:
+■ `StaffSessionDetailModal`: Modal pop-up over blurred background titled "CHI TIẾT CA PHỤC VỤ: [SessionName]", displaying start/end timestamps and a full grid of included dish items (`THỰC ĐƠN MÓN ĂN TRONG CA (X)` - dish photo thumbnail, dish name, price in xu, e.g. "Đậu hũ kho tiêu 12đ", "Bò lúc lắc 15đ")
+Actions:
+○ Click "Xem chi tiết" → Opens `StaffSessionDetailModal` to review session menu dishes
+○ Filter Tabs ("TẤT CẢ", "HOẠT ĐỘNG", "ĐÃ ĐÓNG") → Filters session list by active status
+Result:
+○ Success: Real-time read-only inspection of meal session schedules and menus
 
 Screen Layout
-Figure 32 - Staff Operations Dashboard
+Figure 37 - Staff Meal Sessions View Page
 
 ---
 
-#### 3.4.2 Live Serving Queue Page (`/staff/live-orders`)
+#### 3.4.3 Bind Pickup Slot Page (`/staff/pickup-slots`)
 
 Function Trigger
-● Staff clicks UI menu "Hàng chờ soạn khay" (`/staff/live-orders`)
+○ Staff clicks UI menu "Gán ô nhận hàng" or accesses `/staff/pickup-slots`
 
 Function Description
-● Realtime prioritized queue displaying order dishes to pack onto physical RFID trays.
+○ Platform notice workspace informing kitchen staff that physical RFID tray-to-pickup-slot scanning and binding operations require the mobile application (`Smart Canteen App`), providing a QR code for mobile app download.
 
 Function Details
-● Layout & Queue Items:
-○ Order ticket card showing ordered dishes, assigned RFID tray ID, target slot, and assembly timer
-● Associated Modals:
-○ `ConfirmTrayPackedModal`: Modal confirming dish tray assembly completion → Triggers Robot Arm dispatch to transport tray to assigned pickup slot
-● Actions:
-○ UI Button "Xác nhận đã soạn khay"
+Layout & Elements:
+○ Header Bar: Title "Gán Ô Nhận Hàng (Bind Pickup Slot)", subtitle ("Tính năng gán ô nhận hàng trực tiếp tại khay cất đồ")
+○ Platform Notice Card (`THÔNG BÁO NỀN TẢNG`):
+■ Headline: Mobile device phone graphic and headline "Yêu cầu sử dụng Ứng dụng Di động"
+■ Guidance Text: "Tính năng Gán ô nhận hàng (Bind Pickup Slot) hiện chưa hỗ trợ trên nền tảng Web. Vui lòng tải ứng dụng trên di động để thực hiện thao tác quét mã và gán ô nhanh chóng."
+■ QR Code Download Card: Displays QR code graphic ("Quét mã QR để tải App"), compatible mobile OS information ("Tương thích với hệ điều hành Android & iOS"), and download button (`Smart Canteen App v2.0`)
+Actions:
+○ Scan QR Code / Click Download Button → Downloads `Smart Canteen Mobile App v2.0` for barcode/RFID hardware scanning
+Result:
+○ Success: Mobile app download redirection for hardware barcode/RFID slot scanning operations
 
 Screen Layout
-Figure 33 - Live Serving Queue Page
+Figure 38 - Staff Bind Pickup Slot Page
 
 ---
 
-#### 3.4.3 Kitchen Orders List Page (`/staff/orders`)
+#### 3.4.4 Staff Profile Page (`/staff/profile`)
 
 Function Trigger
-● Staff clicks UI menu "Danh sách đơn ca" (`/staff/orders`)
+○ Staff clicks UI Sidebar item "Hồ sơ cá nhân" or accesses `/staff/profile`
 
 Function Description
-● View full history of prepared orders within active meal session and inspect tray assembly timestamps.
+○ Profile and security management workspace for kitchen staff to update personal identity information (full name, phone, date of birth, gender, address) and change account security passwords.
 
 Function Details
-● Layout & History Table:
-○ Session order history table with status badges, packing timestamps, and kitchen staff log
+Layout & Elements:
+○ Header Bar: Title "Hồ Sơ Cá Nhân", subtitle ("Quản lý thông tin tài khoản và bảo mật mật khẩu hệ thống")
+○ Staff Profile Overview Card: Staff avatar thumbnail, Full Name ("Staff Smart Canteen"), Role badge (`Nhân Viên`), and Email badge (`staff.sc@gmail.com`)
+○ Profile Settings Tabs:
+■ `THÔNG TIN CÁ NHÂN` (Selected active tab)
+■ `ĐỔI MẬT KHẨU` (Password change tab)
+○ Personal Information Form Fields:
+■ `ĐỊA CHỈ EMAIL`: Disabled email field (`staff.sc@gmail.com`)
+■ `HỌ VÀ TÊN`: Editable text input
+■ `SỐ ĐIỆN THOẠI`: Editable phone number input
+■ `NGÀY SINH`: Date picker input (`DD/MM/YYYY`)
+■ `GIỚI TÍNH`: Gender selection dropdown (`Nam`, `Nữ`)
+■ `ĐỊA CHỈ LIÊN HỆ`: Contact address text input
+○ Primary Action Button: "Lưu thay đổi"
+Actions:
+○ Switch Tab ("THÔNG TIN CÁ NHÂN" / "ĐỔI MẬT KHẨU") → Toggles between profile form and password security form
+○ UI Button "Lưu thay đổi" → Submits profile modifications to `/api/staff/profile`
+Result:
+○ Success: Real-time update of kitchen staff profile information
 
 Screen Layout
-Figure 34 - Kitchen Orders List Page
-
----
-
-#### 3.4.4 Dish Stock & Shelf Stock Management Page (`/staff/stock`)
-
-Function Trigger
-● Staff clicks UI menu "Tồn kho kệ bếp" (`/staff/stock`)
-
-Function Description
-● Rapidly update actual physical dish portion counts remaining on kitchen serving shelves when kitchen replenishes fresh dishes.
-
-Function Details
-● Layout & Elements:
-○ Grid of active dishes with portion steppers (`-`, `+`)
-● Actions:
-○ UI Button "Cập nhật tồn kho kệ"
-
-Screen Layout
-Figure 35 - Dish Stock & Shelf Stock Management Page
-
----
-
-#### 3.4.5 Change Proposals Management Page (`/staff/change-proposals`)
-
-Function Trigger
-● Staff clicks UI menu "Đề xuất đổi món" (`/staff/change-proposals`)
-
-Function Description
-● Issue substitution proposals to students when an ordered dish runs out of stock during tray assembly.
-
-Function Details
-● Layout & List:
-○ Active proposals list showing affected student order, out-of-stock dish, proposed alternative, and status badge
-● Associated Modals:
-○ `CreateChangeProposalModal`: Form modal to select out-of-stock item, suggest replacement dish, and set response deadline
-● Actions:
-○ UI Button "Tạo đề xuất đổi món"
-
-Screen Layout
-Figure 36 - Staff Change Proposals Page
-
----
-
-#### 3.4.6 Pickup Slot & Station Monitoring Page (`/staff/pickup-slots`)
-
-Function Trigger
-● Staff clicks UI Sidebar item "Liên kết ô kệ" (`/staff/pickup-slots`)
-
-Function Description
-● Manually bind RFID trays to pickup slots during automated system hardware overrides.
-
-Function Details
-● Layout & Grid:
-○ Grid of pickup slots showing live solenoid status, RFID tray ID, and manual override controls
-● Associated Modals:
-○ `ManualBindTrayModal`: Form to select RFID tray and pickup slot number
-● Actions:
-○ UI Button "Gán khay vào ô"
-
-Screen Layout
-Figure 37 - Pickup Slot & Station Monitoring Page
-
----
-
-#### 3.4.7 Staff Profile Page (`/staff/profile`)
-
-Function Trigger
-● Staff clicks UI Sidebar item "Hồ sơ cá nhân" (`/staff/profile`)
-
-Function Description
-● View staff account information, assigned shift details, and trigger account logout ("Đăng xuất").
-
-Function Details
-● Form & Profile Info:
-○ Staff name, email, role badge, assigned station, shift schedule
-● Actions:
-○ UI Button "Đăng xuất"
-
-Screen Layout
-Figure 38 - Staff Profile Page
+Figure 39 - Staff Profile Page
 
 ---
 
@@ -999,61 +1148,63 @@ Figure 38 - Staff Profile Page
 
 ---
 
-#### 3.5.1 Admin Dashboard (`/admin`)
+#### 3.5.1 Admin Dashboard Page (`/admin`)
 
 Function Trigger
-● System Admin authenticates and accesses `/admin`
+○ System Admin authenticates and accesses `/admin`
 
 Function Description
-● System health telemetry monitoring dashboard, active user account tally, and pending student verification requests queue.
+○ System telemetry control center for system administrators to monitor real-time API logs, server health response statuses, system exception monitoring, and token security authorization status.
 
 Function Details
-● Layout & Metrics:
-○ System uptime, API server latency, active user counts, and pending verification count cards
+Layout & Elements:
+○ Header Bar: Title "Bảng Điều Khiển Quản Trị", subtitle ("Giám sát nhật ký API, trạng thái máy chủ và an ninh hệ thống Smart Canteen."), and refresh button (`Làm mới`)
+○ Metric Telemetry Cards Row (4 Cards):
+■ `TỔNG NHẬT KÝ API`: Total API request count (e.g. `25.054`), database connection status indicator ("Đã kết nối cơ sở dữ liệu")
+■ `TRẠNG THÁI MÁY CHỦ`: Server status badge ("Online" green badge), API response code ("API Backend Response 200 OK")
+■ `HỆ THỐNG GIÁM SÁT`: Monitoring status ("Realtime" blue badge), automatic exception tracking ("Tự động bắt lỗi 4xx / 5xx")
+■ `AN NINH & PHÂN QUYỀN`: Security status badge ("An toàn"), authorization mode ("Token Bearer Authorize Enabled")
+○ Navigation Quick-Link Cards (2 Cards):
+■ `Tất Cả Nhật Ký API`: Card with description ("Tra cứu danh sách toàn bộ các yêu cầu HTTP GET/POST, chi tiết Request & Response Body.") and navigation arrow (`->` navigating to `/admin/logs`)
+■ `Giám Sát & An Ninh Hệ Thống`: Card with description ("Theo dõi phản hồi máy chủ, phân tích tải API và cảnh báo an ninh bảo mật hệ thống.") and navigation arrow (`->` navigating to `/admin/logs`)
+Actions:
+○ Click Link Card "Tất Cả Nhật Ký API" → Navigates to System Audit Logs Page (`/admin/logs`)
+○ UI Button "Làm mới" (`Làm mới`) → Refreshes server telemetry metrics
+Result:
+○ Success: Real-time system health telemetry monitoring
 
 Screen Layout
-Figure 39 - Admin Dashboard
+Figure 40 - Admin Dashboard Page
 
 ---
 
-#### 3.5.2 Student Identity Verifications Approval Page (`/admin/verifications`)
+#### 3.5.2 System Audit Logs Page (`/admin/logs`)
 
 Function Trigger
-● Admin selects UI menu "Phê duyệt xác minh sinh viên" (`/admin/verifications`)
+○ System Admin clicks UI menu "Nhật ký API" or accesses `/admin/logs`
 
 Function Description
-● Inspect uploaded student card photos, match information, and approve or reject verification requests with feedback.
+○ Real-time API audit trail workspace for inspecting system HTTP requests, searching logs by API endpoints/URL patterns, filtering by HTTP methods and status codes, and inspecting full JSON Request/Response telemetry payloads.
 
 Function Details
-● Layout & List:
-○ List of pending student verification requests displaying student name, email, student ID, submission date, and uploaded card image preview
-● Associated Modals:
-○ `ApproveVerificationModal`: Confirms approval via `/api/admin/verifications/[id]/approve`
-○ `RejectVerificationModal`: Requires entering rejection reason feedback via `/api/admin/verifications/[id]/reject`
-● Actions:
-○ UI Button "Phê duyệt"
-○ UI Button "Từ chối"
+Layout & Elements:
+○ Header Bar: Title "Nhật Ký API", subtitle ("Hiển thị X bản ghi nhật ký hệ thống"), auto-refresh checkbox toggle ("Tự động làm mới (30s)"), and refresh button (`Làm mới`)
+○ Search & Multi-Filter Bar:
+■ Search Input: Realtime URL search input ("Tìm theo URL API (ví dụ: /api/orders, /api/auth)...")
+■ Log Level Dropdown: `Mức: Tất cả` (`INFO`, `WARN`, `ERROR`, `FATAL`)
+■ HTTP Method Dropdown: `Phương thức: Tất cả` (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`)
+■ Error Code Checkbox/Filter: `Mã lỗi ≥ 400`
+■ Date Range Picker: Start Date (`mm/dd/yyyy`) and End Date (`mm/dd/yyyy`)
+■ Reset Filter Button: `Xóa bộ lọc`
+○ API Audit Logs Table:
+■ Columns: `THỜI GIAN` (HH:mm:ss DD-MM), `MỨC LOG` (`INFO` green badge, `WARN` amber badge, `ERROR` red badge), `URL API` (Endpoint path e.g. `/api/Auth/me`, `/api/notifications/unread-count`), `PHƯƠNG THỨC` (`GET` blue badge, `POST` green badge, `DELETE` pink badge), `MÃ TRẠNG THÁI` (`200` green badge, `400` amber badge, `500` red badge), `THỜI LƯỢNG` (Execution latency in ms, e.g. `14ms`, `28ms`, `399ms`), `THAO TÁC` (`Chi tiết` View detail eye icon)
+○ Associated Modals & Drawers:
+■ `LogDetailDrawer`: Slide-over drawer displaying complete raw JSON telemetry payload (Headers, Request Body, Response Body, Trace ID, User ID) for a selected log entry via `/api/admin/logs/[id]`
+Actions:
+○ Click Eye Icon (`Chi tiết`) → Opens `LogDetailDrawer` to inspect complete JSON telemetry payload
+○ Toggle "Tự động làm mới (30s)" → Enables/disables automatic 30-second background polling
+Result:
+○ Success: Real-time search, filterable inspection of system HTTP API audit logs
 
 Screen Layout
-Figure 40 - Student Identity Verifications Approval Page
-
----
-
-#### 3.5.3 Audit Logs Monitoring Page (`/admin/logs`)
-
-Function Trigger
-● Admin selects UI menu "Nhật ký hệ thống" (`/admin/logs`)
-
-Function Description
-● Search and inspect system activity audit trail (System Audit Logs via `/api/admin/logs`), robot status logs, wallet topup transactions, and user permission changes.
-
-Function Details
-● Layout & Search:
-○ Audit logs table with search filter by user, module, action type, or date range
-● Associated Modals & Drawers:
-○ `LogDetailDrawer`: Slide-over drawer displaying complete raw JSON telemetry payload for a selected log entry (`/api/admin/logs/[id]`)
-● Actions:
-○ Click Log Row → Opens `LogDetailDrawer`
-
-Screen Layout
-Figure 41 - Audit Logs Monitoring Page
+Figure 41 - System Audit Logs Page

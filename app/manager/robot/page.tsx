@@ -26,6 +26,7 @@ import type {
   UpdateRobotArmPayload,
 } from "@/types/robot-arm.types";
 import Modal from "../_components/modal";
+import { ServingJobsSection } from "@/components/features/robot/serving-jobs-section";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -266,6 +267,35 @@ export default function ManagerRobotPage() {
       } catch (err: unknown) {
         const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
         toast.error(data?.message || "Xoá thất bại");
+      }
+    });
+  };
+
+  const handleToggleMaintenance = (arm: RobotArm) => {
+    const inMaintenance = arm.status === "Maintenance";
+    const targetState = !inMaintenance;
+    const actionText = targetState ? "Rút tay ra bảo trì" : "Đưa tay về trạng thái Idle (Rảnh)";
+
+    Swal.fire({
+      title: targetState ? "Chuyển sang Bảo trì?" : "Đưa về Idle?",
+      html: `Bạn có chắc muốn ${actionText} cho tay máy <strong class="text-[#D35400]">${arm.name}</strong> (${arm.code})?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: targetState ? "#eab308" : "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: targetState ? "Chuyển bảo trì" : "Xác nhận Idle",
+      cancelButtonText: "Huỷ",
+      reverseButtons: true,
+      customClass: { popup: "rounded-3xl" },
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        await robotArmService.toggleMaintenance(arm.id, targetState);
+        toast.success(`Đã cập nhật trạng thái tay máy ${arm.code}`);
+        fetchArms();
+      } catch (err: unknown) {
+        const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+        toast.error(data?.message || "Thao tác thất bại");
       }
     });
   };
@@ -542,6 +572,22 @@ export default function ManagerRobotPage() {
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-1">
                           <button
+                            onClick={() => handleToggleMaintenance(arm)}
+                            className={cn(
+                              "inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all border",
+                              arm.status === "Maintenance"
+                                ? "bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200"
+                                : "bg-gray-100 border-gray-200 text-gray-600 hover:bg-amber-500 hover:text-white hover:border-amber-500",
+                            )}
+                            title={
+                              arm.status === "Maintenance"
+                                ? "Hoàn tất bảo trì (Về Idle)"
+                                : "Bảo trì tay máy"
+                            }
+                          >
+                            <Wrench className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => openEditModal(arm)}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-all hover:bg-[#D35400] hover:text-white"
                             title="Chỉnh sửa"
@@ -572,6 +618,9 @@ export default function ManagerRobotPage() {
           </div>
         </div>
       )}
+
+      {/* ── SERVING JOBS DASHBOARD ── */}
+      <ServingJobsSection className="mt-8" />
 
       {/* ── CREATE MODAL ── */}
       <Modal
