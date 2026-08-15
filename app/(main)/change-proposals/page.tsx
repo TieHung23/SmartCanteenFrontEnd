@@ -12,6 +12,9 @@ import {
   ChevronRight,
   UtensilsCrossed,
   Calendar,
+  ArrowLeft,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { changeProposalService } from "@/services/change-proposal.service";
@@ -30,9 +33,10 @@ interface OrderGroup {
 function formatDate(dateStr?: string | null) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
-  return d.toLocaleDateString("vi-VN", {
-    month: "short",
-    day: "numeric",
+  return d.toLocaleString("vi-VN", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -42,6 +46,7 @@ export default function ChangeProposalsPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<OrderGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -138,74 +143,129 @@ export default function ChangeProposalsPage() {
     0,
   );
 
+  const filteredGroups = groups
+    .map((g) => {
+      if (activeTab === "pending") {
+        return { ...g, proposals: g.proposals.filter((p) => p.proposalStatus === 0) };
+      }
+      if (activeTab === "accepted") {
+        return { ...g, proposals: g.proposals.filter((p) => p.proposalStatus === 1) };
+      }
+      if (activeTab === "rejected") {
+        return {
+          ...g,
+          proposals: g.proposals.filter((p) => p.proposalStatus === 2 || p.proposalStatus === 3),
+        };
+      }
+      return g;
+    })
+    .filter((g) => g.proposals.length > 0);
+
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-[#FDFBF9] py-8 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
+          {/* Back button */}
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#D35400] transition-colors mb-6"
+            className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-[#D35400] transition-colors mb-6 cursor-pointer"
           >
-            <ArrowLeftRight className="w-4 h-4" /> Quay lại
+            <ArrowLeft className="w-4 h-4" /> Quay lại
           </button>
 
-          <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
+          <div className="bg-white rounded-[2rem] p-6 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+            {/* Page Header */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
               <div>
-                <h1 className="text-3xl font-black text-gray-800">Đề xuất đổi món</h1>
-                <p className="text-sm text-gray-400 font-semibold mt-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 text-[#D35400] flex items-center justify-center">
+                    <ArrowLeftRight className="w-5 h-5" />
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">
+                    Đề xuất đổi món
+                  </h1>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1.5 pl-0.5">
                   {loading
-                    ? "Đang tải..."
+                    ? "Đang tải danh sách..."
                     : activeCount > 0
                       ? `Bạn có ${activeCount} đề xuất đang chờ xử lý`
-                      : "Tất cả đề xuất đã được xử lý"}
+                      : "Tất cả đề xuất đổi món của bạn"}
                 </p>
               </div>
+
               <button
                 onClick={fetchProposals}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                Làm mới
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-orange-500" : ""}`} />
+                <span>Làm mới</span>
               </button>
             </div>
 
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
+              {[
+                { id: "all", label: "Tất cả" },
+                { id: "pending", label: "Chờ xử lý" },
+                { id: "accepted", label: "Đã chấp nhận" },
+                { id: "rejected", label: "Từ chối / Hủy" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25"
+                      : "bg-slate-100/90 text-slate-600 hover:bg-orange-50 hover:text-orange-600"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Content Section */}
             {loading ? (
-              <div className="flex items-center justify-center py-32">
+              <div className="flex flex-col items-center justify-center py-28 text-slate-400 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-[#D35400]" />
+                <p className="text-xs font-semibold">Đang tải danh sách đề xuất...</p>
               </div>
-            ) : groups.length === 0 ? (
-              <div className="text-center py-32">
-                <CheckCircle2 className="w-16 h-16 text-green-300 mx-auto mb-4" />
-                <p className="text-lg font-bold text-gray-700">Không có đề xuất đổi món nào</p>
-                <p className="text-sm text-gray-400 mt-1">Tất cả đơn hàng của bạn đều ổn định.</p>
+            ) : filteredGroups.length === 0 ? (
+              <div className="text-center py-24 space-y-3">
+                <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto" />
+                <p className="text-lg font-bold text-slate-800">Không có đề xuất đổi món nào</p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Tất cả đơn hàng của bạn đều ổn định.
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
-                {groups.map((group) => (
+                {filteredGroups.map((group) => (
                   <div
                     key={group.orderId}
-                    className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden"
+                    className="bg-white rounded-2xl border border-slate-200/80 hover:border-orange-200 overflow-hidden shadow-2xs transition-all"
                   >
-                    <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/70">
+                    {/* Group Header */}
+                    <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70">
                       <div className="flex flex-wrap items-center gap-3">
                         <div>
-                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                             Đơn hàng
                           </p>
-                          <p className="font-mono font-bold text-gray-800 mt-0.5 text-sm">
-                            #{group.orderId.slice(0, 8)}...
+                          <p className="font-mono font-bold text-slate-800 mt-0.5 text-xs">
+                            #{group.orderId.slice(0, 12)}
                           </p>
                         </div>
 
                         {group.sessionName && (
-                          <div className="flex items-center gap-1.5 bg-orange-100/80 text-orange-950 px-3 py-1.5 rounded-xl text-xs font-extrabold border border-orange-200/60">
+                          <div className="flex items-center gap-1.5 bg-orange-50 text-orange-950 px-3 py-1 rounded-xl text-xs font-bold border border-orange-200/60">
                             <UtensilsCrossed className="w-3.5 h-3.5 text-[#D35400]" />
                             <span>Ca: {group.sessionName}</span>
                             {group.sessionTime && (
-                              <span className="text-orange-900 font-semibold border-l border-orange-300/60 pl-2 ml-0.5">
+                              <span className="text-orange-900 font-medium border-l border-orange-200 pl-2 ml-0.5">
                                 ⏰ {group.sessionTime}
                               </span>
                             )}
@@ -213,7 +273,7 @@ export default function ChangeProposalsPage() {
                         )}
 
                         {group.orderCreatedAt && (
-                          <div className="flex items-center gap-1 text-xs text-gray-400 font-semibold">
+                          <div className="flex items-center gap-1 text-xs text-slate-400 font-medium">
                             <Calendar className="w-3.5 h-3.5" />
                             <span>{formatDate(group.orderCreatedAt)}</span>
                           </div>
@@ -222,14 +282,15 @@ export default function ChangeProposalsPage() {
 
                       <Link
                         href={`/orders/${group.orderId}`}
-                        className="flex items-center gap-1.5 text-xs font-bold text-[#D35400] hover:text-[#b04600] transition-colors bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-2xs hover:border-orange-200"
+                        className="px-4 py-2 bg-[#D35400] hover:bg-[#b04600] text-white font-semibold text-xs rounded-full transition-all flex items-center gap-1 shadow-2xs shrink-0"
                       >
-                        Xem đơn hàng
+                        <span>Xem đơn hàng</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
 
-                    <div className="divide-y divide-gray-100">
+                    {/* Proposals List */}
+                    <div className="divide-y divide-slate-100">
                       {group.proposals.map((proposal) => {
                         const statusMeta = CHANGE_PROPOSAL_STATUS_META[proposal.proposalStatus];
                         return (
@@ -238,42 +299,40 @@ export default function ChangeProposalsPage() {
                             className="px-6 py-4 flex items-center justify-between gap-4"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
-                                <AlertCircle className="w-5 h-5 text-[#D35400]" />
+                              <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0 text-[#D35400]">
+                                <AlertCircle className="w-5 h-5" />
                               </div>
                               <div className="min-w-0">
-                                <p className="font-bold text-gray-900 truncate text-sm">
+                                <p className="font-bold text-slate-900 truncate text-sm">
                                   {proposal.currentDishName}
                                 </p>
-                                <p className="text-xs text-gray-500 mt-0.5">
+                                <p className="text-xs text-slate-500 mt-0.5 font-medium">
                                   {proposal.isRequiredItem ? "Bắt buộc" : "Tùy chọn"}
                                   {proposal.suggestedDishName &&
                                     ` • Gợi ý: ${proposal.suggestedDishName}`}
                                 </p>
                                 {proposal.responseDeadlineUtc && (
-                                  <p className="text-[11px] font-bold text-amber-600 mt-1 flex items-center gap-1">
-                                    ⏰ Hạn phản hồi:{" "}
-                                    {new Date(proposal.responseDeadlineUtc).toLocaleString(
-                                      "vi-VN",
-                                      {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                      },
-                                    )}
+                                  <p className="text-xs font-bold text-amber-600 mt-1 flex items-center gap-1">
+                                    ⏰ Hạn phản hồi: {formatDate(proposal.responseDeadlineUtc)}
                                   </p>
                                 )}
                               </div>
                             </div>
+
                             <span
-                              className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0"
+                              className="text-xs font-bold px-3 py-1 rounded-xl shrink-0 flex items-center gap-1"
                               style={{
                                 color: statusMeta.color,
                                 backgroundColor: statusMeta.bg,
                               }}
                             >
+                              {proposal.proposalStatus === 1 ? (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              ) : proposal.proposalStatus === 2 || proposal.proposalStatus === 3 ? (
+                                <XCircle className="w-3.5 h-3.5" />
+                              ) : (
+                                <Clock className="w-3.5 h-3.5" />
+                              )}
                               {statusMeta.label}
                             </span>
                           </div>

@@ -24,6 +24,7 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  Copy,
 } from "lucide-react";
 import { userService, UserProfileResponse } from "@/services/user.service";
 import {
@@ -39,19 +40,26 @@ import { useSignalr } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 
 import { getSafeUserAvatar } from "@/lib/utils";
+import { verificationService } from "@/services/verification.service";
+import type { VerificationStatusType } from "@/types/verification.types";
 
-const getRoleName = (roleId: number) => {
+const getRoleName = (roleId: number, categoryId?: number) => {
+  if (categoryId === 1) return "Sinh viên";
+  if (categoryId === 2) return "Giảng viên";
+  if (categoryId === 3) return "Nhân viên";
+  if (categoryId === 4) return "Khách";
+
   switch (roleId) {
     case 1:
       return "Quản trị viên";
     case 2:
       return "Quản lý";
     case 3:
-      return "Người dùng";
+      return "Sinh viên";
     case 4:
       return "Nhân viên";
     default:
-      return "Không xác định";
+      return "Người dùng";
   }
 };
 
@@ -197,10 +205,22 @@ export default function ProfilePage() {
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatusType | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchVerificationStatus = useCallback(async () => {
+    try {
+      const res = await verificationService.getMyVerification();
+      if (res) {
+        setVerificationStatus(res.status);
+      }
+    } catch (error) {
+      console.error("Failed to fetch verification status:", error);
+    }
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     try {
@@ -234,12 +254,13 @@ export default function ProfilePage() {
       (notification: NotificationItem) => {
         refreshProfile();
         fetchWalletTransactions();
+        fetchVerificationStatus();
         if (notification.type === "Payment.Completed") {
           toast.success("Nạp tiền thành công! Số dư đã được cập nhật.");
           setTopUpResult(null);
         }
       },
-      [refreshProfile, fetchWalletTransactions],
+      [refreshProfile, fetchWalletTransactions, fetchVerificationStatus],
     ),
   );
 
@@ -250,7 +271,7 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const initProfile = async () => {
       try {
         const response = (await userService.getProfile()) as unknown as UserProfileResponse & {
           value?: UserProfileResponse;
@@ -265,9 +286,10 @@ export default function ProfilePage() {
       } finally {
         setIsLoading(false);
       }
+      await fetchVerificationStatus();
     };
-    fetchProfile();
-  }, []);
+    initProfile();
+  }, [fetchVerificationStatus]);
 
   useEffect(() => {
     if (activeTab === "wallet") {
@@ -499,7 +521,7 @@ export default function ProfilePage() {
 
               <h2 className="text-xl font-extrabold text-gray-800 text-center">{profile.name}</h2>
               <p className="text-sm font-semibold text-gray-400 mt-1">
-                {getRoleName(profile.role)}
+                {getRoleName(profile.role, profile.category)}
               </p>
 
               <div className="w-full mt-8 flex flex-col gap-2">
@@ -578,32 +600,36 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Mã số sinh viên
-                    </label>
-                    <input
-                      type="text"
-                      name="studentId"
-                      value={s(profile.studentId)}
-                      disabled
-                      className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
-                    />
-                  </div>
+                  {profile.category !== 2 && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Mã số sinh viên
+                        </label>
+                        <input
+                          type="text"
+                          name="studentId"
+                          value={s(profile.studentId)}
+                          disabled
+                          className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
+                        />
+                      </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Chuyên ngành / Lớp
-                    </label>
-                    <input
-                      type="text"
-                      name="majorOrClass"
-                      value={s(profile.majorOrClass)}
-                      onChange={handleInputChange}
-                      placeholder="VD: Công nghệ phần mềm"
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
-                    />
-                  </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Chuyên ngành / Lớp
+                        </label>
+                        <input
+                          type="text"
+                          name="majorOrClass"
+                          value={s(profile.majorOrClass)}
+                          onChange={handleInputChange}
+                          placeholder="VD: Công nghệ phần mềm"
+                          className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -721,26 +747,92 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    <Link
-                      href={ROUTES.VERIFICATION}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                          <ShieldCheck className="w-4 h-4 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Định danh tài khoản</p>
-                          <p className="text-xs font-medium text-amber-600">Chưa định danh</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#D35400] group-hover:underline">
-                          Nộp giấy tờ
-                        </span>
-                        <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-[#D35400]" />
-                      </div>
-                    </Link>
+                    {(() => {
+                      const isIdentityVerified =
+                        verificationStatus === 2 ||
+                        (profile?.status === 1 &&
+                          verificationStatus !== 1 &&
+                          verificationStatus !== 3);
+                      const isPendingVerification = verificationStatus === 1;
+                      const isRejectedVerification = verificationStatus === 3;
+
+                      return (
+                        <Link
+                          href={ROUTES.VERIFICATION}
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-all group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                isIdentityVerified
+                                  ? "bg-emerald-100"
+                                  : isPendingVerification
+                                    ? "bg-blue-100"
+                                    : isRejectedVerification
+                                      ? "bg-red-100"
+                                      : "bg-amber-100"
+                              }`}
+                            >
+                              <ShieldCheck
+                                className={`w-4 h-4 ${
+                                  isIdentityVerified
+                                    ? "text-emerald-600"
+                                    : isPendingVerification
+                                      ? "text-blue-600"
+                                      : isRejectedVerification
+                                        ? "text-red-500"
+                                        : "text-amber-600"
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-800">Định danh tài khoản</p>
+                              <p
+                                className={`text-xs font-medium ${
+                                  isIdentityVerified
+                                    ? "text-emerald-600"
+                                    : isPendingVerification
+                                      ? "text-blue-600"
+                                      : isRejectedVerification
+                                        ? "text-red-500"
+                                        : "text-amber-600"
+                                }`}
+                              >
+                                {isIdentityVerified
+                                  ? "Đã định danh"
+                                  : isPendingVerification
+                                    ? "Đang chờ duyệt"
+                                    : isRejectedVerification
+                                      ? "Bị từ chối"
+                                      : "Chưa định danh"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-xs font-bold ${
+                                isIdentityVerified
+                                  ? "text-emerald-600"
+                                  : "text-[#D35400] group-hover:underline"
+                              }`}
+                            >
+                              {isIdentityVerified
+                                ? "Đã xác thực"
+                                : isPendingVerification
+                                  ? "Xem tiến độ"
+                                  : isRejectedVerification
+                                    ? "Nộp lại giấy tờ"
+                                    : "Nộp giấy tờ"}
+                            </span>
+                            {isIdentityVerified ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            ) : (
+                              <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-[#D35400]" />
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1115,9 +1207,11 @@ export default function ProfilePage() {
                                 navigator.clipboard.writeText(topUpResult.paymentContent || "");
                                 toast.success("Đã copy nội dung chuyển khoản!");
                               }}
-                              className="text-sm font-black text-[#D35400] tracking-wider bg-white px-4 py-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full"
+                              className="text-sm font-black text-[#D35400] font-mono tracking-wider bg-white px-4 py-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full break-all select-all flex items-center justify-center gap-2 group"
+                              title="Bấm để sao chép"
                             >
-                              {topUpResult.paymentContent}
+                              <span>{topUpResult.paymentContent}</span>
+                              <Copy className="w-4 h-4 shrink-0 text-[#D35400] group-hover:scale-110 transition-transform" />
                             </button>
                           </div>
                         )}

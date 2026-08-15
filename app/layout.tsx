@@ -43,7 +43,10 @@ export default function RootLayout({
         inter.variable,
       )}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col overflow-x-hidden antialiased"
+      >
         <QueryProvider>
           <AuthProvider>
             <CartProvider>

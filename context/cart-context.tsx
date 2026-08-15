@@ -104,7 +104,10 @@ function getCartStorage() {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const userId = user?.id || null;
+  const prevUserIdRef = useRef<string | null>(userId);
+
   const pathname = usePathname();
   const isCustomerRoute = pathname
     ? !pathname.startsWith("/manager") && !pathname.startsWith("/staff")
@@ -130,22 +133,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
-  useEffect(() => {
-    getCartStorage()?.setItem("smart_canteen_cart", JSON.stringify(cartItems));
-  }, [cartItems]);
-
-  useEffect(() => {
-    const storage = getCartStorage();
-    if (sessionId) {
-      storage?.setItem("smart_canteen_session", sessionId);
-    } else {
-      storage?.removeItem("smart_canteen_session");
-    }
-  }, [sessionId]);
-
-  const openCart = () => setIsCartOpen(true);
-  const closeCart = () => setIsCartOpen(false);
-
   const [cartVersion, setCartVersion] = useState<number>(() => {
     const storage = getCartStorage();
     if (storage) {
@@ -161,6 +148,53 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCartLoaded, setIsCartLoaded] = useState(false);
+
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>(() => {
+    const storage = getCartStorage();
+    if (storage) {
+      const saved = storage.getItem("smart_canteen_selected_sessions");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
+
+  // Reset cart when switching users or logging out
+  useEffect(() => {
+    if (prevUserIdRef.current !== userId) {
+      prevUserIdRef.current = userId;
+      setCartItems([]);
+      setSessionId(null);
+      setCartVersion(0);
+      setSelectedSessionIds([]);
+      const storage = getCartStorage();
+      storage?.removeItem("smart_canteen_cart");
+      storage?.removeItem("smart_canteen_session");
+      storage?.removeItem("smart_canteen_cart_version");
+      storage?.removeItem("smart_canteen_selected_sessions");
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    getCartStorage()?.setItem("smart_canteen_cart", JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  useEffect(() => {
+    const storage = getCartStorage();
+    if (sessionId) {
+      storage?.setItem("smart_canteen_session", sessionId);
+    } else {
+      storage?.removeItem("smart_canteen_session");
+    }
+  }, [sessionId]);
+
+  const openCart = () => setIsCartOpen(true);
+  const closeCart = () => setIsCartOpen(false);
 
   useEffect(() => {
     getCartStorage()?.setItem("smart_canteen_cart_version", String(cartVersion));
@@ -200,23 +234,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return Array.from(map.values());
   }
 
-  // Mount: fetch server cart, merge with local items
+  // Mount/User Change: fetch user's server cart cleanly
   useEffect(() => {
-    if (!isAuthenticated || !isCustomerRoute) {
+    if (!isAuthenticated || !isCustomerRoute || !userId) {
       Promise.resolve().then(() => setIsCartLoaded(true));
       return;
     }
+
+    Promise.resolve().then(() => setIsCartLoaded(false));
+
     cartService
       .getCart()
       .then(async (serverCart) => {
         setCartVersion(serverCart.version);
 
-        // Get all unique session IDs from both server cart and initial local cart
         const serverSessionIds = serverCart.data?.sessions?.map((s) => s.sessionId) || [];
-        const localSessionIds = cartItems.map((i) => i.sessionId).filter(Boolean) as string[];
-        const allSessionIds = [...new Set([...serverSessionIds, ...localSessionIds])];
 
-        if (allSessionIds.length === 0) {
+        if (serverSessionIds.length === 0) {
+          setCartItems([]);
+          setSessionId(null);
           setIsCartLoaded(true);
           return;
         }
@@ -226,7 +262,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const validSessions = new Map<string, SessionDetail>();
 
         await Promise.all(
-          allSessionIds.map(async (sid) => {
+          serverSessionIds.map(async (sid) => {
             try {
               const session = await sessionService.getSessionDetail(sid);
               const now = new Date();
@@ -281,38 +317,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        setCartItems((prev) => {
-          const filteredPrev = prev.filter(
-            (item) => !item.sessionId || !expiredSessionIds.has(item.sessionId),
-          );
-          const merged = [...filteredPrev];
-          for (const fi of fetchedItems) {
-            const idx = merged.findIndex(
-              (ci) => ci.dishId === fi.dishId && ci.sessionId === fi.sessionId,
-            );
-            if (idx > -1) {
-              merged[idx] = {
-                ...merged[idx],
-                ...fi,
-                quantity: fi.quantity,
-              };
-            } else {
-              merged.push(fi);
-            }
-          }
-
-          const activeSessionsLeft = merged.map((i) => i.sessionId).filter(Boolean);
-          if (activeSessionsLeft.length === 0) {
-            setSessionId(null);
-          }
-
-          return merged;
-        });
+        setCartItems(fetchedItems);
+        if (fetchedItems.length === 0) {
+          setSessionId(null);
+        } else {
+          setSessionId(fetchedItems[0].sessionId || null);
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        setCartItems([]);
+        setSessionId(null);
+      })
       .finally(() => setIsCartLoaded(true));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, isCustomerRoute]);
+  }, [isAuthenticated, isCustomerRoute, userId]);
 
   const pushToServer = useCallback(
     async (throwOnError = false): Promise<number | null> => {
@@ -403,21 +420,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return await pushToServerRef.current(throwOnError);
   }, []);
 
-  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>(() => {
-    const storage = getCartStorage();
-    if (storage) {
-      const saved = storage.getItem("smart_canteen_selected_sessions");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return [];
-        }
-      }
-    }
-    return [];
-  });
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setSelectedSessionIds((prev) => {
@@ -439,11 +441,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, [selectedSessionIds]);
 
-  const toggleSessionSelection = useCallback((sid: string) => {
-    setSelectedSessionIds((prev) =>
-      prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid],
-    );
-  }, []);
+  const toggleSessionSelection = useCallback(
+    (sid: string) => {
+      setSelectedSessionIds((prev) =>
+        prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid],
+      );
+    },
+    [setSelectedSessionIds],
+  );
 
   const isSessionSelected = useCallback(
     (sid: string) => selectedSessionIds.includes(sid),
@@ -452,10 +457,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const selectAllSessions = useCallback(
     () => setSelectedSessionIds([...uniqueSessionIds]),
-    [uniqueSessionIds],
+    [uniqueSessionIds, setSelectedSessionIds],
   );
 
-  const clearSessionSelection = useCallback(() => setSelectedSessionIds([]), []);
+  const clearSessionSelection = useCallback(
+    () => setSelectedSessionIds([]),
+    [setSelectedSessionIds],
+  );
 
   const getCurrentSessionId = useCallback(() => sessionId, [sessionId]);
 

@@ -90,6 +90,7 @@ const MANAGER_MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: "Khay (Trays)", path: "/manager/trays", icon: Package },
       { name: "Robot", path: "/manager/robot", icon: Cpu },
+      { name: "Serving Jobs", path: "/manager/serving-jobs", icon: Cpu },
       { name: "Ô Kệ (Slots)", path: "/manager/pickup-slots", icon: Package },
       { name: "Cài đặt", path: "/manager/settings", icon: Settings },
     ],

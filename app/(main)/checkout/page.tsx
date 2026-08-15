@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Info,
   Clock,
+  Copy,
 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -75,7 +76,8 @@ export default function CheckoutPage() {
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState(0);
+  const [topUpAmountStr, setTopUpAmountStr] = useState("50000");
+  const topUpAmount = useMemo(() => Number(topUpAmountStr) || 0, [topUpAmountStr]);
   const [topUpMethod, setTopUpMethod] = useState(4);
   const [isTopUpping, setIsTopUpping] = useState(false);
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
@@ -380,126 +382,123 @@ export default function CheckoutPage() {
 
   if (orderResult) {
     return (
-      <>
-        <Navbar />
-        <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
-          {/* Background image with dark overlay + blur */}
-          <div className="absolute inset-0">
-            <Image src="/uni1.webp" alt="" fill className="object-cover" sizes="100vw" />
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
-          </div>
+      <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
+        {/* Background image with dark overlay + blur */}
+        <div className="absolute inset-0">
+          <Image src="/uni1.webp" alt="" fill className="object-cover" sizes="100vw" />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" />
+        </div>
 
-          {/* Firework particles */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-            {fireworkParticles.map((p) => (
-              <div
-                key={p.id}
-                className="absolute bottom-1/2 left-1/2 -translate-x-1/2 rounded-full"
-                style={{
-                  width: p.size,
-                  height: p.size,
-                  backgroundColor: p.color,
-                  left: `${50 + (p.x - 50) * 0.3}%`,
-                  animation: `fireworkLaunch ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s forwards`,
-                  opacity: 0,
-                  boxShadow: `0 0 ${p.size}px ${p.color}80`,
-                }}
-              />
-            ))}
-          </div>
+        {/* Firework particles */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          {fireworkParticles.map((p) => (
+            <div
+              key={p.id}
+              className="absolute bottom-1/2 left-1/2 -translate-x-1/2 rounded-full"
+              style={{
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                left: `${50 + (p.x - 50) * 0.3}%`,
+                animation: `fireworkLaunch ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s forwards`,
+                opacity: 0,
+                boxShadow: `0 0 ${p.size}px ${p.color}80`,
+              }}
+            />
+          ))}
+        </div>
 
-          <div className="max-w-lg w-full relative z-10">
-            <div className="bg-white rounded-[2.5rem] shadow-[0_30px_80px_rgba(211,84,0,0.25)] border border-orange-200/50 p-10 text-center">
-              <div className="relative mb-6">
-                <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200/50">
-                  <PartyPopper className="w-12 h-12 text-[#D35400]" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center border-4 border-white shadow-md">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                </div>
+        <div className="max-w-lg w-full relative z-10">
+          <div className="bg-white rounded-[2.5rem] shadow-[0_30px_80px_rgba(211,84,0,0.25)] border border-orange-200/50 p-10 text-center">
+            <div className="relative mb-6">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200/50">
+                <PartyPopper className="w-12 h-12 text-[#D35400]" />
               </div>
-              <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt hàng thành công!</h1>
-              <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
-
-              <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
-                <div className="flex items-center gap-3 pb-3 border-b border-orange-100/30">
-                  <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
-                    <Receipt className="w-4 h-4 text-[#D35400]" />
-                  </div>
-                  <span className="text-sm font-bold text-gray-700">Hóa đơn đơn hàng</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Mã đơn hàng</span>
-                  <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
-                    {orderResult.id.slice(0, 12)}...
-                  </span>
-                </div>
-                {orderResult.transactionId && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Mã giao dịch</span>
-                    <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
-                      {orderResult.transactionId.slice(0, 12)}...
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Phương thức thanh toán</span>
-                  <span className="font-bold text-gray-700 flex items-center gap-1.5">
-                    <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Điểm ví
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
-                  <span className="text-base font-bold text-gray-800">Tổng đã thanh toán</span>
-                  <PtsDisplay
-                    amount={orderResult.totalPrice}
-                    className="text-lg font-black text-[#D35400]"
-                  />
-                </div>
-                <div className="flex justify-between text-sm pt-2">
-                  <span className="text-gray-500">Số dư còn lại</span>
-                  <PtsDisplay
-                    amount={orderResult.userRemainingBalance}
-                    className="font-bold text-[#D35400]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    clearCart();
-                    router.push(ROUTES.ORDERS);
-                  }}
-                  className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
-                >
-                  Xem đơn hàng
-                </button>
-                <button
-                  onClick={() => {
-                    clearCart();
-                    router.push(ROUTES.SESSION);
-                  }}
-                  className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
-                >
-                  Chọn phiên ăn
-                </button>
+              <div className="absolute -top-1 -right-1 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center border-4 border-white shadow-md">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
               </div>
             </div>
-          </div>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Đặt hàng thành công!</h1>
+            <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">{orderResult.message}</p>
 
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-            @keyframes fireworkLaunch {
-              0% { transform: translateY(0) scale(0.5); opacity: 1; }
-              40% { transform: translateY(-160px) scale(1.5); opacity: 0.9; }
-              100% { transform: translateY(-350px) scale(0); opacity: 0; }
-            }
-          `,
-            }}
-          />
-        </main>
-      </>
+            <div className="bg-gradient-to-br from-orange-50 to-orange-50/30 rounded-2xl p-6 space-y-4 text-left mb-8 border border-orange-100/40">
+              <div className="flex items-center gap-3 pb-3 border-b border-orange-100/30">
+                <div className="w-8 h-8 bg-[#D35400]/10 rounded-lg flex items-center justify-center">
+                  <Receipt className="w-4 h-4 text-[#D35400]" />
+                </div>
+                <span className="text-sm font-bold text-gray-700">Hóa đơn đơn hàng</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Mã đơn hàng</span>
+                <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
+                  {orderResult.id.slice(0, 12)}...
+                </span>
+              </div>
+              {orderResult.transactionId && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Mã giao dịch</span>
+                  <span className="font-mono font-bold text-gray-800 text-xs bg-gray-100 px-2 py-0.5 rounded-md">
+                    {orderResult.transactionId.slice(0, 12)}...
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Phương thức thanh toán</span>
+                <span className="font-bold text-gray-700 flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-[#D35400]" /> Điểm ví
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t border-orange-100/30">
+                <span className="text-base font-bold text-gray-800">Tổng đã thanh toán</span>
+                <PtsDisplay
+                  amount={orderResult.totalPrice}
+                  className="text-lg font-black text-[#D35400]"
+                />
+              </div>
+              <div className="flex justify-between text-sm pt-2">
+                <span className="text-gray-500">Số dư còn lại</span>
+                <PtsDisplay
+                  amount={orderResult.userRemainingBalance}
+                  className="font-bold text-[#D35400]"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  clearCart();
+                  router.push(ROUTES.ORDERS);
+                }}
+                className="flex-1 py-3.5 bg-[#D35400] text-white font-bold text-sm rounded-xl hover:bg-[#B34700] transition-all shadow-[0_4px_12px_rgba(211,84,0,0.25)] active:scale-[0.98]"
+              >
+                Xem đơn hàng
+              </button>
+              <button
+                onClick={() => {
+                  clearCart();
+                  router.push(ROUTES.SESSION);
+                }}
+                className="flex-1 py-3.5 bg-white text-gray-700 font-bold text-sm rounded-xl border-2 border-gray-200 hover:border-[#D35400] hover:text-[#D35400] transition-all active:scale-[0.98]"
+              >
+                Chọn phiên ăn
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+          @keyframes fireworkLaunch {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            40% { transform: translateY(-160px) scale(1.5); opacity: 0.9; }
+            100% { transform: translateY(-350px) scale(0); opacity: 0; }
+          }
+        `,
+          }}
+        />
+      </main>
     );
   }
 
@@ -982,7 +981,7 @@ export default function CheckoutPage() {
                     {!isTopUpOpen ? (
                       <button
                         onClick={() => {
-                          setTopUpAmount(Math.max(50000, neededPoints * 1000));
+                          setTopUpAmountStr(String(Math.max(10000, neededPoints * 1000)));
                           setIsTopUpOpen(true);
                         }}
                         disabled={expiredSessions.length > 0}
@@ -1003,6 +1002,11 @@ export default function CheckoutPage() {
                               <p className="text-sm font-bold text-gray-800">
                                 Tạo yêu cầu nạp tiền thành công!
                               </p>
+                              {topUpResult.gatewayOrderId && (
+                                <p className="text-[10px] text-gray-400 mt-0.5 font-mono">
+                                  Mã GD: {topUpResult.gatewayOrderId}
+                                </p>
+                              )}
                               <p className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
                                 {formatPts(topUpResult.amountVnd)} VND {" → "}
                                 <PtsDisplay
@@ -1037,7 +1041,7 @@ export default function CheckoutPage() {
 
                             {topUpResult.paymentContent && (
                               <div className="bg-white border border-dashed border-gray-200 rounded-xl p-3 text-center">
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">
                                   Nội dung chuyển khoản chuẩn
                                 </p>
                                 <button
@@ -1045,9 +1049,11 @@ export default function CheckoutPage() {
                                     navigator.clipboard.writeText(topUpResult.paymentContent || "");
                                     toast.success("Đã sao chép vào bộ nhớ tạm!");
                                   }}
-                                  className="text-xs font-black text-[#D35400] tracking-wider bg-gray-50 py-2 px-3 rounded-lg border border-gray-100 hover:bg-orange-50 transition-colors w-full truncate"
+                                  className="text-xs font-black text-[#D35400] font-mono tracking-wider bg-orange-50/50 hover:bg-orange-100/60 py-2.5 px-3 rounded-lg border border-orange-100 transition-colors w-full break-all select-all flex items-center justify-center gap-2 group"
+                                  title="Bấm để sao chép"
                                 >
-                                  {topUpResult.paymentContent}
+                                  <span>{topUpResult.paymentContent}</span>
+                                  <Copy className="w-3.5 h-3.5 shrink-0 text-[#D35400] group-hover:scale-110 transition-transform" />
                                 </button>
                               </div>
                             )}
@@ -1070,15 +1076,39 @@ export default function CheckoutPage() {
                           </div>
                         ) : (
                           <>
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                Số tiền (VND)
-                              </label>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                                  Số tiền (VND)
+                                </label>
+                                {topUpAmount > 0 && (
+                                  <span className="text-xs font-black text-[#D35400] flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
+                                    = {formatPts(Math.floor(topUpAmount / 1000))} pts
+                                  </span>
+                                )}
+                              </div>
+
+                              {neededPoints > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTopUpAmountStr(String(Math.max(10000, neededPoints * 1000)))
+                                  }
+                                  className="w-full py-2 px-3 bg-orange-500/10 hover:bg-orange-500/20 text-[#D35400] border border-orange-200 rounded-xl text-xs font-bold transition-all flex items-center justify-between"
+                                >
+                                  <span>⚡ Nạp vừa đủ số điểm thiếu:</span>
+                                  <span className="font-extrabold">
+                                    {formatPts(neededPoints * 1000)} VND ({neededPoints} pts)
+                                  </span>
+                                </button>
+                              )}
+
                               <div className="grid grid-cols-3 gap-1.5">
                                 {[50000, 100000, 200000].map((amt) => (
                                   <button
                                     key={amt}
-                                    onClick={() => setTopUpAmount(amt)}
+                                    type="button"
+                                    onClick={() => setTopUpAmountStr(String(amt))}
                                     className={`py-2 rounded-xl text-xs font-bold transition-all border ${
                                       topUpAmount === amt
                                         ? "bg-white border-[#D35400] text-[#D35400] shadow-xs"
@@ -1089,17 +1119,46 @@ export default function CheckoutPage() {
                                   </button>
                                 ))}
                               </div>
-                              <input
-                                type="number"
-                                value={topUpAmount}
-                                onChange={(e) => setTopUpAmount(Number(e.target.value) || 0)}
-                                min={10000}
-                                step={10000}
-                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 outline-none focus:border-[#D35400]"
-                              />
+
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={topUpAmountStr}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, "");
+                                    const clean = raw.replace(/^0+/, "") || "";
+                                    setTopUpAmountStr(clean);
+                                  }}
+                                  placeholder="Nhập số tiền VND..."
+                                  className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-[#D35400] focus:ring-1 focus:ring-[#D35400] transition-all pr-8"
+                                />
+                                {topUpAmountStr && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTopUpAmountStr("")}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-5 h-5 flex items-center justify-center transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+
+                              {topUpAmount > 0 && topUpAmount < 10000 && (
+                                <p className="text-[11px] text-amber-600 font-bold flex items-center gap-1 mt-1">
+                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                  Số tiền nạp tối thiểu là 10.000 VND (tương đương 10 pts)
+                                </p>
+                              )}
+                              {topUpAmount > 10000000 && (
+                                <p className="text-[11px] text-red-500 font-bold flex items-center gap-1 mt-1">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  Số tiền nạp tối đa là 10.000.000 VND
+                                </p>
+                              )}
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 pt-1">
                               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                                 Phương thức thanh toán
                               </label>
@@ -1131,7 +1190,9 @@ export default function CheckoutPage() {
                             <div className="flex gap-2 pt-2">
                               <button
                                 onClick={handleTopUp}
-                                disabled={isTopUpping || topUpAmount < 10000}
+                                disabled={
+                                  isTopUpping || topUpAmount < 10000 || topUpAmount > 10000000
+                                }
                                 className="flex-1 py-3 bg-[#D35400] hover:bg-[#B34700] text-white font-bold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/10"
                               >
                                 {isTopUpping && <Loader2 className="w-4 h-4 animate-spin" />}

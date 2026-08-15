@@ -30,6 +30,7 @@ import {
   AccountStatus,
   UserRole,
   type ManagerUserDetail,
+  type ManagerUserFilters,
   type ManagerUserListItem,
 } from "@/types/manager-user.types";
 
@@ -52,6 +53,7 @@ const userWorkflows = [
 const ROLE_OPTIONS = [
   { value: "", label: "Tất cả vai trò" },
   { value: String(UserRole.User), label: "Sinh viên" },
+  { value: String(UserRole.Lecturer), label: "Giảng viên" },
   { value: String(UserRole.Staff), label: "Nhân viên" },
   { value: String(UserRole.Manager), label: "Quản lý" },
   { value: String(UserRole.Admin), label: "Admin" },
@@ -66,12 +68,38 @@ const STATUS_OPTIONS = [
   { value: String(AccountStatus.Banned), label: "Bị cấm" },
 ];
 
-const ROLE_LABELS: Record<UserRole, string> = {
+const ROLE_LABELS: Record<number, string> = {
   [UserRole.Admin]: "Admin",
   [UserRole.Manager]: "Quản lý",
   [UserRole.User]: "Sinh viên",
   [UserRole.Staff]: "Nhân viên",
+  [UserRole.Lecturer]: "Giảng viên",
 };
+
+export function getUserRoleLabel(
+  user?: {
+    role?: UserRole | number | null;
+    roleCategory?: number | null;
+    category?: number | null;
+    userCategory?: number | null;
+  } | null,
+): string {
+  if (!user) return "Không rõ";
+  const cat = user.roleCategory ?? user.category ?? user.userCategory;
+
+  if (cat === 2 || user.role === UserRole.Lecturer || user.role === 5) {
+    return "Giảng viên";
+  }
+  if (user.role === UserRole.Admin || user.role === 1) return "Admin";
+  if (user.role === UserRole.Manager || user.role === 2) return "Quản lý";
+  if (user.role === UserRole.Staff || user.role === 4) return "Nhân viên";
+  if (user.role === UserRole.User || user.role === 3) return "Sinh viên";
+
+  if (cat === 1) return "Sinh viên";
+  if (cat === 3) return "Nhân viên";
+
+  return ROLE_LABELS[user.role as number] || "Không rõ";
+}
 
 const STATUS_STYLES: Record<AccountStatus, { label: string; className: string; dot: string }> = {
   [AccountStatus.Active]: {
@@ -198,14 +226,43 @@ export default function ManagerUsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await managerUserService.getUsers({
+      const isLecturerFilter = roleFilter === String(UserRole.Lecturer) || roleFilter === "5";
+      const isStudentFilter = roleFilter === String(UserRole.User) || roleFilter === "3";
+
+      const queryParams: ManagerUserFilters = {
         pageNumber,
         pageSize,
         search: search.trim() || undefined,
-        role: roleFilter ? (Number(roleFilter) as UserRole) : undefined,
         status: statusFilter ? (Number(statusFilter) as AccountStatus) : undefined,
-      });
-      setUsers(result.items);
+      };
+
+      if (isLecturerFilter) {
+        queryParams.category = 2;
+        queryParams.roleCategory = 2;
+        queryParams.role = 3;
+      } else if (isStudentFilter) {
+        queryParams.category = 1;
+        queryParams.roleCategory = 1;
+        queryParams.role = 3;
+      } else if (roleFilter) {
+        queryParams.role = Number(roleFilter) as UserRole;
+      }
+
+      const result = await managerUserService.getUsers(queryParams);
+
+      // Perform client-side filter pass if backend returns unfiltered items
+      let items = result.items || [];
+      if (isLecturerFilter) {
+        items = items.filter((u) => u.category === 2 || u.roleCategory === 2 || u.role === 5);
+      } else if (isStudentFilter) {
+        items = items.filter(
+          (u) =>
+            (u.role === 3 || !u.role) &&
+            (u.category === 1 || u.roleCategory === 1 || (!u.category && !u.roleCategory)),
+        );
+      }
+
+      setUsers(items);
       setPagination({
         totalCount: result.totalCount,
         totalPages: Math.max(1, result.totalPages),
@@ -587,7 +644,7 @@ export default function ManagerUsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-gray-600">
-                        {ROLE_LABELS[user.role] || "Không rõ"}
+                        {getUserRoleLabel(user)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -743,7 +800,7 @@ export default function ManagerUsersPage() {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusBadge status={details.status} />
                     <span className="rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-gray-500">
-                      {ROLE_LABELS[details.role] || "Không rõ"}
+                      {getUserRoleLabel(details)}
                     </span>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ export interface UserProfileResponse {
   email: string;
   imgUrl: string | null;
   role: number;
+  category?: number;
   status: number;
   emailVerified: boolean;
   studentId: string | null;
@@ -23,7 +24,14 @@ export interface UserProfileResponse {
 export type UpdateProfilePayload = Partial<
   Omit<
     UserProfileResponse,
-    "id" | "email" | "role" | "status" | "emailVerified" | "balanceAmount" | "lastLoginAt"
+    | "id"
+    | "email"
+    | "role"
+    | "category"
+    | "status"
+    | "emailVerified"
+    | "balanceAmount"
+    | "lastLoginAt"
   >
 > & { imageFile?: File | null };
 

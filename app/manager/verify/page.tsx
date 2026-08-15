@@ -264,7 +264,7 @@ export default function ManagerVerifyPage() {
                       </td>
                       <td className="px-5 py-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-50 text-orange-700 border border-orange-100">
-                          {req.documentCount} file(s)
+                          {req.documentCount} tập tin
                         </span>
                       </td>
                       <td className="px-5 py-4">

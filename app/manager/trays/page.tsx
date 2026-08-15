@@ -10,9 +10,9 @@ import {
   PackageOpen,
   ShieldCheck,
   RefreshCw,
-  Layers,
   AlertTriangle,
   Eye,
+  Layers,
 } from "lucide-react";
 import { trayService } from "@/services/tray.service";
 import type { TrayPoolSummary, TrayStatus } from "@/types/tray.types";
@@ -57,13 +57,15 @@ export default function ManagerTraysPage() {
   const [search, setSearch] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<"single" | "bulk">("single");
   const [selectedTrayId, setSelectedTrayId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<"single" | "bulk">("single");
   const [singleCode, setSingleCode] = useState("");
+
   const [bulkPrefix, setBulkPrefix] = useState("TRAY");
-  const [bulkFrom, setBulkFrom] = useState(1);
-  const [bulkTo, setBulkTo] = useState(10);
+  const [bulkFrom, setBulkFrom] = useState(31);
+  const [bulkTo, setBulkTo] = useState(40);
+
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,11 +107,10 @@ export default function ManagerTraysPage() {
   }, []);
 
   const openCreateModal = () => {
-    setCreateMode("single");
     setSingleCode("");
     setBulkPrefix("TRAY");
-    setBulkFrom(1);
-    setBulkTo(10);
+    setBulkFrom(31);
+    setBulkTo(40);
     setFormSubmitting(false);
     setIsCreateOpen(true);
   };
@@ -117,55 +118,52 @@ export default function ManagerTraysPage() {
   const handleCreateSubmit = async () => {
     setFormSubmitting(true);
     try {
-      let result;
       if (createMode === "single") {
         if (!singleCode.trim()) {
           toast.error("Mã khay không được để trống.");
           setFormSubmitting(false);
           return;
         }
-        if (trays.some((t) => t.code.toLowerCase() === singleCode.trim().toLowerCase())) {
-          toast.error("Mã khay đã tồn tại. Vui lòng dùng mã khác.");
-          setFormSubmitting(false);
-          return;
+        const result = await trayService.createSingle({ code: singleCode.trim() });
+        setIsCreateOpen(false);
+        const created = result.createdCodes.length;
+        if (created > 0) {
+          toast.success(`Tạo khay "${result.createdCodes[0] || singleCode.trim()}" thành công!`);
+        } else {
+          toast.error("Khay đã tồn tại trong hệ thống.");
         }
-        result = await trayService.createSingle({ code: singleCode.trim() });
       } else {
         if (!bulkPrefix.trim()) {
           toast.error("Prefix không được để trống.");
           setFormSubmitting(false);
           return;
         }
-        if (bulkTo < bulkFrom) {
-          toast.error("Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.");
+        if (bulkFrom <= 0 || bulkTo < bulkFrom) {
+          toast.error("Khoảng chỉ số (từ - đến) không hợp lệ.");
           setFormSubmitting(false);
           return;
         }
-        if (bulkTo - bulkFrom + 1 > 100) {
-          toast.error("Tối đa 100 khay mỗi lần.");
-          setFormSubmitting(false);
-          return;
-        }
-        result = await trayService.createBulk({
-          prefix: bulkPrefix.trim(),
+        const result = await trayService.createBulk({
+          prefix: bulkPrefix.trim().toUpperCase(),
           from: bulkFrom,
           to: bulkTo,
         });
-      }
-
-      setIsCreateOpen(false);
-      const created = result.createdCodes.length;
-      const skipped = result.skippedCodes.length;
-      if (created > 0 && skipped > 0) {
-        toast.success(`Tạo ${created} khay thành công, bỏ qua ${skipped} khay trùng.`);
-      } else if (created > 0) {
-        toast.success(`Tạo ${created} khay thành công!`);
-      } else {
-        toast.info(`Tất cả ${skipped} khay đã tồn tại, không có khay mới.`);
+        setIsCreateOpen(false);
+        const created = result.createdCodes.length;
+        const skipped = result.skippedCodes.length;
+        if (created > 0 && skipped > 0) {
+          toast.success(`Đã tạo ${created} khay mới, bỏ qua ${skipped} khay trùng.`);
+        } else if (created > 0) {
+          toast.success(`Đã tạo thành công ${created} khay hàng loạt!`);
+        } else {
+          toast.info("Tất cả các khay trong dải này đều đã tồn tại.");
+        }
       }
       fetchPool();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Tạo khay thất bại";
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Không thể tạo khay.";
       toast.error(msg);
     } finally {
       setFormSubmitting(false);
@@ -479,40 +477,35 @@ export default function ManagerTraysPage() {
         size="lg"
       >
         <div className="space-y-6">
-          {/* Mode toggle */}
-          <div className="flex rounded-2xl border border-gray-200/60 bg-gray-50/50 p-1">
+          {/* Mode Switcher */}
+          <div className="flex border-b border-gray-200">
             <button
               onClick={() => setCreateMode("single")}
               className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                "px-5 py-2.5 font-bold text-sm border-b-2 transition-all flex items-center gap-2",
                 createMode === "single"
-                  ? "bg-white text-gray-900 shadow-sm border border-gray-200/60"
-                  : "text-gray-500 hover:text-gray-700",
+                  ? "border-[#D35400] text-[#D35400]"
+                  : "border-transparent text-gray-400 hover:text-gray-600",
               )}
             >
-              <span className="flex items-center justify-center gap-2">
-                <Package className="w-4 h-4" />
-                Đơn lẻ
-              </span>
+              <Plus className="w-4 h-4" />
+              Đơn lẻ (Single)
             </button>
             <button
               onClick={() => setCreateMode("bulk")}
               className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                "px-5 py-2.5 font-bold text-sm border-b-2 transition-all flex items-center gap-2",
                 createMode === "bulk"
-                  ? "bg-white text-gray-900 shadow-sm border border-gray-200/60"
-                  : "text-gray-500 hover:text-gray-700",
+                  ? "border-[#D35400] text-[#D35400]"
+                  : "border-transparent text-gray-400 hover:text-gray-600",
               )}
             >
-              <span className="flex items-center justify-center gap-2">
-                <Layers className="w-4 h-4" />
-                Hàng loạt
-              </span>
+              <Layers className="w-4 h-4" />
+              Hàng loạt (Bulk)
             </button>
           </div>
 
-          {/* Single mode */}
-          {createMode === "single" && (
+          {createMode === "single" ? (
             <div>
               <label className="block text-sm font-bold text-gray-800 mb-2">
                 Mã khay <span className="text-red-400">*</span>
@@ -524,66 +517,62 @@ export default function ManagerTraysPage() {
                 className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs"
               />
               <p className="text-xs text-gray-400 mt-1.5 font-medium">
-                Nhập mã khay cần đăng ký. Khay trùng sẽ được bỏ qua.
+                Nhập mã khay cần đăng ký. Khay trùng sẽ tự động được bỏ qua.
               </p>
             </div>
-          )}
-
-          {/* Bulk mode */}
-          {createMode === "bulk" && (
+          ) : (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-800 mb-2">
-                  Prefix <span className="text-red-400">*</span>
+                  Tiền tố (Prefix) <span className="text-red-400">*</span>
                 </label>
                 <input
                   value={bulkPrefix}
                   onChange={(e) => setBulkPrefix(e.target.value)}
                   placeholder="VD: TRAY"
-                  className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 placeholder:text-gray-400 font-mono font-bold uppercase tracking-wider transition-all shadow-xs"
+                  className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 font-mono font-bold uppercase transition-all shadow-xs"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-2">
-                    Từ <span className="text-red-400">*</span>
+                    Từ số (From) <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="number"
-                    min={0}
+                    min={1}
                     value={bulkFrom}
-                    onChange={(e) => setBulkFrom(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all shadow-xs"
+                    onChange={(e) => setBulkFrom(parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all shadow-xs font-bold"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-2">
-                    Đến <span className="text-red-400">*</span>
+                    Đến số (To) <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="number"
-                    min={0}
+                    min={1}
                     value={bulkTo}
-                    onChange={(e) => setBulkTo(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all shadow-xs"
+                    onChange={(e) => setBulkTo(parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-4 py-3 bg-white border border-gray-200/50 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all shadow-xs font-bold"
                   />
                 </div>
               </div>
-              <div className="bg-gray-50 border border-gray-200/60 rounded-xl px-4 py-3">
-                <p className="text-sm text-gray-600">
-                  Sẽ tạo:{" "}
-                  <span className="font-mono font-bold text-gray-900">
-                    {bulkPrefix}
-                    {bulkFrom}
-                  </span>{" "}
-                  →{" "}
-                  <span className="font-mono font-bold text-gray-900">
-                    {bulkPrefix}
-                    {bulkTo}
-                  </span>{" "}
-                  <span className="text-gray-400">({Math.max(0, bulkTo - bulkFrom + 1)} khay)</span>
-                </p>
-              </div>
+              <p className="text-xs text-gray-400 font-medium">
+                Hệ thống sẽ tạo tự động các khay từ{" "}
+                <span className="font-mono font-bold text-gray-700">
+                  {bulkPrefix}
+                  {bulkFrom}
+                </span>{" "}
+                đến{" "}
+                <span className="font-mono font-bold text-gray-700">
+                  {bulkPrefix}
+                  {bulkTo}
+                </span>{" "}
+                (tối đa 100 khay/lần). Mã trùng sẽ tự động bỏ qua.
+              </p>
             </div>
           )}
 
@@ -609,7 +598,7 @@ export default function ManagerTraysPage() {
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    Đăng ký
+                    Đăng ký {createMode === "bulk" ? "hàng loạt" : ""}
                   </>
                 )}
               </span>

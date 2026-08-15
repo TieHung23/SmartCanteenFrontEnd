@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 export default function AboutHero3D() {
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-[#FAF8F5] dark:bg-background pt-16 pb-24">
+    <section className="relative overflow-hidden bg-[#FAF8F5] dark:bg-background pt-24 sm:pt-28 lg:pt-32 pb-16 sm:pb-20">
       {/* Organic Background Blobs */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#FCE8D5]/60 dark:bg-orange-950/20 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-0 left-10 w-[400px] h-[400px] bg-[#E8F0EA]/60 dark:bg-emerald-950/20 rounded-full blur-[120px] pointer-events-none" />

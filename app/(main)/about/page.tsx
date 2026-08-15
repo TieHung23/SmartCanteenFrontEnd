@@ -12,7 +12,7 @@ import AboutCTA from "@/components/features/about/about-cta";
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-orange-500 selection:text-white">
-      <Navbar />
+      <Navbar isTransparent={true} />
 
       <main className="flex-1">
         {/* Organic Hero Section with Dual Arch Photo Frames & Robot Arm preview */}

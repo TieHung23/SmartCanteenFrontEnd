@@ -7,6 +7,8 @@ import type {
   CreateTraySinglePayload,
   CreateTrayBulkPayload,
   CreateTrayResponse,
+  ForceReleaseTrayResponse,
+  RetireTrayResponse,
 } from "@/types/tray.types";
 
 export const trayService = {
@@ -40,11 +42,17 @@ export const trayService = {
     return response.value;
   },
 
-  forceRelease: async (id: string): Promise<void> => {
-    await apiClient.post(API_ENDPOINTS.MANAGER.TRAYS.FORCE_RELEASE(id));
+  forceRelease: async (id: string): Promise<ForceReleaseTrayResponse> => {
+    const response = (await apiClient.patch<ApiResponse<ForceReleaseTrayResponse>>(
+      API_ENDPOINTS.MANAGER.TRAYS.FORCE_RELEASE(id),
+    )) as unknown as ApiResponse<ForceReleaseTrayResponse>;
+    return response.value;
   },
 
-  retire: async (id: string): Promise<void> => {
-    await apiClient.post(API_ENDPOINTS.MANAGER.TRAYS.RETIRE(id));
+  retire: async (id: string): Promise<RetireTrayResponse> => {
+    const response = (await apiClient.patch<ApiResponse<RetireTrayResponse>>(
+      API_ENDPOINTS.MANAGER.TRAYS.RETIRE(id),
+    )) as unknown as ApiResponse<RetireTrayResponse>;
+    return response.value;
   },
 };

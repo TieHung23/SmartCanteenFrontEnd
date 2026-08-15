@@ -30,11 +30,13 @@ import {
   UtensilsCrossed,
   Clock,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { translateApiMessage } from "@/lib/utils";
 import Swal from "sweetalert2";
 import { useState, useEffect, useCallback } from "react";
+import { RefundFormModal } from "@/components/features/refund/refund-form-modal";
 import {
   useSignalr,
   getOrderStatusLabelVi,
@@ -42,6 +44,7 @@ import {
 } from "@/lib/hooks/use-signalr";
 import type { NotificationItem } from "@/types/notification.types";
 import { useQueryClient } from "@tanstack/react-query";
+import { CancelOrderModal } from "@/components/features/orders/cancel-order-modal";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -64,7 +67,6 @@ export default function OrderDetailPage() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   const [proposals, setProposals] = useState<ChangeProposalDetail[]>([]);
-  const [loadingProposals, setLoadingProposals] = useState(true);
   const [orderRefund, setOrderRefund] = useState<RefundRequest | null>(null);
 
   const [swappingProposal, setSwappingProposal] = useState<ChangeProposalDetail | null>(null);
@@ -75,6 +77,8 @@ export default function OrderDetailPage() {
   const [isSwapping, setIsSwapping] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [isRefundingOrder, setIsRefundingOrder] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isRefundFormModalOpen, setIsRefundFormModalOpen] = useState(false);
 
   const [sessionInfo, setSessionInfo] = useState<{
     name?: string;
@@ -129,15 +133,12 @@ export default function OrderDetailPage() {
 
   const fetchProposals = useCallback(async () => {
     if (!orderId) return;
-    setLoadingProposals(true);
     try {
       const all = await changeProposalService.getAll();
       const filtered = all.filter((p) => p.orderId?.toLowerCase() === orderId.toLowerCase());
       setProposals(filtered);
     } catch {
       setProposals([]);
-    } finally {
-      setLoadingProposals(false);
     }
   }, [orderId]);
 
@@ -418,7 +419,6 @@ export default function OrderDetailPage() {
     : isOrderRefundPending
       ? { label: "Chờ duyệt hoàn đơn", color: "#d97706", bg: "#fffbeb", icon: "⏳" }
       : rawMeta;
-  const hasAnyActiveProposal = proposals.some((p) => p.proposalStatus === 0);
 
   return (
     <>
@@ -772,6 +772,20 @@ export default function OrderDetailPage() {
               </button>
             )}
 
+            {/* Single Refund Request Button for Status 4 (Đang chuẩn bị) & Status 2 (Hoàn thành) */}
+            {(order.status === 4 || order.status === 2) &&
+              !orderRefund &&
+              !isOrderRefundPending &&
+              !isOrderRefundRejected && (
+                <button
+                  onClick={() => setIsRefundFormModalOpen(true)}
+                  className="w-full mt-4 py-4 bg-orange-50 hover:bg-orange-100 text-[#D35400] border border-orange-200/80 font-black text-sm rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <RotateCcw className="w-4 h-4 text-[#D35400]" />
+                  Yêu cầu hoàn tiền
+                </button>
+              )}
+
             {order.status === 3 && (
               <div
                 className={`mt-8 border rounded-xl p-5 flex items-start gap-3 ${
@@ -821,19 +835,6 @@ export default function OrderDetailPage() {
                       : isOrderRefundPending
                         ? "Yêu cầu hoàn tiền đơn hàng đã được gửi tới Quản lý và đang chờ phê duyệt."
                         : "Đơn hàng này đã bị hủy và tiền đã được hệ thống tự động hoàn trực tiếp vào ví của bạn."}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* No active proposals banner */}
-            {!loadingProposals && !hasAnyActiveProposal && order.status !== 3 && (
-              <div className="mt-8 bg-green-50 border border-green-100 rounded-xl p-4 flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-green-700">Tất cả món đã được xử lý</p>
-                  <p className="text-xs text-green-500 mt-1">
-                    Không có món nào cần đổi hoặc hoàn tiền.
                   </p>
                 </div>
               </div>
@@ -935,6 +936,37 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cancel Order Modal */}
+      {order && (
+        <CancelOrderModal
+          isOpen={isCancelModalOpen}
+          onClose={() => setIsCancelModalOpen(false)}
+          orderId={order.id}
+          totalPrice={order.totalPrice}
+          onSuccess={() => {
+            fetchProposals();
+            fetchRefunds();
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+            queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+          }}
+        />
+      )}
+
+      {/* Refund Form Modal */}
+      {order && (
+        <RefundFormModal
+          isOpen={isRefundFormModalOpen}
+          orderId={order.id}
+          onClose={() => setIsRefundFormModalOpen(false)}
+          onSuccess={() => {
+            fetchProposals();
+            fetchRefunds();
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+            queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+          }}
+        />
       )}
     </>
   );

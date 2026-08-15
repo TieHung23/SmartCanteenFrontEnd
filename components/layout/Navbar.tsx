@@ -14,7 +14,7 @@ import { resolveNotificationTargetUrl } from "@/lib/utils/notification-resolver"
 import { getSafeUserAvatar } from "@/lib/utils";
 import { toast } from "sonner";
 
-export default function Navbar() {
+export default function Navbar({ isTransparent = false }: { isTransparent?: boolean }) {
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -24,6 +24,40 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY < 100) {
+        setShowNavbar(true);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
   const { getCartCount, openCart } = useCart();
   const totalCount = getCartCount();
 
@@ -44,22 +78,33 @@ export default function Navbar() {
       "Order.Created",
       "ChangeProposal.Created",
       "Refund.StatusChanged",
+      "Verification.Approved",
+      "Verification.Rejected",
+      "Verification.StatusChanged",
     ];
+    const refType = (n.referenceType || "").toLowerCase();
+    const notifType = (n.type || "").toLowerCase();
+    const title = (n.title || "").toLowerCase();
     const shouldNotify =
       navigableTypes.includes(n.type) ||
-      (n.referenceType && ["Order", "ChangeProposal", "Refund"].includes(n.referenceType));
+      (n.referenceType &&
+        ["Order", "ChangeProposal", "Refund", "Verification", "VerificationRequest"].includes(
+          n.referenceType,
+        )) ||
+      refType.includes("verification") ||
+      notifType.includes("verification") ||
+      title.includes("xác minh");
+
     if (shouldNotify) {
       toast.info(n.title, {
         description: n.message,
-        action: n.referenceId
-          ? {
-              label: "Xem",
-              onClick: async () => {
-                const targetUrl = await resolveNotificationTargetUrl(n);
-                window.location.href = targetUrl;
-              },
-            }
-          : undefined,
+        action: {
+          label: "Xem",
+          onClick: async () => {
+            const targetUrl = await resolveNotificationTargetUrl(n);
+            window.location.href = targetUrl;
+          },
+        },
         duration: 8000,
       });
     }
@@ -102,150 +147,170 @@ export default function Navbar() {
   const getSafeAvatar = (url: string | null | undefined, id?: string, name?: string) => {
     return getSafeUserAvatar(url, id || name);
   };
+  const headerClass = `w-full px-4 sm:px-6 py-4 z-50 flex justify-center transition-all duration-300 fixed left-0 top-0 ${
+    showNavbar ? "translate-y-0" : "-translate-y-full"
+  } ${!isTransparent ? "not-transparent-nav" : ""}`;
+
+  const containerClass = `w-full max-w-5xl flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16 gap-2 transition-all duration-300 rounded-full ${
+    isScrolled
+      ? "bg-white/30 backdrop-blur-xl border border-white/50 shadow-lg"
+      : isTransparent
+        ? "bg-white/30 backdrop-blur-md border border-white/50"
+        : "bg-white shadow-sm"
+  }`;
+
   return (
-    <header className="w-full px-3 sm:px-6 py-3 bg-[#ffefe7]">
-      <div className="max-w-7xl mx-auto flex items-center justify-between bg-white border border-gray-100 rounded-full shadow-sm px-3 sm:px-5 h-14 sm:h-16 gap-1 sm:gap-3">
-        <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <Image
-            src="/logo.png"
-            alt="Logo Smart Canteen"
-            width={55}
-            height={55}
-            className="w-auto h-[42px] sm:h-[55px] object-contain rounded-full pb-1 sm:pb-2"
-            priority
-          />
-          <span className="text-sm sm:text-base font-semibold text-gray-800 tracking-tight hidden sm:block">
-            Smart <span className="text-[#E86A33]">Canteen</span>
-          </span>
-        </Link>
+    <>
+      <header className={headerClass}>
+        <div className={containerClass}>
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <Image
+              src="/logo.png"
+              alt="Logo Smart Canteen"
+              width={55}
+              height={55}
+              className="w-auto h-[42px] sm:h-[55px] object-contain rounded-full pb-1 sm:pb-2"
+              priority
+            />
+            <span className="text-sm sm:text-base font-semibold text-gray-800 tracking-tight hidden sm:block">
+              Smart <span className="text-[#E86A33]">Canteen</span>
+            </span>
+          </Link>
 
-        {/* Divider */}
-        <div className="h-5 sm:h-7 w-px bg-gray-200 shrink-0 hidden sm:block" />
+          {/* Divider */}
+          <div className="h-5 sm:h-7 w-px bg-gray-200 shrink-0 hidden sm:block" />
 
-        {/* Nav */}
-        <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 sm:gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className="text-xs lg:text-sm font-medium text-gray-500 hover:text-[#E86A33] hover:bg-orange-50 px-2 lg:px-4 py-1.5 lg:py-2 rounded-full transition-all whitespace-nowrap"
-            >
-              {link.name}
-            </Link>
-          ))}
-        </nav>
+          {/* Nav */}
+          <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 sm:gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="text-xs lg:text-sm font-medium text-gray-500 hover:text-[#E86A33] hover:bg-orange-50 px-2 lg:px-4 py-1.5 lg:py-2 rounded-full transition-all whitespace-nowrap"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
 
-        {/* Divider */}
-        <div className="h-5 sm:h-7 w-px bg-gray-200 shrink-0 hidden md:block" />
+          {/* Divider */}
+          <div className="h-5 sm:h-7 w-px bg-gray-200 shrink-0 hidden md:block" />
 
-        {/* Icons */}
-        <div className="flex items-center gap-0 sm:gap-1 shrink-0">
-          <div className="relative">
+          {/* Icons */}
+          <div className="flex items-center gap-0 sm:gap-1 shrink-0">
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="flex items-center justify-center w-9 sm:w-10 h-9 sm:h-10 rounded-full text-gray-500 hover:text-[#E86A33] hover:bg-orange-50 transition-all"
+              >
+                <Bell className="w-[18px] sm:w-5 h-[18px] sm:h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <NotificationDropdown
+                  onClose={() => setShowNotifications(false)}
+                  onRegisterListener={registerNotifListener}
+                />
+              )}
+            </div>
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="flex items-center justify-center w-9 sm:w-10 h-9 sm:h-10 rounded-full text-gray-500 hover:text-[#E86A33] hover:bg-orange-50 transition-all"
+              onClick={openCart}
+              className="relative p-2 sm:p-2.5 rounded-xl hover:bg-orange-50 text-gray-600 hover:text-[#D35400] transition-all group active:scale-95"
             >
-              <Bell className="w-[18px] sm:w-5 h-[18px] sm:h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-white">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+              <ShoppingCart className="w-[18px] sm:w-5 h-[18px] sm:h-5 transition-transform group-hover:scale-105" />
+
+              {mounted && totalCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#D35400] text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center border-2 border-white animate-bounceIn">
+                  {totalCount}
                 </span>
               )}
             </button>
-            {showNotifications && (
-              <NotificationDropdown
-                onClose={() => setShowNotifications(false)}
-                onRegisterListener={registerNotifListener}
-              />
+          </div>
+
+          {/* User */}
+          <div
+            className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 relative"
+            ref={dropdownRef}
+          >
+            {isAuthenticated && userData ? (
+              <>
+                <span className="text-xs sm:text-sm font-bold text-gray-700 hidden sm:block truncate max-w-[120px] lg:max-w-[200px]">
+                  Xin chào, {userData.name}
+                </span>
+                <Image
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  src={getSafeAvatar(userData.imgUrl, userData.id, userData.name)}
+                  alt={userData.name || "Ảnh đại diện"}
+                  width={36}
+                  height={36}
+                  unoptimized
+                  className="w-8 sm:w-10 h-8 sm:h-10 rounded-full object-cover border-2 border-transparent hover:border-[#E86A33] cursor-pointer transition-all bg-white shadow-sm"
+                />
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-3 w-52 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden">
+                    <Link
+                      href="/profile"
+                      className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Hồ sơ
+                    </Link>
+                    <Link
+                      href="/notifications"
+                      className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Thông báo
+                    </Link>
+                    <Link
+                      href="/orders"
+                      className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Đơn hàng của tôi
+                    </Link>
+                    <Link
+                      href="/change-proposals"
+                      className="block px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Đề xuất đổi món
+                    </Link>
+                    <Link
+                      href="/refunds"
+                      className="block px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Yêu cầu hoàn tiền
+                    </Link>
+                    <div className="border-t border-gray-100" />
+                    <button
+                      className="w-full flex items-center gap-2 text-left px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-all"
+                      onClick={logout}
+                    >
+                      <LogOut className="w-4 h-4" /> Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className="text-xs sm:text-sm font-semibold text-[#E86A33] border-2 border-[#E86A33] hover:bg-[#E86A33] hover:text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-full transition-all whitespace-nowrap"
+              >
+                Đăng nhập
+              </Link>
             )}
           </div>
-          <button
-            onClick={openCart}
-            className="relative p-2 sm:p-2.5 rounded-xl hover:bg-orange-50 text-gray-600 hover:text-[#D35400] transition-all group active:scale-95"
-          >
-            <ShoppingCart className="w-[18px] sm:w-5 h-[18px] sm:h-5 transition-transform group-hover:scale-105" />
-
-            {mounted && totalCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#D35400] text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center border-2 border-white animate-bounceIn">
-                {totalCount}
-              </span>
-            )}
-          </button>
         </div>
-
-        {/* User */}
-        <div
-          className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 relative"
-          ref={dropdownRef}
-        >
-          {isAuthenticated && userData ? (
-            <>
-              <span className="text-xs sm:text-sm font-bold text-gray-700 hidden sm:block truncate max-w-[120px] lg:max-w-[200px]">
-                Xin chào, {userData.name}
-              </span>
-              <Image
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                src={getSafeAvatar(userData.imgUrl, userData.id, userData.name)}
-                alt={userData.name || "Ảnh đại diện"}
-                width={36}
-                height={36}
-                unoptimized
-                className="w-8 sm:w-10 h-8 sm:h-10 rounded-full object-cover border-2 border-transparent hover:border-[#E86A33] cursor-pointer transition-all bg-white shadow-sm"
-              />
-
-              {isDropdownOpen && (
-                <div className="absolute right-0 top-full mt-3 w-52 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden">
-                  <Link
-                    href="/profile"
-                    className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    Hồ sơ
-                  </Link>
-                  <Link
-                    href="/notifications"
-                    className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    Thông báo
-                  </Link>
-                  <Link
-                    href="/orders"
-                    className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    Đơn hàng của tôi
-                  </Link>
-                  <Link
-                    href="/change-proposals"
-                    className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    Đề xuất đổi món
-                  </Link>
-                  <div className="border-t border-gray-100" />
-                  <button
-                    className="w-full flex items-center gap-2 text-left px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-all"
-                    onClick={logout}
-                  >
-                    <LogOut className="w-4 h-4" /> Đăng xuất
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="text-xs sm:text-sm font-semibold text-[#E86A33] border-2 border-[#E86A33] hover:bg-[#E86A33] hover:text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-full transition-all whitespace-nowrap"
-            >
-              Đăng nhập
-            </Link>
-          )}
-        </div>
-      </div>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
         @keyframes bounceIn {
           0% { transform: scale(0.3); opacity: 0; }
           50% { transform: scale(1.1); }
@@ -254,8 +319,9 @@ export default function Navbar() {
         }
         .animate-bounceIn { animation: bounceIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
       `,
-        }}
-      />
-    </header>
+          }}
+        />
+      </header>
+    </>
   );
 }

@@ -7,7 +7,13 @@ import { userService } from "@/services/user.service";
 import { ROUTES } from "@/config/routes";
 import Navbar from "@/components/layout/Navbar";
 import { getAccessToken, setBlockedAccountInfo } from "@/lib/auth-token-storage";
-
+import HeroSection from "@/components/features/landing/hero-section";
+import SliderMenuSection from "@/components/features/landing/slider-menu-section";
+import PromoCategoriesSection from "@/components/features/landing/promo-categories-section";
+import CtaSection from "@/components/features/landing/cta-section";
+import AppDownloadSection from "@/components/features/landing/app-download-section";
+import Footer from "@/components/layout/Footer";
+import ScrollReveal from "@/components/features/landing/scroll-reveal";
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -69,12 +75,26 @@ export default function Home() {
   }
 
   return (
-    <div>
-      <Navbar />
-      <h1 className="text-2xl font-bold text-center mt-10">Chào mừng đến với Trang chủ!</h1>
-      <p className="text-center mt-4 text-gray-600">
-        Đây là trang chủ dành cho sinh viên sau khi đăng nhập.
-      </p>
+    <div className="min-h-screen bg-gradient-to-b from-[#fff4ea] via-white to-white flex flex-col">
+      <div className="relative flex-1 flex flex-col">
+        <Navbar isTransparent={true} />
+        <HeroSection />
+        <div id="landing-next-section" className="scroll-mt-24">
+          <ScrollReveal>
+            <SliderMenuSection />
+          </ScrollReveal>
+        </div>
+        <ScrollReveal delay={80}>
+          <PromoCategoriesSection />
+        </ScrollReveal>
+        <ScrollReveal delay={120}>
+          <CtaSection />
+        </ScrollReveal>
+        <ScrollReveal delay={160}>
+          <AppDownloadSection />
+        </ScrollReveal>
+      </div>
+      <Footer />
     </div>
   );
 }

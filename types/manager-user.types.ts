@@ -3,6 +3,7 @@ export enum UserRole {
   Manager = 2,
   User = 3,
   Staff = 4,
+  Lecturer = 5,
 }
 
 export enum AccountStatus {
@@ -19,6 +20,9 @@ export interface ManagerUserListItem {
   email: string;
   imgUrl: string | null;
   role: UserRole;
+  roleCategory?: number | null;
+  category?: number | null;
+  userCategory?: number | null;
   status: AccountStatus;
   statusReason: string | null;
   emailVerified: boolean;
@@ -42,7 +46,9 @@ export interface ManagerUserFilters {
   pageSize?: number;
   search?: string;
   status?: AccountStatus;
-  role?: UserRole;
+  role?: UserRole | number;
+  roleCategory?: number;
+  category?: number;
 }
 
 export interface ManagerUserStatusResult {
