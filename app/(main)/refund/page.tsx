@@ -1,5 +1,20 @@
+"use client";
+
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import RefundForm from "@/components/features/refund/refund-form";
+import CustomerRefundsPage from "@/app/(main)/refunds/page";
+
+function RefundPageInner() {
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("orderId");
+
+  if (!orderId) {
+    return <CustomerRefundsPage />;
+  }
+
+  return <RefundForm />;
+}
 
 export default function RefundPage() {
   return (
@@ -10,7 +25,7 @@ export default function RefundPage() {
         </div>
       }
     >
-      <RefundForm />
+      <RefundPageInner />
     </Suspense>
   );
 }

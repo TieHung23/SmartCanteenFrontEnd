@@ -62,3 +62,9 @@ export function getSafeUserAvatar(url?: string | null, identifier?: string | nul
   const seed = identifier && identifier.trim() !== "" ? identifier.trim() : "default";
   return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
 }
+
+export function formatCurrency(amount: number): string {
+  if (amount <= 0) return "0 đ";
+  const val = amount < 1000 ? Math.round(amount * 1000) : amount;
+  return new Intl.NumberFormat("vi-VN").format(val) + " đ";
+}

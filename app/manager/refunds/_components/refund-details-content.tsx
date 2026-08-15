@@ -279,7 +279,7 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
               <div className="flex justify-between items-center py-2 border-b border-gray-100/40">
                 <span className="font-bold text-gray-500">Giá trị đơn gốc:</span>
                 <span className="inline-flex items-center gap-1 font-bold text-gray-900">
-                  {new Intl.NumberFormat("vi-VN").format(detail.orderAmount)}
+                  {new Intl.NumberFormat("vi-VN").format(detail.orderAmount || 0)}
                   <div className="relative w-4 h-4 opacity-95">
                     <Image
                       src="/logo_point.png"
@@ -300,7 +300,7 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
               <div className="flex justify-between items-center py-2 border-b border-gray-100/40">
                 <span className="font-bold text-gray-500">Thực nhận hoàn trả:</span>
                 <span className="inline-flex items-center gap-1 text-lg font-bold text-[#D35400]">
-                  {new Intl.NumberFormat("vi-VN").format(detail.refundAmount)}
+                  {new Intl.NumberFormat("vi-VN").format(detail.refundAmount || 0)}
                   <div className="relative w-4.5 h-4.5 opacity-95">
                     <Image
                       src="/logo_point.png"
@@ -326,7 +326,7 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
           </div>
 
           {/* Evidence Images */}
-          {detail.images.length > 0 && (
+          {detail.images && detail.images.length > 0 && (
             <div className="bg-white rounded-3xl border border-gray-200/30 p-5 space-y-3.5 shadow-3xs">
               <div className="border-b border-gray-100 pb-2.5">
                 <h2 className="text-base font-bold text-gray-900">
@@ -334,26 +334,32 @@ export function RefundDetailsContent({ requestId, onSuccess }: RefundDetailsCont
                 </h2>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {detail.images.map((img) => (
-                  <div
-                    key={img.id}
-                    onClick={() => setActivePhoto(img.imageUrl)}
-                    className="block group cursor-zoom-in text-center"
-                  >
-                    <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-200/30 group-hover:border-orange-200/60 transition-all duration-300">
-                      <Image
-                        src={img.imageUrl}
-                        alt={img.fileName}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        sizes="120px"
-                      />
+                {detail.images.map((img, idx) => {
+                  const url = typeof img === "string" ? img : img.imageUrl || "";
+                  const name =
+                    typeof img === "string" ? `Ảnh ${idx + 1}` : img.fileName || `Ảnh ${idx + 1}`;
+                  const key = typeof img === "string" ? idx : img.id || idx;
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => setActivePhoto(url)}
+                      className="block group cursor-zoom-in text-center"
+                    >
+                      <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-200/30 group-hover:border-orange-200/60 transition-all duration-300">
+                        <Image
+                          src={url}
+                          alt={name}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          sizes="120px"
+                        />
+                      </div>
+                      <p className="text-[10px] font-semibold text-gray-400 mt-1 truncate group-hover:text-gray-700 transition-colors">
+                        {name}
+                      </p>
                     </div>
-                    <p className="text-[10px] font-semibold text-gray-400 mt-1 truncate group-hover:text-gray-700 transition-colors">
-                      {img.fileName}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

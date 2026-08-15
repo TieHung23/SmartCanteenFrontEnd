@@ -276,10 +276,17 @@ export default function Navbar({ isTransparent = false }: { isTransparent?: bool
                     </Link>
                     <Link
                       href="/change-proposals"
-                      className="block px-5 py-4 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      className="block px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
                       onClick={() => setIsDropdownOpen(false)}
                     >
                       Đề xuất đổi món
+                    </Link>
+                    <Link
+                      href="/refunds"
+                      className="block px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-[#E86A33] transition-all"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Yêu cầu hoàn tiền
                     </Link>
                     <div className="border-t border-gray-100" />
                     <button

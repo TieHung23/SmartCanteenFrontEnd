@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Utensils, Calendar, ChevronRight, Clock } from "lucide-react";
+import { Utensils, Calendar, ChevronRight, Clock, RotateCcw } from "lucide-react";
 import { type OrderStatus, type OrderListItem } from "@/types/order.types";
 import { REFUND_STATUS_META } from "@/types/refund.types";
 
@@ -73,9 +73,9 @@ export function OrderCard({ order, refundStatus, onClick, onRefundClick }: Order
     bgColor: "bg-amber-50",
   };
 
+  // Only Status 4 (Đang chuẩn bị) and Status 2 (Hoàn thành) can request refund
   const isEligibleForRefund =
-    refundStatus === undefined &&
-    (order.status === 0 || order.status === 4 || order.status === 1 || order.status === 2);
+    (order.status === 4 || order.status === 2) && refundStatus === undefined;
 
   return (
     <div
@@ -125,7 +125,7 @@ export function OrderCard({ order, refundStatus, onClick, onRefundClick }: Order
           {refundStatus !== undefined && (
             <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
               <Clock className="w-3 h-3" />
-              <span>{REFUND_STATUS_META[refundStatus as 0 | 1 | 2]?.label || "Hoàn tiền"}</span>
+              <span>{REFUND_STATUS_META[refundStatus as 1 | 2 | 3]?.label || "Hoàn tiền"}</span>
             </div>
           )}
         </div>
@@ -151,10 +151,14 @@ export function OrderCard({ order, refundStatus, onClick, onRefundClick }: Order
         <div className="md:col-span-3 flex items-center justify-end gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
           {isEligibleForRefund && onRefundClick && (
             <button
-              onClick={onRefundClick}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full text-rose-700 hover:bg-rose-50 border border-rose-200 transition-colors shrink-0 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRefundClick(e);
+              }}
+              className="text-xs font-bold px-3 py-1.5 rounded-full text-[#D35400] hover:bg-orange-50 border border-orange-200 transition-colors shrink-0 cursor-pointer flex items-center gap-1"
             >
-              Hủy / Hoàn tiền
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Hoàn tiền</span>
             </button>
           )}
 
