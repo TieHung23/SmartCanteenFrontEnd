@@ -43,18 +43,23 @@ import { getSafeUserAvatar } from "@/lib/utils";
 import { verificationService } from "@/services/verification.service";
 import type { VerificationStatusType } from "@/types/verification.types";
 
-const getRoleName = (roleId: number) => {
+const getRoleName = (roleId: number, categoryId?: number) => {
+  if (categoryId === 1) return "Sinh viên";
+  if (categoryId === 2) return "Giảng viên";
+  if (categoryId === 3) return "Nhân viên";
+  if (categoryId === 4) return "Khách";
+
   switch (roleId) {
     case 1:
       return "Quản trị viên";
     case 2:
       return "Quản lý";
     case 3:
-      return "Người dùng";
+      return "Sinh viên";
     case 4:
       return "Nhân viên";
     default:
-      return "Không xác định";
+      return "Người dùng";
   }
 };
 
@@ -516,7 +521,7 @@ export default function ProfilePage() {
 
               <h2 className="text-xl font-extrabold text-gray-800 text-center">{profile.name}</h2>
               <p className="text-sm font-semibold text-gray-400 mt-1">
-                {getRoleName(profile.role)}
+                {getRoleName(profile.role, profile.category)}
               </p>
 
               <div className="w-full mt-8 flex flex-col gap-2">
@@ -595,32 +600,36 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Mã số sinh viên
-                    </label>
-                    <input
-                      type="text"
-                      name="studentId"
-                      value={s(profile.studentId)}
-                      disabled
-                      className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
-                    />
-                  </div>
+                  {profile.category !== 2 && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Mã số sinh viên
+                        </label>
+                        <input
+                          type="text"
+                          name="studentId"
+                          value={s(profile.studentId)}
+                          disabled
+                          className="w-full bg-gray-100 border border-gray-200 px-5 py-3.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed outline-none"
+                        />
+                      </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Chuyên ngành / Lớp
-                    </label>
-                    <input
-                      type="text"
-                      name="majorOrClass"
-                      value={s(profile.majorOrClass)}
-                      onChange={handleInputChange}
-                      placeholder="VD: Công nghệ phần mềm"
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
-                    />
-                  </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Chuyên ngành / Lớp
+                        </label>
+                        <input
+                          type="text"
+                          name="majorOrClass"
+                          value={s(profile.majorOrClass)}
+                          onChange={handleInputChange}
+                          placeholder="VD: Công nghệ phần mềm"
+                          className="w-full bg-gray-50 border border-transparent focus:border-orange-200 focus:bg-white px-5 py-3.5 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
