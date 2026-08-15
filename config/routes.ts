@@ -10,6 +10,7 @@ export const ROUTES = {
   PROFILE: "/profile",
   VERIFICATION: "/verification",
   REFUND: "/refund",
+  REFUNDS: "/refunds",
   FORGOT_PASSWORD: "/forgot-password",
   RESET_PASSWORD: "/reset-password",
   SUSPENDED: "/suspended",

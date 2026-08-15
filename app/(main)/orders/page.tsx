@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
@@ -20,6 +20,7 @@ import type { NotificationItem } from "@/types/notification.types";
 import { toast } from "sonner";
 import { OrdersStats } from "@/components/features/orders/orders-stats";
 import { OrderCard } from "@/components/features/orders/order-card";
+import { RefundFormModal } from "@/components/features/refund/refund-form-modal";
 
 const TABS: { label: string; status: OrderStatus | null }[] = [
   { label: "Tất cả", status: null },
@@ -31,12 +32,23 @@ const TABS: { label: string; status: OrderStatus | null }[] = [
   { label: "Quá hạn", status: 7 },
 ];
 
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const isMounted = useIsMounted();
   const [activeTab, setActiveTab] = useState<OrderStatus | null>(null);
   const [refundMap, setRefundMap] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [refundModalOrderId, setRefundModalOrderId] = useState<string | null>(null);
 
   // Filter States
   const [dateFilterType, setDateFilterType] = useState<"created" | "sessionDate">("sessionDate");
@@ -351,7 +363,7 @@ export default function OrdersPage() {
           </div>
 
           {/* Orders Table Container */}
-          {isLoading ? (
+          {!isMounted || isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
                 <div
@@ -390,7 +402,7 @@ export default function OrdersPage() {
                   onClick={() => router.push(`/orders/${order.id}`)}
                   onRefundClick={(e) => {
                     e.stopPropagation();
-                    router.push(`${ROUTES.REFUND}?orderId=${order.id}`);
+                    setRefundModalOrderId(order.id);
                   }}
                 />
               ))}
@@ -398,6 +410,26 @@ export default function OrdersPage() {
           )}
         </div>
       </main>
+
+      {/* Refund Request Form Modal */}
+      <RefundFormModal
+        isOpen={Boolean(refundModalOrderId)}
+        orderId={refundModalOrderId}
+        onClose={() => setRefundModalOrderId(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+          refundService
+            .getMyRefunds()
+            .then((res) => {
+              const map: Record<string, number> = {};
+              (res?.items || []).forEach((r: { orderId: string; status: unknown }) => {
+                map[r.orderId] = normalizeRefundStatus(r.status);
+              });
+              setRefundMap(map);
+            })
+            .catch(() => {});
+        }}
+      />
     </>
   );
 }

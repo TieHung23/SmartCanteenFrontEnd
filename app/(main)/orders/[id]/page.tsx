@@ -30,11 +30,13 @@ import {
   UtensilsCrossed,
   Clock,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { translateApiMessage } from "@/lib/utils";
 import Swal from "sweetalert2";
 import { useState, useEffect, useCallback } from "react";
+import { RefundFormModal } from "@/components/features/refund/refund-form-modal";
 import {
   useSignalr,
   getOrderStatusLabelVi,
@@ -76,6 +78,7 @@ export default function OrderDetailPage() {
   const [isRefunding, setIsRefunding] = useState(false);
   const [isRefundingOrder, setIsRefundingOrder] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isRefundFormModalOpen, setIsRefundFormModalOpen] = useState(false);
 
   const [sessionInfo, setSessionInfo] = useState<{
     name?: string;
@@ -769,18 +772,17 @@ export default function OrderDetailPage() {
               </button>
             )}
 
-            {/* Cancel & Refund Request button for uncancelled eligible orders */}
-            {order.status !== 3 &&
-              order.status !== 7 &&
+            {/* Single Refund Request Button for Status 4 (Đang chuẩn bị) & Status 2 (Hoàn thành) */}
+            {(order.status === 4 || order.status === 2) &&
               !orderRefund &&
               !isOrderRefundPending &&
               !isOrderRefundRejected && (
                 <button
-                  onClick={() => setIsCancelModalOpen(true)}
-                  className="w-full mt-4 py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 font-black text-sm rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  onClick={() => setIsRefundFormModalOpen(true)}
+                  className="w-full mt-4 py-4 bg-orange-50 hover:bg-orange-100 text-[#D35400] border border-orange-200/80 font-black text-sm rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 >
-                  <Ban className="w-4 h-4 text-rose-600" />
-                  Yêu cầu hủy & hoàn tiền đơn hàng
+                  <RotateCcw className="w-4 h-4 text-[#D35400]" />
+                  Yêu cầu hoàn tiền
                 </button>
               )}
 
@@ -943,6 +945,21 @@ export default function OrderDetailPage() {
           onClose={() => setIsCancelModalOpen(false)}
           orderId={order.id}
           totalPrice={order.totalPrice}
+          onSuccess={() => {
+            fetchProposals();
+            fetchRefunds();
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+            queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+          }}
+        />
+      )}
+
+      {/* Refund Form Modal */}
+      {order && (
+        <RefundFormModal
+          isOpen={isRefundFormModalOpen}
+          orderId={order.id}
+          onClose={() => setIsRefundFormModalOpen(false)}
           onSuccess={() => {
             fetchProposals();
             fetchRefunds();
