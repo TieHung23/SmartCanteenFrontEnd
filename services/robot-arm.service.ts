@@ -52,4 +52,18 @@ export const robotArmService = {
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(API_ENDPOINTS.MANAGER.ROBOT_ARMS.DELETE(id));
   },
+
+  toggleMaintenance: async (
+    id: string,
+    inMaintenance: boolean,
+  ): Promise<{ id: string; code: string; status: string }> => {
+    const response = (await apiClient.patch<
+      ApiResponse<{ id: string; code: string; status: string }>
+    >(API_ENDPOINTS.MANAGER.ROBOT_ARMS.MAINTENANCE(id, inMaintenance))) as unknown as ApiResponse<{
+      id: string;
+      code: string;
+      status: string;
+    }>;
+    return response.value;
+  },
 };

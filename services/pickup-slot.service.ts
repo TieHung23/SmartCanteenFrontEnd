@@ -6,6 +6,8 @@ import type {
   CreatePickupSlotSinglePayload,
   CreatePickupSlotBulkPayload,
   CreatePickupSlotResponse,
+  ForceClearPickupSlotResponse,
+  RetirePickupSlotResponse,
 } from "@/types/pickup-slot.types";
 
 export const pickupSlotService = {
@@ -29,6 +31,20 @@ export const pickupSlotService = {
       API_ENDPOINTS.MANAGER.PICKUP_SLOTS.CREATE,
       data,
     )) as unknown as ApiResponse<CreatePickupSlotResponse>;
+    return response.value;
+  },
+
+  forceClear: async (id: string): Promise<ForceClearPickupSlotResponse> => {
+    const response = (await apiClient.patch<ApiResponse<ForceClearPickupSlotResponse>>(
+      API_ENDPOINTS.MANAGER.PICKUP_SLOTS.FORCE_CLEAR(id),
+    )) as unknown as ApiResponse<ForceClearPickupSlotResponse>;
+    return response.value;
+  },
+
+  retire: async (id: string): Promise<RetirePickupSlotResponse> => {
+    const response = (await apiClient.patch<ApiResponse<RetirePickupSlotResponse>>(
+      API_ENDPOINTS.MANAGER.PICKUP_SLOTS.RETIRE(id),
+    )) as unknown as ApiResponse<RetirePickupSlotResponse>;
     return response.value;
   },
 };

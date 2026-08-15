@@ -39,3 +39,14 @@ export interface CreateTrayResponse {
   createdCodes: string[];
   skippedCodes: string[];
 }
+
+export interface ForceReleaseTrayResponse {
+  id: string;
+  code: string;
+  status: TrayStatus;
+}
+
+export interface RetireTrayResponse {
+  id: string;
+  code: string;
+}

@@ -175,7 +175,7 @@ export default function TrayDetailModal({
     setActionLoading(true);
     try {
       await trayService.forceRelease(detail.id);
-      toast.success(`Đã giải phóng khay ${detail.code} thành công`);
+      toast.success(`Đã mở khay ${detail.code} thành công`);
       fetchDetail(detail.id);
       if (onRefreshPool) onRefreshPool();
     } catch (err: unknown) {
@@ -442,7 +442,7 @@ export default function TrayDetailModal({
                     title="Đưa khay về trạng thái Sẵn sàng"
                   >
                     <Unlock className="w-3.5 h-3.5" />
-                    Giải phóng khay
+                    Mở khay
                   </button>
                 )}
 

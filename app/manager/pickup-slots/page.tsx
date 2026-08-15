@@ -1,12 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, X, Grid3X3, LayoutGrid, Lock, RefreshCw, AlertTriangle } from "lucide-react";
+import {
+  Plus,
+  Search,
+  X,
+  Grid3X3,
+  LayoutGrid,
+  Lock,
+  RefreshCw,
+  AlertTriangle,
+  Eraser,
+  Trash2,
+} from "lucide-react";
 import { pickupSlotService } from "@/services/pickup-slot.service";
-import type { PickupSlotSummary, PickupSlotStatus } from "@/types/pickup-slot.types";
+import type { PickupSlotSummary, PickupSlotStatus, PickupSlot } from "@/types/pickup-slot.types";
 import Modal from "../_components/modal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
 
 const STATUS_CONFIG: Record<
   PickupSlotStatus,
@@ -92,19 +104,79 @@ export default function ManagerPickupSlotsPage() {
     try {
       const result = await pickupSlotService.createSingle({ code: singleCode.trim() });
       setIsCreateOpen(false);
-      const created = result.createdCodes.length;
-      if (created > 0) {
+      if (result.createdCodes.length > 0) {
         toast.success(`Tạo ô kệ ${singleCode.trim()} thành công!`);
       } else {
         toast.info("Mã ô kệ đã tồn tại.");
       }
       fetchData();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Tạo ô kệ thất bại";
-      toast.error(msg);
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Thao tác tạo ô kệ thất bại.");
     } finally {
       setFormSubmitting(false);
     }
+  };
+
+  const handleForceClear = (slot: PickupSlot) => {
+    Swal.fire({
+      title: "Dọn ô kệ khẩn cấp?",
+      html: `Bạn có chắc muốn dọn ô kệ <strong class="text-[#D35400]">${slot.code}</strong>?<br/>Ô kệ sẽ chuyển về Empty, Đơn hàng dính theo sẽ bị Hủy/Expired.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#D35400",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xác nhận Dọn ô",
+      cancelButtonText: "Hủy",
+      reverseButtons: true,
+      customClass: { popup: "rounded-3xl" },
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        const res = await pickupSlotService.forceClear(slot.id);
+        toast.success(`Đã dọn dẹp ô kệ ${slot.code} về trạng thái Trống.`);
+        if (res.expiredOrderId) {
+          toast.warning(
+            `Đơn hàng ${res.expiredOrderId.slice(0, 8)}... dính trên ô đã chuyển sang trạng thái Expired.`,
+          );
+        }
+        fetchData();
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message;
+        toast.error(msg || "Dọn ô thất bại.");
+      }
+    });
+  };
+
+  const handleRetire = (slot: PickupSlot) => {
+    if (slot.status !== "Empty") {
+      toast.error("Chỉ có thể loại bỏ ô kệ khi ô ở trạng thái Trống (Empty).");
+      return;
+    }
+    Swal.fire({
+      title: "Tạm khóa / Retire ô kệ?",
+      html: `Bạn có chắc muốn tạm khóa ô kệ <strong class="text-[#D35400]">${slot.code}</strong>?<br/>Hệ thống sẽ không phân bổ ô kệ này cho đơn mới.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xác nhận Khóa ô",
+      cancelButtonText: "Hủy",
+      reverseButtons: true,
+      customClass: { popup: "rounded-3xl" },
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        await pickupSlotService.retire(slot.id);
+        toast.success(`Đã tạm khóa ô kệ ${slot.code}.`);
+        fetchData();
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message;
+        toast.error(msg || "Tạm khóa ô kệ thất bại.");
+      }
+    });
   };
 
   const slots = summary?.slots ?? [];
@@ -269,12 +341,17 @@ export default function ManagerPickupSlotsPage() {
                   <th className="px-5 py-4 text-xs font-black uppercase tracking-wider text-gray-400">
                     Bind lúc
                   </th>
+                  <th className="px-5 py-4 text-right text-xs font-black uppercase tracking-wider text-gray-400">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((slot) => {
                   const s = STATUS_CONFIG[slot.status];
                   const Icon = s.icon;
+                  const isEmpty = slot.status === "Empty";
+
                   return (
                     <tr key={slot.id} className="hover:bg-orange-50/20 transition-colors">
                       <td className="px-5 py-4">
@@ -337,6 +414,39 @@ export default function ManagerPickupSlotsPage() {
                         ) : (
                           <span className="text-xs text-gray-300 italic">—</span>
                         )}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Force Clear */}
+                          <button
+                            onClick={() => handleForceClear(slot)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/60 rounded-xl text-xs font-bold transition-all shadow-2xs"
+                            title="Dọn ô no-show / gỡ kẹt"
+                          >
+                            <Eraser className="w-3.5 h-3.5" />
+                            <span>Dọn ô</span>
+                          </button>
+
+                          {/* Retire (Empty only) */}
+                          <button
+                            onClick={() => handleRetire(slot)}
+                            disabled={!isEmpty}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-2.5 py-1.5 border rounded-xl text-xs font-bold transition-all shadow-2xs",
+                              isEmpty
+                                ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-200/60"
+                                : "bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed",
+                            )}
+                            title={
+                              isEmpty
+                                ? "Tạm khóa ô hỏng"
+                                : "Chỉ có thể tạm khóa khi ô ở trạng thái Trống"
+                            }
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Khóa</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

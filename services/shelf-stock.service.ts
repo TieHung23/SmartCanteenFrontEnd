@@ -7,6 +7,7 @@ import type {
   ShelfStockListResponse,
   CreateShelfStockPayload,
   UpdateShelfStockPayload,
+  RefillShelfStockResponse,
 } from "@/types/shelf-stock.types";
 
 export const shelfStockService = {
@@ -56,5 +57,13 @@ export const shelfStockService = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(API_ENDPOINTS.MANAGER.SHELF_STOCKS.DELETE(id));
+  },
+
+  refill: async (id: string, quantity: number): Promise<RefillShelfStockResponse> => {
+    const response = (await apiClient.patch<ApiResponse<RefillShelfStockResponse>>(
+      API_ENDPOINTS.MANAGER.SHELF_STOCKS.REFILL(id),
+      { quantity },
+    )) as unknown as ApiResponse<RefillShelfStockResponse>;
+    return response.value;
   },
 };

@@ -37,3 +37,9 @@ export interface UpdateRobotArmPayload {
   stationIndex: number;
   name: string;
 }
+
+export interface ToggleMaintenanceResponse {
+  id: string;
+  code: string;
+  status: RobotArmStatus;
+}

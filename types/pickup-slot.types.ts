@@ -29,3 +29,14 @@ export interface CreatePickupSlotResponse {
   createdCodes: string[];
   skippedCodes: string[];
 }
+
+export interface ForceClearPickupSlotResponse {
+  id: string;
+  code: string;
+  expiredOrderId: string | null;
+}
+
+export interface RetirePickupSlotResponse {
+  id: string;
+  code: string;
+}
