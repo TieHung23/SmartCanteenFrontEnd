@@ -65,7 +65,7 @@ export const LoginForm = () => {
       toast.success("Đăng nhập thành công!");
       router.push(ROUTES.HOME);
     },
-    onError: (error: AxiosError<LoginErrorResponse>) => {
+    onError: (error: AxiosError<LoginErrorResponse>, variables) => {
       const serverMessage = error.response?.data?.message || "Lỗi đăng nhập";
       const reason = error.response?.data?.reason;
       const errorCode = error.response?.data?.errorCode;
@@ -75,6 +75,26 @@ export const LoginForm = () => {
           description: `Lý do: ${reason}`,
           duration: 7000,
         });
+        return;
+      }
+
+      const isUnverified =
+        serverMessage.toLowerCase().includes("verify") ||
+        serverMessage.toLowerCase().includes("xác thực") ||
+        reason?.toLowerCase().includes("verify") ||
+        errorCode === "EmailNotVerified";
+
+      if (isUnverified) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sc_pending_verify_email", variables.email);
+        }
+        toast.error("Tài khoản chưa được xác thực email", {
+          description: "Đang chuyển sang trang xác thực email...",
+          duration: 3500,
+        });
+        setTimeout(() => {
+          router.push(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(variables.email)}`);
+        }, 800);
         return;
       }
 
@@ -131,13 +151,23 @@ export const LoginForm = () => {
         </div>
 
         <div className="flex justify-between items-center text-xs font-semibold text-slate-500 pt-0.5">
-          <button
-            type="button"
-            onClick={() => router.push(ROUTES.FORGOT_PASSWORD)}
-            className="text-slate-500 hover:text-orange-600 transition-colors cursor-pointer"
-          >
-            Quên mật khẩu?
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(ROUTES.FORGOT_PASSWORD)}
+              className="text-slate-500 hover:text-orange-600 transition-colors cursor-pointer"
+            >
+              Quên mật khẩu?
+            </button>
+            <span className="text-slate-300">•</span>
+            <button
+              type="button"
+              onClick={() => router.push(ROUTES.VERIFY_EMAIL)}
+              className="text-orange-600 hover:underline transition-colors cursor-pointer"
+            >
+              Xác thực email
+            </button>
+          </div>
           <div className="flex items-center gap-1">
             <span>Chưa có tài khoản?</span>
             <button

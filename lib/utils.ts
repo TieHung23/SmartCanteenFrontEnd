@@ -64,7 +64,6 @@ export function getSafeUserAvatar(url?: string | null, identifier?: string | nul
 }
 
 export function formatCurrency(amount: number): string {
-  if (amount <= 0) return "0 đ";
-  const val = amount < 1000 ? Math.round(amount * 1000) : amount;
-  return new Intl.NumberFormat("vi-VN").format(val) + " đ";
+  if (!amount || amount <= 0) return "0";
+  return new Intl.NumberFormat("vi-VN").format(amount);
 }

@@ -242,8 +242,15 @@ export function CustomerRefundDetailModal({ refundId, onClose }: CustomerRefundD
               <div className="bg-gradient-to-br from-orange-50/90 via-amber-50/50 to-orange-50/90 border border-orange-200/80 p-5 rounded-2xl space-y-3 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span className="font-medium">Giá trị món / đơn hàng:</span>
-                  <span className="font-bold text-slate-800">
-                    {formatCurrency(detail.orderAmount || 0)}
+                  <span className="font-bold text-slate-800 flex items-center gap-1">
+                    <span>{formatCurrency(detail.orderAmount || 0)}</span>
+                    <Image
+                      src="/logo_point.png"
+                      alt="point"
+                      width={14}
+                      height={14}
+                      className="object-contain"
+                    />
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-600">
@@ -255,10 +262,17 @@ export function CustomerRefundDetailModal({ refundId, onClose }: CustomerRefundD
                     <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600">
                       <Wallet className="w-4.5 h-4.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-700">Số tiền hoàn vào ví:</span>
+                    <span className="text-xs font-bold text-slate-700">Số điểm hoàn vào ví:</span>
                   </div>
-                  <span className="text-xl sm:text-2xl font-black text-emerald-600">
-                    +{formatCurrency(detail.refundAmount || 0)}
+                  <span className="text-xl sm:text-2xl font-black text-emerald-600 flex items-center gap-1">
+                    <span>+{formatCurrency(detail.refundAmount || 0)}</span>
+                    <Image
+                      src="/logo_point.png"
+                      alt="point"
+                      width={22}
+                      height={22}
+                      className="object-contain"
+                    />
                   </span>
                 </div>
               </div>

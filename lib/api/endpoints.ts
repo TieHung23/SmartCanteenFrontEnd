@@ -6,6 +6,8 @@ export const API_ENDPOINTS = {
     REFRESH_TOKEN: "/api/Auth/refresh",
     ME: "/api/Auth/me",
     VERIFY_EMAIL: "/api/Auth/verify-email",
+    RESEND_VERIFICATION: "/api/auth/resend-verification",
+    RESEND_VERIFICATION_EMAIL: "/api/auth/resend-verification",
     FORGOT_PASSWORD: "/api/Auth/forgot-password",
     RESET_PASSWORD: "/api/Auth/reset-password",
     CHANGE_PASSWORD: "/api/Auth/change-password",
@@ -149,15 +151,17 @@ export const API_ENDPOINTS = {
       DELETE: (id: string) => `/api/manager/slot-configurations/${id}`,
     },
     SERVING_JOBS: {
-      LIST: (status?: string, take?: number) => {
+      LIST: (status?: string, take?: number, sessionId?: string) => {
         const params = new URLSearchParams();
         if (status) params.append("status", status);
         if (take) params.append("take", take.toString());
+        if (sessionId) params.append("sessionId", sessionId);
         const query = params.toString();
         return `/api/manager/serving-jobs${query ? `?${query}` : ""}`;
       },
       REQUEUE: (id: string) => `/api/manager/serving-jobs/${id}/requeue`,
       MANUAL_COMPLETE: (id: string) => `/api/manager/serving-jobs/${id}/manual-complete`,
+      BIND_TRAY: (id: string) => `/api/manager/serving-jobs/${id}/bind-tray`,
       EVENTS: (id: string) => `/api/manager/serving-jobs/${id}/events`,
     },
     SHELF_STOCKS: {

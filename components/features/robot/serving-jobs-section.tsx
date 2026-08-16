@@ -1,8 +1,19 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RotateCcw, CheckCircle2, RefreshCw, Eye, Activity, Search, Check, X } from "lucide-react";
+import {
+  RotateCcw,
+  CheckCircle2,
+  RefreshCw,
+  Eye,
+  Activity,
+  Search,
+  Check,
+  X,
+  Calendar,
+} from "lucide-react";
 import { servingJobService } from "@/services/serving-job.service";
+import { sessionService } from "@/services/session.service";
 import type { ServingJob, ServingJobStatus } from "@/types/serving-job.types";
 import ServingJobEventsModal from "./serving-job-events-modal";
 import Modal from "@/app/manager/_components/modal";
@@ -76,13 +87,21 @@ const STATUS_OPTIONS: { value: ServingJobStatus | "All"; label: string }[] = [
   { value: "Cancelled", label: "Đã hủy" },
 ];
 
-export function ServingJobsSection({ className }: { className?: string }) {
+export function ServingJobsSection({
+  className,
+  sessionId,
+}: {
+  className?: string;
+  sessionId?: string;
+}) {
   const [jobs, setJobs] = useState<ServingJob[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedStatus, setSelectedStatus] = useState<ServingJobStatus | "All">("Failed");
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(sessionId || "");
+  const [sessionsList, setSessionsList] = useState<{ id: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [detailJobId, setDetailJobId] = useState<string | null>(null);
@@ -94,17 +113,33 @@ export function ServingJobsSection({ className }: { className?: string }) {
   const [manualNote, setManualNote] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (sessionId) return;
+    sessionService
+      .getSessions({ pageSize: 100 })
+      .then((res) => {
+        if (res?.items) {
+          setSessionsList(res.items.map((s) => ({ id: s.id, name: s.name || "Phiên ăn" })));
+        }
+      })
+      .catch(() => {});
+  }, [sessionId]);
+
   const fetchJobs = useCallback(async () => {
     try {
       setError(null);
-      const res = await servingJobService.getList(selectedStatus, 100);
+      const res = await servingJobService.getList(
+        selectedStatus,
+        100,
+        sessionId || selectedSessionId || undefined,
+      );
       setJobs(res.jobs || []);
       setTotal(res.total || 0);
     } catch (err: unknown) {
       console.error("Failed to fetch serving jobs:", err);
       setError("Không thể tải danh sách serving jobs.");
     }
-  }, [selectedStatus]);
+  }, [selectedStatus, selectedSessionId, sessionId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -261,23 +296,45 @@ export function ServingJobsSection({ className }: { className?: string }) {
           })}
         </div>
 
-        {/* Search */}
-        <div className="relative w-full sm:w-64 shrink-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            placeholder="Tìm theo mã đơn, khay, lỗi..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        {/* Search & Session Filter */}
+        <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap">
+          {/* Session Dropdown Filter (Chỉ hiển thị ở trang chính Serving Jobs) */}
+          {!sessionId && (
+            <div className="relative w-full sm:w-56 shrink-0">
+              <Calendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D35400]" />
+              <select
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+                className="w-full pl-9 pr-7 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 font-bold transition-all cursor-pointer"
+              >
+                <option value="">-- Tất cả Ca / Phiên ăn --</option>
+                {sessionsList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.id.slice(0, 8)}...)
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
+
+          {/* Search */}
+          <div className="relative w-full sm:w-56 shrink-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              placeholder="Tìm theo mã đơn, khay, lỗi..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] text-gray-900 transition-all font-medium"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

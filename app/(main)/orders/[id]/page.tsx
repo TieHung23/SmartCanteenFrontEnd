@@ -84,6 +84,8 @@ export default function OrderDetailPage() {
     name?: string;
     timeRange?: string;
     sessionDate?: string;
+    availableTo?: string;
+    isExpired?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -100,6 +102,7 @@ export default function OrderDetailPage() {
         if (session) {
           let timeRange = "";
           let sessionDate = "";
+          let isExpired = false;
           if (session.availableFrom && session.availableTo) {
             const fromTime = new Date(session.availableFrom).toLocaleTimeString("vi-VN", {
               hour: "2-digit",
@@ -116,11 +119,14 @@ export default function OrderDetailPage() {
               month: "2-digit",
               year: "numeric",
             });
+            isExpired = new Date(session.availableTo) < new Date();
           }
           setSessionInfo({
             name: session.name || order.sessionName || "Phiên ăn",
             timeRange,
             sessionDate,
+            availableTo: session.availableTo,
+            isExpired,
           });
         }
       })
@@ -409,16 +415,27 @@ export default function OrderDetailPage() {
   }
 
   const refundStatusNum = orderRefund ? normalizeRefundStatus(orderRefund.status) : null;
-  const isOrderRefundRejected = order.status === 3 && refundStatusNum === 2;
+  const isOrderRefundApproved =
+    refundStatusNum === 2 ||
+    (order.items &&
+      order.items.length > 0 &&
+      order.items.every((i) => i.itemStatus === 4 || i.itemStatus === 3));
+  const isOrderRefundRejected =
+    refundStatusNum === 3 &&
+    !isOrderRefundApproved &&
+    order.items?.some((i) => i.itemStatus !== 4 && i.itemStatus !== 3);
   const isOrderRefundPending =
-    orderRefund && !orderRefund.changeProposalId && refundStatusNum === 0;
+    orderRefund && !orderRefund.changeProposalId && refundStatusNum === 1;
 
   const rawMeta = ORDER_STATUS_META[order.status as OrderStatus] || ORDER_STATUS_META[0];
-  const meta = isOrderRefundRejected
-    ? { label: "Từ chối hoàn đơn", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }
-    : isOrderRefundPending
-      ? { label: "Chờ duyệt hoàn đơn", color: "#d97706", bg: "#fffbeb", icon: "⏳" }
-      : rawMeta;
+  const meta =
+    isOrderRefundApproved || (order.status === 3 && !isOrderRefundRejected && !isOrderRefundPending)
+      ? { label: "Đã hủy & Hoàn tiền", color: "#8b5cf6", bg: "#f3e8ff", icon: "💰" }
+      : isOrderRefundRejected
+        ? { label: "Từ chối hoàn đơn", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }
+        : isOrderRefundPending
+          ? { label: "Chờ duyệt hoàn đơn", color: "#d97706", bg: "#fffbeb", icon: "⏳" }
+          : rawMeta;
 
   return (
     <>
@@ -507,6 +524,25 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Expired Session Notice Banner */}
+            {sessionInfo?.isExpired && (order.status === 4 || order.status === 0) && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 flex items-start gap-3 text-xs font-bold shadow-2xs mb-6">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-extrabold text-sm text-amber-950">
+                    ⚠️ Ca phục vụ này đã kết thúc!
+                  </p>
+                  <p className="text-amber-800 mt-1 font-medium leading-relaxed">
+                    Ca phục vụ này đã quá hạn. Đơn hàng chưa được lấy trong ca. Vui lòng bấm nút{" "}
+                    <span className="font-black text-[#D35400] underline">
+                      &quot;Yêu cầu hoàn tiền&quot;
+                    </span>{" "}
+                    ở góc bên dưới để nhận 100% tiền hoàn vào ví cá nhân.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Items */}
             <h2 className="text-lg font-black text-gray-800 mb-5 flex items-center gap-2">
@@ -790,18 +826,18 @@ export default function OrderDetailPage() {
               <div
                 className={`mt-8 border rounded-xl p-5 flex items-start gap-3 ${
                   isOrderRefundRejected
-                    ? "bg-amber-50 border-amber-200"
+                    ? "bg-red-50 border-red-200"
                     : isOrderRefundPending
-                      ? "bg-orange-50 border-orange-200"
+                      ? "bg-amber-50 border-amber-200"
                       : "bg-purple-50 border-purple-200"
                 }`}
               >
                 <AlertCircle
                   className={`w-5 h-5 shrink-0 mt-0.5 ${
                     isOrderRefundRejected
-                      ? "text-amber-600"
+                      ? "text-red-600"
                       : isOrderRefundPending
-                        ? "text-orange-600"
+                        ? "text-amber-600"
                         : "text-purple-600"
                   }`}
                 />
@@ -809,9 +845,9 @@ export default function OrderDetailPage() {
                   <p
                     className={`text-sm font-extrabold ${
                       isOrderRefundRejected
-                        ? "text-amber-900"
+                        ? "text-red-950"
                         : isOrderRefundPending
-                          ? "text-orange-950"
+                          ? "text-amber-950"
                           : "text-purple-950"
                     }`}
                   >
@@ -824,14 +860,14 @@ export default function OrderDetailPage() {
                   <p
                     className={`text-xs font-semibold mt-1 ${
                       isOrderRefundRejected
-                        ? "text-amber-700"
+                        ? "text-red-700"
                         : isOrderRefundPending
-                          ? "text-orange-700"
+                          ? "text-amber-700"
                           : "text-purple-700"
                     }`}
                   >
                     {isOrderRefundRejected
-                      ? "Vui lòng chọn đổi món thay thế cho các món chưa hoàn tất ở trên."
+                      ? "Yêu cầu hoàn tiền đơn hàng của bạn đã bị từ chối. Vui lòng liên hệ bộ phận quản lý để biết thêm chi tiết."
                       : isOrderRefundPending
                         ? "Yêu cầu hoàn tiền đơn hàng đã được gửi tới Quản lý và đang chờ phê duyệt."
                         : "Đơn hàng này đã bị hủy và tiền đã được hệ thống tự động hoàn trực tiếp vào ví của bạn."}

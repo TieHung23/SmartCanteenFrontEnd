@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -278,10 +279,17 @@ function RefundListPageInner() {
                         <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                           <div className="text-right">
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                              Số tiền hoàn
+                              Số điểm hoàn
                             </p>
-                            <p className="text-base font-black text-emerald-600">
-                              {formatCurrency(item.refundAmount || 0)}
+                            <p className="text-base font-black text-emerald-600 flex items-center justify-end gap-1">
+                              <span>+{formatCurrency(item.refundAmount || 0)}</span>
+                              <Image
+                                src="/logo_point.png"
+                                alt="point"
+                                width={16}
+                                height={16}
+                                className="object-contain"
+                              />
                             </p>
                           </div>
 

@@ -489,7 +489,7 @@ export function SlotConfigTab({ sessionId, dishes }: SlotConfigTabProps) {
       </div>
 
       {/* ── SERVING JOBS DASHBOARD ── */}
-      <ServingJobsSection className="mt-8" />
+      <ServingJobsSection className="mt-8" sessionId={sessionId} />
 
       {/* Create / Edit Modal */}
       <Modal
