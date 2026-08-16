@@ -80,6 +80,13 @@ export const authService = {
     return apiClient.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { email, code });
   },
 
+  resendVerificationEmail: async (
+    email: string,
+  ): Promise<{ value?: { email?: string }; isSuccess?: boolean; message?: string }> => {
+    return apiClient.post(API_ENDPOINTS.AUTH.RESEND_VERIFICATION, {
+      email: email.trim(),
+    }) as unknown as Promise<{ value?: { email?: string }; isSuccess?: boolean; message?: string }>;
+  },
   refreshToken: async (token: string): Promise<unknown> => {
     return apiClient.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
       refreshToken: token,

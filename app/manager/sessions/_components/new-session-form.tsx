@@ -220,6 +220,56 @@ export function NewSessionForm({
     return arms.flatMap((arm) => buildLaneCodes(arm.code || "S1"));
   }, [robotArms]);
 
+  // Tính toán giới hạn số món ăn tối đa cho phép dựa trên số Robot Arm hiện có (mỗi Robot = 3 Lane)
+  const maxDishesAllowed = useMemo(
+    () => (robotArms.length > 0 ? robotArms.length * 3 : 9),
+    [robotArms],
+  );
+
+  // Danh sách Mã Lane mặc định không trùng nhau cho các món ăn
+  const defaultUniqueLanes = useMemo(() => {
+    const lanes: string[] = [];
+    const arms =
+      robotArms.length > 0
+        ? robotArms
+        : [
+            { id: "", code: "S1" },
+            { id: "", code: "S2" },
+            { id: "", code: "S3" },
+          ];
+    arms.forEach((arm) => {
+      const code = (arm.code || "S1").toUpperCase();
+      for (let l = 1; l <= 3; l++) {
+        lanes.push(`${code}_L${l}`);
+      }
+    });
+    return lanes;
+  }, [robotArms]);
+
+  // Tự động phân bổ Mã Lane không trùng nhau khi người dùng chọn món mới
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWizardLaneConfigs((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      const dishArr = Array.from(selectedDishIds);
+      dishArr.forEach((dishId, idx) => {
+        if (!next[dishId] || !next[dishId].laneCode) {
+          const assignedLane = defaultUniqueLanes[idx % defaultUniqueLanes.length] || "S1_L1";
+          const armPrefix = assignedLane.split("_")[0];
+          const matchingArm = robotArms.find((a) => (a.code || "").toUpperCase() === armPrefix);
+          next[dishId] = {
+            laneCode: assignedLane,
+            capacity: next[dishId]?.capacity || 12,
+            robotArmId: matchingArm ? matchingArm.id : "",
+          };
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [selectedDishIds, defaultUniqueLanes, robotArms]);
+
   function toDatetimeLocal(iso: string): string {
     const d = new Date(iso);
     const pad = (n: number) => n.toString().padStart(2, "0");
@@ -462,6 +512,13 @@ export function NewSessionForm({
         if (next.has(dishId)) {
           next.delete(dishId);
         } else {
+          if (next.size >= maxDishesAllowed) {
+            toast.error(`Tối đa ${maxDishesAllowed} món ăn cho 1 ca phục vụ!`, {
+              description: `Hệ thống hiện có ${robotArms.length || 3} robot bếp (tương ứng ${maxDishesAllowed} lane). Vui lòng bỏ chọn bớt món nếu muốn thêm món mới.`,
+              duration: 6000,
+            });
+            return prev;
+          }
           next.add(dishId);
         }
         return next;
@@ -474,7 +531,7 @@ export function NewSessionForm({
         });
       }
     },
-    [errors.dishes],
+    [errors.dishes, maxDishesAllowed, robotArms.length],
   );
 
   const poolGridRef = useRef<HTMLDivElement>(null);
@@ -1049,7 +1106,9 @@ export function NewSessionForm({
             1
           </span>
           <CalendarPlus className="w-4 h-4 shrink-0" />
-          <span>Thông tin chung & Món ăn ({selectedDishes.length} món)</span>
+          <span>
+            Thông tin chung & Món ăn ({selectedDishes.length}/{maxDishesAllowed} món)
+          </span>
         </button>
 
         <button
@@ -1066,7 +1125,7 @@ export function NewSessionForm({
             2
           </span>
           <Route className="w-4 h-4 shrink-0" />
-          <span>Cấu hình Lane & Sức chứa</span>
+          <span>Cấu hình Lane & Sức chứa ({selectedDishes.length} món)</span>
         </button>
       </div>
 

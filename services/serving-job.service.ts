@@ -13,10 +13,11 @@ export const servingJobService = {
   getList: async (
     status?: ServingJobStatus | "All" | "",
     take?: number,
+    sessionId?: string,
   ): Promise<ServingJobListResponse> => {
     const statusParam = status && status !== "All" ? status : undefined;
     const response = (await apiClient.get<ApiResponse<ServingJobListResponse>>(
-      API_ENDPOINTS.MANAGER.SERVING_JOBS.LIST(statusParam, take),
+      API_ENDPOINTS.MANAGER.SERVING_JOBS.LIST(statusParam, take, sessionId),
     )) as unknown as ApiResponse<ServingJobListResponse>;
     return response.value;
   },
@@ -35,6 +36,17 @@ export const servingJobService = {
     const response = (await apiClient.post<ApiResponse<ServingJobActionResponse>>(
       API_ENDPOINTS.MANAGER.SERVING_JOBS.MANUAL_COMPLETE(id),
       payload || { note: null },
+    )) as unknown as ApiResponse<ServingJobActionResponse>;
+    return response.value;
+  },
+
+  bindTray: async (
+    id: string,
+    payload?: { trayCode?: string; trayId?: string },
+  ): Promise<ServingJobActionResponse> => {
+    const response = (await apiClient.post<ApiResponse<ServingJobActionResponse>>(
+      API_ENDPOINTS.MANAGER.SERVING_JOBS.BIND_TRAY(id),
+      payload || {},
     )) as unknown as ApiResponse<ServingJobActionResponse>;
     return response.value;
   },
