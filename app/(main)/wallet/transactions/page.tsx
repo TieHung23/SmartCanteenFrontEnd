@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
+  ShoppingBag,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { paymentService, type WalletTransaction } from "@/services/payment.service";
@@ -128,9 +129,9 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-zinc-100 font-sans pb-16">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-zinc-100 font-sans pb-16 py-6 sm:py-8">
       <Navbar />
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
@@ -239,6 +240,17 @@ export default function TransactionsPage() {
                           >
                             {isTopUp ? "Nạp tiền" : isRefund ? "Hoàn tiền" : "Thanh toán"}
                           </span>
+
+                          {tx.orderId && (
+                            <Link
+                              href={`/orders/${tx.orderId}`}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline bg-orange-50 px-2.5 py-0.5 rounded-lg border border-orange-200/80 transition-colors"
+                            >
+                              <ShoppingBag className="w-3 h-3 text-[#D35400]" />
+                              <span>Đơn: #{tx.orderId.slice(0, 8)}</span>
+                              <ExternalLink className="w-3 h-3 ml-0.5 opacity-70" />
+                            </Link>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500 font-medium mt-1.5">
                           <span>{formatDate(tx.createdAtUtc)}</span>
