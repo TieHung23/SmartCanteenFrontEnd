@@ -300,21 +300,38 @@ export function NewSessionForm({
 
           setName(detail.name);
           setDescription(detail.description);
-          setAvailableFrom(toDatetimeLocal(detail.availableFrom));
-          setAvailableTo(toDatetimeLocal(detail.availableTo));
-          setAvailableForOrder(toDatetimeLocal(detail.availableForOrder));
-          if (detail.finalizationDeadline)
-            setFinalizationDeadline(toDatetimeLocal(detail.finalizationDeadline));
-          const todayStr = dayjs().format("YYYY-MM-DD");
-          const copiedOrderDate = toDatetimeLocal(detail.availableForOrder).split("T")[0];
-          const copiedSessionDate = toDatetimeLocal(detail.availableFrom).split("T")[0];
 
-          setOrderOpenDate(
-            dayjs(copiedOrderDate).isBefore(dayjs(), "day") ? todayStr : copiedOrderDate,
+          const todayStr = dayjs().format("YYYY-MM-DD");
+          const [copiedOrderDate, copiedOrderTime] = toDatetimeLocal(
+            detail.availableForOrder,
+          ).split("T");
+          const [copiedFromDate, copiedFromTime] = toDatetimeLocal(detail.availableFrom).split("T");
+          const [copiedToDate, copiedToTime] = toDatetimeLocal(detail.availableTo).split("T");
+
+          // Ca sao chép nằm trong quá khứ thì dời sang hôm nay, chỉ giữ lại phần giờ đã cấu hình
+          const orderDate = dayjs(copiedOrderDate).isBefore(dayjs(), "day")
+            ? todayStr
+            : copiedOrderDate;
+          const serveDate = dayjs(copiedFromDate).isBefore(dayjs(), "day")
+            ? todayStr
+            : copiedFromDate;
+          // Giữ nguyên số ngày lệch giữa giờ kết thúc và giờ bắt đầu (ca qua đêm)
+          const overnightOffset = Math.max(
+            dayjs(copiedToDate).diff(dayjs(copiedFromDate), "day"),
+            0,
           );
-          setSessionDate(
-            dayjs(copiedSessionDate).isBefore(dayjs(), "day") ? todayStr : copiedSessionDate,
-          );
+          const serveEndDate = dayjs(serveDate).add(overnightOffset, "day").format("YYYY-MM-DD");
+
+          // Dựng lại datetime từ ngày đã dời để khớp với 2 ô chọn ngày, giống hệt luồng tạo thủ công
+          setOrderOpenDate(orderDate);
+          setSessionDate(serveDate);
+          setAvailableForOrder(`${orderDate}T${copiedOrderTime}`);
+          setAvailableFrom(`${serveDate}T${copiedFromTime}`);
+          setAvailableTo(`${serveEndDate}T${copiedToTime}`);
+          if (detail.finalizationDeadline) {
+            const copiedDeadlineTime = toDatetimeLocal(detail.finalizationDeadline).split("T")[1];
+            setFinalizationDeadline(`${serveDate}T${copiedDeadlineTime}`);
+          }
           setSelectedDishIds(new Set(detail.dishes.map((d) => d.dishId)));
           setTemplates(
             detail.mealTemplates.map((t, idx) => ({
