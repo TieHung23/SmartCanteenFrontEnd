@@ -138,7 +138,16 @@ export function formatSessionRange(fromIso: string, toIso: string): string {
 }
 
 /**
- * Checks if interval [fromIso, toIso] overlaps with any existing sessions
+ * Chỉ những ca đang hoạt động mới chiếm khung giờ. Ca đã bị tắt (isActive = false)
+ * không gây trùng lịch nên được bỏ qua khi kiểm tra.
+ * Thiếu trường isActive thì coi như ca vẫn đang hoạt động.
+ */
+function isBlockingSession(sess: SessionListItem): boolean {
+  return sess.isActive !== false;
+}
+
+/**
+ * Checks if interval [fromIso, toIso] overlaps with any active existing sessions
  */
 export function checkSessionOverlap(
   fromIso: string,
@@ -155,6 +164,7 @@ export function checkSessionOverlap(
 
   return existingSessions.filter((sess) => {
     if (currentSessionId && sess.id === currentSessionId) return false;
+    if (!isBlockingSession(sess)) return false;
 
     const startB = new Date(sess.availableFrom).getTime();
     const endB = new Date(sess.availableTo).getTime();
@@ -189,7 +199,7 @@ export function formatSessionOverlapMessage(
 }
 
 /**
- * Returns existing sessions that take place on or overlap with dateStr (YYYY-MM-DD)
+ * Returns active existing sessions that take place on or overlap with dateStr (YYYY-MM-DD)
  */
 export function getSessionsForDate(
   dateStr: string,
@@ -205,6 +215,7 @@ export function getSessionsForDate(
 
   return existingSessions.filter((sess) => {
     if (currentSessionId && sess.id === currentSessionId) return false;
+    if (!isBlockingSession(sess)) return false;
 
     const startB = new Date(sess.availableFrom).getTime();
     const endB = new Date(sess.availableTo).getTime();
