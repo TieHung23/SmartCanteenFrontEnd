@@ -162,13 +162,19 @@ export function NewSessionForm({
     }
 
     const t: Record<string, string> = {};
-    if (newForOrder && dayjs(newForOrder).isBefore(dayjs()))
+    // So sánh đầy đủ ngày + giờ, làm tròn tới phút (giống hàm validate)
+    const orderAt = newForOrder ? dayjs(newForOrder) : null;
+    const deadlineAt = newDeadline ? dayjs(newDeadline) : null;
+    const fromAt = newFrom ? dayjs(newFrom) : null;
+    const toAt = newTo ? dayjs(newTo) : null;
+
+    if (orderAt && orderAt.isBefore(dayjs(), "minute"))
       t.availableForOrder = "Giờ mở đặt không được ở trong quá khứ.";
-    if (newForOrder && newDeadline && new Date(newForOrder) >= new Date(newDeadline))
+    if (orderAt && deadlineAt && !orderAt.isBefore(deadlineAt, "minute"))
       t.availableForOrder = "Giờ mở đặt phải trước hạn chốt món.";
-    if (newDeadline && newFrom && new Date(newDeadline) >= new Date(newFrom))
+    if (deadlineAt && fromAt && !deadlineAt.isBefore(fromAt, "minute"))
       t.finalizationDeadline = "Hạn chốt món phải trước giờ bắt đầu ca.";
-    if (newFrom && newTo && new Date(newFrom) >= new Date(newTo))
+    if (fromAt && toAt && !fromAt.isBefore(toAt, "minute"))
       t.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
 
     setErrors((prev) => {
@@ -772,21 +778,19 @@ export function NewSessionForm({
     if (!availableForOrder) errs.availableForOrder = "Hạn chốt order là bắt buộc.";
     if (!finalizationDeadline) errs.finalizationDeadline = "Hạn chốt món là bắt buộc.";
 
-    if (availableForOrder && dayjs(availableForOrder).isBefore(dayjs()))
+    // So sánh đầy đủ ngày + giờ, làm tròn tới phút để không bị lệch bởi phần giây của thời điểm hiện tại
+    const orderAt = availableForOrder ? dayjs(availableForOrder) : null;
+    const deadlineAt = finalizationDeadline ? dayjs(finalizationDeadline) : null;
+    const fromAt = availableFrom ? dayjs(availableFrom) : null;
+    const toAt = availableTo ? dayjs(availableTo) : null;
+
+    if (orderAt && orderAt.isBefore(dayjs(), "minute"))
       errs.availableForOrder = "Thời gian mở đặt không được ở trong quá khứ.";
-    if (
-      availableForOrder &&
-      finalizationDeadline &&
-      new Date(availableForOrder) >= new Date(finalizationDeadline)
-    )
+    if (orderAt && deadlineAt && !orderAt.isBefore(deadlineAt, "minute"))
       errs.availableForOrder = "Giờ mở đặt phải trước hạn chốt món.";
-    if (
-      finalizationDeadline &&
-      availableFrom &&
-      new Date(finalizationDeadline) >= new Date(availableFrom)
-    )
+    if (deadlineAt && fromAt && !deadlineAt.isBefore(fromAt, "minute"))
       errs.finalizationDeadline = "Hạn chốt món phải trước giờ bắt đầu ca.";
-    if (availableFrom && availableTo && new Date(availableFrom) >= new Date(availableTo))
+    if (fromAt && toAt && !fromAt.isBefore(toAt, "minute"))
       errs.availableTo = "Thời gian kết thúc phải sau thời gian bắt đầu ca.";
     const totalDishes = selectedDishIds;
     if (totalDishes.size === 0) errs.dishes = "Vui lòng chọn ít nhất một món ăn.";
