@@ -42,6 +42,7 @@ export interface WalletTransaction {
   transactionType: number;
   transactionTypeName?: string;
   paymentId?: string | null;
+  orderId?: string | null;
   createdAtUtc: string;
   updatedAtUtc?: string;
   createdBy?: string | null;
