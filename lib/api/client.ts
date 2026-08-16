@@ -8,6 +8,7 @@ import {
   setBlockedAccountInfo,
   setAuthTokens,
 } from "@/lib/auth-token-storage";
+import { toast } from "sonner";
 
 interface FailedRequest {
   resolve: (token: string | null) => void;
@@ -33,11 +34,19 @@ const PUBLIC_PATHS = [
   "/suspended",
 ];
 
-function redirectToLogin() {
+function redirectToLogin(customMessage?: string) {
   if (typeof window === "undefined") return;
   const path = window.location.pathname;
   if (PUBLIC_PATHS.includes(path)) return;
-  window.location.href = "/login";
+
+  toast.error(customMessage || "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!", {
+    id: "session-expired-toast",
+    duration: 4000,
+  });
+
+  setTimeout(() => {
+    window.location.href = "/login";
+  }, 800);
 }
 
 function isBlockedAccountResponse(data: unknown): data is BlockedAccountResponse {
@@ -106,6 +115,20 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const responseData = error.response?.data;
 
+    // 🔍 XỬ LÝ LỖI MẠNG HOẶC MÁY CHỦ KHÔNG PHẢN HỒI (Network Error / Timeout / Server Down)
+    if (!error.response || error.code === "ERR_NETWORK" || error.code === "ECONNABORTED") {
+      if (typeof window !== "undefined") {
+        toast.error(
+          "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc máy chủ đang bảo trì!",
+          {
+            id: "network-error-toast",
+            duration: 6000,
+          },
+        );
+      }
+      return Promise.reject(error);
+    }
+
     if (
       isBlockedAccountResponse(responseData) &&
       !originalRequest?.url?.includes(API_ENDPOINTS.AUTH.LOGIN)
@@ -116,25 +139,23 @@ apiClient.interceptors.response.use(
 
     // 🔍 XỬ LÝ RIÊNG ĐẦU LỖI 401 UNAUTHORIZED
     if (status === 401 && !originalRequest._retry) {
-      // Fix lỗi 1: Nếu lỗi xảy ra ngay tại API Login hoặc Refresh -> Sút thẳng về Login luôn
+      // Nếu lỗi xảy ra ngay tại API Login hoặc Refresh -> Sút về Login
       if (
         originalRequest.url?.includes(API_ENDPOINTS.AUTH.REFRESH_TOKEN) ||
         originalRequest.url?.includes(API_ENDPOINTS.AUTH.LOGIN)
       ) {
         if (typeof window !== "undefined") {
           clearAuthTokens();
-          redirectToLogin();
+          redirectToLogin("Đăng nhập không thành công hoặc phiên làm việc đã kết thúc.");
         }
         return Promise.reject(error);
       }
 
       // Nếu request không có Authorization header nghĩa là user chưa đăng nhập
-      // thì không redirect, chỉ reject để component xử lý lỗi
       if (!originalRequest.headers?.Authorization) {
         return Promise.reject(error);
       }
 
-      // Fix lỗi 2: Xóa dấu chấm phẩy chặn xích Promise. Chờ giải cứu request
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -153,12 +174,12 @@ apiClient.interceptors.response.use(
 
       if (!storedRefreshToken) {
         if (typeof window !== "undefined") {
-          redirectToLogin();
+          clearAuthTokens();
+          redirectToLogin("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!");
         }
         return Promise.reject(error);
       }
 
-      // Fix lỗi 3: Sắp xếp lại trật tự try-catch-finally chuẩn chỉ
       try {
         const refreshResponse = await axios.post<{
           value: { accessToken: string; refreshToken?: string };
@@ -169,9 +190,7 @@ apiClient.interceptors.response.use(
         const newTokens = refreshResponse.data?.value;
         if (newTokens?.accessToken) {
           setAuthTokens(newTokens.accessToken, newTokens.refreshToken);
-
           processQueue(null, newTokens.accessToken);
-
           originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
           return apiClient(originalRequest);
         }
@@ -185,22 +204,34 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
           clearAuthTokens();
-          redirectToLogin();
+          redirectToLogin("Mã phiên đã hết hạn. Vui lòng đăng nhập lại!");
         }
         return Promise.reject(refreshError);
       } finally {
-        // Kết thúc khối catch
         isRefreshing = false;
       }
     }
 
-    // ĐƯA CÁC STATUS KHÁC RA NGOÀI KHỐI 401 ĐỂ TRÁNH NUỐT CODE
+    // 🔍 XỬ LÝ CÁC ĐẦU LỖI HTTP KHÁC (403, 500, 502, 503, 504, 429)
     switch (status) {
       case 403:
-        console.error("You do not have permission to access this resource.");
+        toast.error("Bạn không có quyền thực hiện thao tác này!", {
+          id: "forbidden-error-toast",
+        });
         break;
       case 500:
-        console.error("Server error. Please try again later.");
+      case 502:
+      case 503:
+      case 504:
+        toast.error("Hệ thống đang gặp sự cố hoặc đang bảo trì. Vui lòng thử lại sau!", {
+          id: "server-maintenance-toast",
+          duration: 6000,
+        });
+        break;
+      case 429:
+        toast.error("Thao tác quá nhanh. Vui lòng đợi trong giây lát và thử lại!", {
+          id: "rate-limit-toast",
+        });
         break;
       default:
         break;
