@@ -47,6 +47,12 @@ import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import dayjs from "dayjs";
 import { toast } from "sonner";
 
+// Mỗi RobotArm chỉ có 3 Lane vật lý: <code>_L1 .. <code>_L3
+const LANES_PER_ARM = 3;
+
+const buildLaneCodes = (armCode: string): string[] =>
+  Array.from({ length: LANES_PER_ARM }, (_, i) => `${armCode.toUpperCase()}_L${i + 1}`);
+
 interface LocalTemplate extends CreateSessionTemplate {
   dishIds: string[];
 }
@@ -207,18 +213,11 @@ export function NewSessionForm({
   >({});
   const [robotArms, setRobotArms] = useState<RobotArm[]>([]);
 
-  // Tự động sinh danh sách mã Lane từ các RobotArm hiện có (mỗi RobotArm có 20 Lane L1 - L20)
+  // Tự động sinh danh sách mã Lane từ các RobotArm hiện có (mỗi RobotArm có 3 Lane L1 - L3)
   const allLaneOptions = useMemo(() => {
-    const list: string[] = [];
     const arms =
       robotArms.length > 0 ? robotArms : [{ code: "S1" }, { code: "S2" }, { code: "S3" }];
-    arms.forEach((arm) => {
-      const code = (arm.code || "S1").toUpperCase();
-      for (let i = 1; i <= 20; i++) {
-        list.push(`${code}_L${i}`);
-      }
-    });
-    return list;
+    return arms.flatMap((arm) => buildLaneCodes(arm.code || "S1"));
   }, [robotArms]);
 
   function toDatetimeLocal(iso: string): string {
@@ -234,10 +233,12 @@ export function NewSessionForm({
       const claimedLanes = new Map<string, string>(); // laneCode -> dishId
       const usedLanes = new Set<string>();
 
-      // Bước 1: Quét và giải phóng các Mã Lane bị TRÙNG lặp từ ca cũ
+      // Bước 1: Quét và giải phóng các Mã Lane bị TRÙNG lặp hoặc KHÔNG còn hợp lệ từ ca cũ
+      const validLanes = new Set(allLaneOptions.map((l) => l.toUpperCase()));
       selectedDishIds.forEach((dishId) => {
         const config = next[dishId];
-        const rawCode = config?.laneCode?.trim()?.toUpperCase();
+        const code = config?.laneCode?.trim()?.toUpperCase();
+        const rawCode = code && validLanes.has(code) ? code : undefined;
 
         if (rawCode && !claimedLanes.has(rawCode)) {
           claimedLanes.set(rawCode, dishId);
@@ -251,16 +252,9 @@ export function NewSessionForm({
       // Bước 2: Tự động gán Mã Lane duy nhất chưa sử dụng cho mọi món ăn
       selectedDishIds.forEach((dishId) => {
         if (!next[dishId] || !next[dishId].laneCode?.trim()) {
-          let defaultLane = allLaneOptions.find((l) => !usedLanes.has(l.toUpperCase()));
-          if (!defaultLane) {
-            const armCode = (robotArms[0]?.code || "S1").toUpperCase();
-            let counter = 1;
-            while (usedLanes.has(`${armCode}_L${counter}`)) {
-              counter++;
-            }
-            defaultLane = `${armCode}_L${counter}`;
-          }
-          usedLanes.add(defaultLane.toUpperCase());
+          // Hết Lane khả dụng thì để trống để bước kiểm tra chặn tạo ca, không tự bịa mã Lane
+          const defaultLane = allLaneOptions.find((l) => !usedLanes.has(l.toUpperCase())) ?? "";
+          if (defaultLane) usedLanes.add(defaultLane.toUpperCase());
           const armPrefix = defaultLane.split("_")[0];
           const matchingArm = robotArms.find((a) => (a.code || "").toUpperCase() === armPrefix);
           next[dishId] = {
@@ -1148,25 +1142,23 @@ export function NewSessionForm({
                 <tbody className="divide-y divide-gray-100">
                   {selectedDishes.map((dish) => {
                     const cfg = wizardLaneConfigs[dish.id] || {
-                      laneCode: "S1_L1",
+                      laneCode: "",
                       capacity: 12,
                       robotArmId: "",
                     };
                     const selectedArm = robotArms.find((a) => a.id === cfg.robotArmId);
                     const availableLanes = selectedArm
-                      ? [
-                          `${selectedArm.code.toUpperCase()}_L1`,
-                          `${selectedArm.code.toUpperCase()}_L2`,
-                          `${selectedArm.code.toUpperCase()}_L3`,
-                        ]
+                      ? buildLaneCodes(selectedArm.code)
                       : allLaneOptions;
+                    // Mã Lane cũ (ca sao chép) có thể không còn hợp lệ -> hiện ô trống để buộc chọn lại
+                    const isLaneValid = availableLanes.includes(cfg.laneCode);
 
                     return (
                       <tr key={dish.id} className="hover:bg-orange-50/20">
                         <td className="px-5 py-4 font-bold text-sm text-gray-900">{dish.name}</td>
                         <td className="px-5 py-4">
                           <select
-                            value={cfg.laneCode}
+                            value={isLaneValid ? cfg.laneCode : ""}
                             onChange={(e) => {
                               const val = e.target.value;
                               const armPrefix = val.split("_")[0];
@@ -1182,8 +1174,12 @@ export function NewSessionForm({
                                 },
                               }));
                             }}
-                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl font-mono text-sm font-bold text-gray-900 focus:border-[#D35400] outline-none shadow-xs"
+                            className={cn(
+                              "px-3 py-1.5 bg-white border rounded-xl font-mono text-sm font-bold text-gray-900 focus:border-[#D35400] outline-none shadow-xs",
+                              isLaneValid ? "border-gray-200" : "border-red-400",
+                            )}
                           >
+                            {!isLaneValid && <option value="">-- Chọn Lane --</option>}
                             {availableLanes.map((lane) => (
                               <option key={lane} value={lane}>
                                 {lane}
