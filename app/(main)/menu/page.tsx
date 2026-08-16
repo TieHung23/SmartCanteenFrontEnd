@@ -765,7 +765,7 @@ function MenuContent() {
               setIsDragOverRightPanel(false);
               handleDropFromTray(e);
             }}
-            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-6 lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] ${
+            className={`flex-1 min-w-0 space-y-8 transition-all duration-300 rounded-[2.5rem] p-6 lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] scrollbar-none ${
               isDragOverRightPanel ? "bg-orange-50/30 ring-2 ring-dashed ring-[#FF4C24]/30" : ""
             }`}
           >
