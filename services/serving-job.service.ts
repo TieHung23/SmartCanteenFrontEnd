@@ -52,9 +52,17 @@ export const servingJobService = {
   },
 
   getEvents: async (id: string): Promise<ServingJobEventsResponse> => {
-    const response = (await apiClient.get<ApiResponse<ServingJobEventsResponse>>(
-      API_ENDPOINTS.MANAGER.SERVING_JOBS.EVENTS(id),
-    )) as unknown as ApiResponse<ServingJobEventsResponse>;
-    return response.value;
+    try {
+      const response = (await apiClient.get<ApiResponse<ServingJobEventsResponse>>(
+        API_ENDPOINTS.MANAGER.SERVING_JOBS.EVENTS(id),
+      )) as unknown as ApiResponse<ServingJobEventsResponse>;
+      return response?.value || { jobId: id, orderId: "", total: 0, events: [] };
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number } };
+      if (axiosErr?.response?.status === 404) {
+        return { jobId: id, orderId: "", total: 0, events: [] };
+      }
+      throw err;
+    }
   },
 };
