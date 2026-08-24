@@ -555,7 +555,7 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
 
     const result = await Swal.fire({
       title: "Chốt ca phục vụ?",
-      text: "Bạn có chắc chắn muốn chốt số lượng cho ca phục vụ này? Hành động này sẽ khóa ca bán và tự động tạo đề xuất đổi món/hoàn tiền cho các đơn hàng bị thiếu.",
+      text: "Bạn có chắc chắn muốn chốt số lượng cho ca phục vụ này? Hành động này sẽ khóa ca bán và tự động tạo đề xuất đổi món/hoàn điểm cho các đơn hàng bị thiếu.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#D35400",

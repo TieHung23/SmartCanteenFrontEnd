@@ -165,9 +165,12 @@ export interface ChangeProposalDetail {
   selectedDishName: string | null;
   isRequiredItem: boolean;
   requiredCategoryId: string | null;
+  currentUnitPrice?: number | null;
   proposalStatus: ChangeProposalStatus;
   allowedActions: AllowedAction[];
   respondedAtUtc: string | null;
   createdAtUtc: string;
   responseDeadlineUtc?: string | null;
+  expiresAtUtc?: string | null;
+  isExpired?: boolean;
 }

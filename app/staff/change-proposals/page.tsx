@@ -13,16 +13,14 @@ import {
   ChevronUp,
   ExternalLink,
   ArrowLeftRight,
-  XCircle,
-  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
 import { orderService } from "@/services/order.service";
 import { sessionService } from "@/services/session.service";
 import { changeProposalService } from "@/services/change-proposal.service";
 import { ORDER_ITEM_STATUS_META } from "@/types/order.types";
 import type { OrderDetail, OrderItem, ChangeProposalDetail } from "@/types/order.types";
+import { SwapDishModal } from "@/components/features/change-proposals/swap-dish-modal";
 
 interface ProposalGroup {
   orderId: string;
@@ -41,11 +39,7 @@ export default function StaffChangeProposalsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [swappingProposal, setSwappingProposal] = useState<ChangeProposalDetail | null>(null);
-  const [swapDishes, setSwapDishes] = useState<
-    { dishId: string; dishName: string; imgUrl?: string | null; priceAmount?: number }[]
-  >([]);
-  const [loadingSwapDishes, setLoadingSwapDishes] = useState(false);
-  const [isSwapping, setIsSwapping] = useState(false);
+  const [swappingSessionId, setSwappingSessionId] = useState<string>("");
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -125,83 +119,18 @@ export default function StaffChangeProposalsPage() {
     setProcessingId(proposalId);
     try {
       await changeProposalService.requestRefund(proposalId);
-      toast.success("Hoàn tiền món thành công! Số tiền đã được tự động cộng vào ví.");
+      toast.success("Hoàn điểm món thành công! Số điểm đã được tự động cộng vào ví.");
       fetchProposals();
     } catch {
-      toast.error("Không thể thực hiện hoàn tiền món.");
+      toast.error("Không thể thực hiện hoàn điểm món.");
     } finally {
       setProcessingId(null);
     }
   };
 
-  const handleOpenSwapModal = async (proposal: ChangeProposalDetail) => {
-    const result = await Swal.fire({
-      title: "Đổi món?",
-      text: `Bạn muốn đổi "${proposal.currentDishName}" sang món khác?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#D35400",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Chọn món thay thế",
-      cancelButtonText: "Hủy",
-      background: "#ffffff",
-      customClass: {
-        popup: "rounded-3xl border border-gray-150 shadow-md",
-        title: "text-lg font-bold text-gray-900",
-      },
-    });
-    if (!result.isConfirmed) return;
-
+  const handleOpenSwapModal = (proposal: ChangeProposalDetail, sessionId: string) => {
     setSwappingProposal(proposal);
-    setLoadingSwapDishes(true);
-    try {
-      const order = await orderService.getOrderById(proposal.orderId);
-      const session = await sessionService.getSessionDetail(order.sessionId);
-      let available = (session.dishes || []).filter(
-        (d) =>
-          d.dishId?.toLowerCase() !== proposal.currentDishId?.toLowerCase() &&
-          d.preparedQuantity !== 0 &&
-          d.preparedQuantity !== null &&
-          d.preparedQuantity !== undefined,
-      );
-      if (available.length === 0) {
-        available = (session.dishes || []).filter(
-          (d) => d.dishId?.toLowerCase() !== proposal.currentDishId?.toLowerCase(),
-        );
-      }
-      setSwapDishes(
-        available.map((d) => ({
-          dishId: d.dishId,
-          dishName: d.dishName || "",
-          imgUrl: d.imgUrl,
-          priceAmount: d.priceAmount,
-        })),
-      );
-      if (available.length === 0) {
-        toast.warning("Không có món ăn thay thế phù hợp trong ca ăn này.");
-        setSwappingProposal(null);
-      }
-    } catch {
-      toast.error("Không thể tải danh sách món ăn thay thế.");
-      setSwappingProposal(null);
-    } finally {
-      setLoadingSwapDishes(false);
-    }
-  };
-
-  const handleConfirmSwap = async (newDishId: string) => {
-    if (!swappingProposal) return;
-    setIsSwapping(true);
-    try {
-      await changeProposalService.accept(swappingProposal.id, newDishId);
-      toast.success("Đổi món thành công!");
-      setSwappingProposal(null);
-      fetchProposals();
-    } catch {
-      toast.error("Không thể thực hiện đổi món.");
-    } finally {
-      setIsSwapping(false);
-    }
+    setSwappingSessionId(sessionId);
   };
 
   useEffect(() => {
@@ -367,7 +296,7 @@ export default function StaffChangeProposalsPage() {
                                     (p) => p.id === item.proposalId,
                                   );
                                   if (proposal && proposal.proposalStatus === 0) {
-                                    handleOpenSwapModal(proposal);
+                                    handleOpenSwapModal(proposal, group.sessionId);
                                   }
                                 }}
                                 disabled={
@@ -389,7 +318,7 @@ export default function StaffChangeProposalsPage() {
                               >
                                 {processingId === item.proposalId
                                   ? "Đang xử lý..."
-                                  : "Hoàn tiền món"}
+                                  : "Hoàn điểm món"}
                               </button>
                             </>
                           )}
@@ -405,98 +334,24 @@ export default function StaffChangeProposalsPage() {
       )}
 
       {/* Swap Dish Modal */}
-      {swappingProposal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div>
-                <h3 className="text-lg font-black text-gray-800">Chọn Món Thay Thế</h3>
-                <p className="text-xs text-gray-400 font-semibold mt-1">
-                  Đổi món: {swappingProposal.currentDishName}
-                </p>
-              </div>
-              <button
-                onClick={() => setSwappingProposal(null)}
-                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-650 transition-colors"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {loadingSwapDishes ? (
-                <div className="py-12 flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D35400] mb-3" />
-                  <p className="text-sm text-gray-500 font-semibold">
-                    Đang tải danh sách món ăn...
-                  </p>
-                </div>
-              ) : swapDishes.length === 0 ? (
-                <div className="py-12 text-center">
-                  <p className="text-sm text-gray-400 font-semibold">Không có món khác khả dụng.</p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {swapDishes.map((dish) => (
-                    <div
-                      key={dish.dishId}
-                      onClick={() => !isSwapping && handleConfirmSwap(dish.dishId)}
-                      className="flex items-center justify-between p-4 bg-gray-50 hover:bg-orange-50/30 hover:border-orange-200 border border-gray-100 rounded-2xl cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        {dish.imgUrl && (
-                          <Image
-                            src={dish.imgUrl}
-                            alt={dish.dishName}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-xl object-cover bg-gray-200"
-                          />
-                        )}
-                        <div>
-                          <p className="text-sm font-extrabold text-gray-800 group-hover:text-[#D35400] transition-colors">
-                            {dish.dishName}
-                          </p>
-                          {dish.priceAmount !== undefined && (
-                            <p className="text-xs text-[#D35400] font-black flex items-center gap-0.5 mt-0.5">
-                              <span>{new Intl.NumberFormat("vi-VN").format(dish.priceAmount)}</span>
-                              <Image
-                                src="/logo_point.png"
-                                alt="coin"
-                                width={12}
-                                height={12}
-                                className="object-contain"
-                              />
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-xs font-bold text-gray-400 group-hover:text-[#D35400] transition-colors flex items-center gap-1">
-                        {isSwapping ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D35400]" />
-                        ) : (
-                          <>
-                            <span>Chọn</span>
-                            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-              <button
-                onClick={() => setSwappingProposal(null)}
-                className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold rounded-xl transition-colors"
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
+      {swappingProposal && swappingSessionId && (
+        <SwapDishModal
+          proposal={swappingProposal}
+          sessionId={swappingSessionId}
+          isOpen={!!swappingProposal}
+          onClose={() => {
+            setSwappingProposal(null);
+            setSwappingSessionId("");
+          }}
+          onSwapSuccess={() => {
+            fetchProposals();
+          }}
+          onRequestRefund={() => {
+            if (swappingProposal) {
+              handleRefundProposal(swappingProposal.id);
+            }
+          }}
+        />
       )}
     </>
   );

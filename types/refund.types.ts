@@ -17,6 +17,7 @@ export interface CreateRefundRequestPayload {
 export interface RefundRequest {
   id: string;
   orderId: string;
+  orderItemId?: number | null;
   policyCode: string;
   policyName?: string;
   description?: string;

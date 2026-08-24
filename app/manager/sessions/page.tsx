@@ -154,12 +154,12 @@ export default function ManagerSessionsPage() {
   const handleDelete = async (id: string, name: string) => {
     const result = await Swal.fire({
       title: "Xác nhận xóa ca phục vụ?",
-      html: `Bạn có chắc chắn muốn xóa ca phục vụ <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-gray-500 font-normal mt-1 block">Hành động này không thể hoàn tác.</span>`,
+      html: `Bạn có chắc chắn muốn xóa ca phục vụ <strong class="text-[#D35400]">"${name}"</strong> không?<br/><span class="text-xs text-amber-700 font-semibold mt-2.5 block bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-left">⚠️ Lưu ý: Các đơn hàng chưa được robot phục vụ (chưa gắp món hoặc đang Queued) sẽ tự động bị hủy và hoàn trả 100% điểm về ví của khách hàng.</span>`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Xóa ca phục vụ",
+      confirmButtonText: "Xóa ca & hoàn điểm đơn",
       cancelButtonText: "Hủy",
       background: "#ffffff",
       customClass: {
@@ -171,14 +171,21 @@ export default function ManagerSessionsPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await sessionService.deleteSession(id);
+      const res = await sessionService.deleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
-      toast.success(`Đã xóa ca phục vụ "${name}" thành công!`);
+      const refundedCount = res?.value?.refundedOrderCount ?? 0;
+      if (refundedCount > 0) {
+        toast.success(
+          `Đã xóa ca "${name}"! Tự động hủy và hoàn điểm cho ${refundedCount} đơn hàng chưa được robot gắp.`,
+        );
+      } else {
+        toast.success(`Đã xóa ca phục vụ "${name}" thành công!`);
+      }
     } catch (err: unknown) {
       console.error("Lỗi xóa ca phục vụ:", err);
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Xóa ca phục vụ thất bại. Ca phục vụ có thể đang chứa đơn hàng.";
+        "Xóa ca phục vụ thất bại.";
       toast.error(msg);
     }
   };

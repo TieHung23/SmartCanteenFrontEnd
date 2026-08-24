@@ -115,7 +115,7 @@ export function CancelOrderModal({
         description: finalDesc,
         images,
       });
-      toast.success("Đã nộp yêu cầu hủy & hoàn tiền đơn hàng!");
+      toast.success("Đã nộp yêu cầu hủy & hoàn điểm đơn hàng!");
       onSuccess();
       onClose();
     } catch (error: unknown) {
@@ -142,7 +142,7 @@ export function CancelOrderModal({
               <Undo2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-900">Yêu cầu hủy & hoàn tiền</h3>
+              <h3 className="text-lg font-black text-gray-900">Yêu cầu hủy & hoàn điểm</h3>
               <p className="text-xs text-gray-500 font-medium">Đơn hàng #{orderId.slice(0, 8)}</p>
             </div>
           </div>

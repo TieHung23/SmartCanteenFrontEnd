@@ -14,20 +14,32 @@ const API_MESSAGE_MAP: Record<string, string> = {
   "Optional item must be swapped with a dish from the same category.":
     "Món phụ phải được đổi lấy một món ăn cùng danh mục.",
   "This order already has a pending or approved refund request.":
-    "Đơn hàng này đã có yêu cầu hoàn tiền đang chờ xử lý hoặc đã được duyệt.",
+    "Đơn hàng này đã có yêu cầu hoàn điểm đang chờ xử lý hoặc đã được duyệt.",
   "Cannot accept proposal in status OrderRefundRequested.":
     "Không thể đổi món do đề xuất này đã gửi yêu cầu hủy đơn.",
   "Cannot accept proposal in status Accepted.": "Đề xuất đổi món này đã được chấp nhận trước đó.",
   "Cannot accept proposal in status RefundRequested.":
-    "Không thể đổi món do đề xuất này đã gửi yêu cầu hoàn tiền món.",
+    "Không thể đổi món do đề xuất này đã gửi yêu cầu hoàn điểm món.",
   "Order is no longer available for change proposal actions.":
     "Đơn hàng này không còn hiệu lực để đổi món (trạng thái đơn hàng đang là Đã hủy).",
+  "Replacement dish must cost the same as the item being replaced. Request an item refund or a full order refund instead.":
+    "Món thay thế phải có cùng số điểm với món cần đổi. Vui lòng chọn món cùng điểm hoặc yêu cầu hoàn điểm món / hoàn đơn.",
+  "Replacement dish must cost the same as the item being replaced. Request a full order refund instead.":
+    "Món thay thế phải có cùng số điểm với món cần đổi. Vui lòng chọn món cùng điểm hoặc yêu cầu hoàn điểm toàn bộ đơn hàng.",
+  "Replacement dish has no portions left in this session. Pick another dish or request a refund.":
+    "Món thay thế đã hết suất trong ca ăn này. Vui lòng chọn món khác hoặc yêu cầu hoàn điểm.",
 };
 
 export function translateApiMessage(message: string): string {
   if (API_MESSAGE_MAP[message]) return API_MESSAGE_MAP[message];
   if (message.startsWith("Cannot accept proposal in status")) {
-    return "Không thể đổi món do đề xuất này đã được xử lý hoặc đã gửi yêu cầu hoàn tiền.";
+    return "Không thể đổi món do đề xuất này đã được xử lý hoặc đã gửi yêu cầu hoàn điểm.";
+  }
+  if (message.startsWith("Replacement dish must cost the same as the item being replaced")) {
+    return "Món thay thế phải có cùng số điểm với món cần đổi. Vui lòng chọn món khác cùng điểm hoặc yêu cầu hoàn điểm.";
+  }
+  if (message.startsWith("Replacement dish has no portions left")) {
+    return "Món thay thế đã hết suất trong ca ăn này. Vui lòng chọn món khác hoặc yêu cầu hoàn điểm.";
   }
   return message;
 }
