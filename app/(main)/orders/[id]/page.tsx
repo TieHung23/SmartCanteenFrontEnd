@@ -22,7 +22,6 @@ import {
   ArrowLeft,
   Package,
   CheckCircle,
-  XCircle,
   AlertCircle,
   RefreshCw,
   Undo2,
@@ -33,6 +32,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SwapDishModal } from "@/components/features/change-proposals/swap-dish-modal";
 import { translateApiMessage } from "@/lib/utils";
 import Swal from "sweetalert2";
 import { useState, useEffect, useCallback } from "react";
@@ -70,11 +70,6 @@ export default function OrderDetailPage() {
   const [orderRefund, setOrderRefund] = useState<RefundRequest | null>(null);
 
   const [swappingProposal, setSwappingProposal] = useState<ChangeProposalDetail | null>(null);
-  const [swapDishes, setSwapDishes] = useState<
-    { dishId: string; dishName: string; imgUrl?: string | null; priceAmount?: number }[]
-  >([]);
-  const [loadingSwapDishes, setLoadingSwapDishes] = useState(false);
-  const [isSwapping, setIsSwapping] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [isRefundingOrder, setIsRefundingOrder] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -152,7 +147,11 @@ export default function OrderDetailPage() {
     if (!orderId) return;
     try {
       const res = await refundService.getMyRefunds({ pageSize: 50 });
-      const found = res?.items?.find((r) => r.orderId?.toLowerCase() === orderId.toLowerCase());
+      const found = res?.items?.find(
+        (r) =>
+          r.orderId?.toLowerCase() === orderId.toLowerCase() &&
+          (r.orderItemId === null || r.orderItemId === undefined),
+      );
       setOrderRefund(found || null);
     } catch {
       setOrderRefund(null);
@@ -167,86 +166,20 @@ export default function OrderDetailPage() {
     return () => clearTimeout(timer);
   }, [fetchProposals, fetchRefunds]);
 
-  const handleOpenSwapModal = async (proposal: ChangeProposalDetail) => {
+  const handleOpenSwapModal = (proposal: ChangeProposalDetail) => {
     if (!order?.sessionId) return;
     setSwappingProposal(proposal);
-    setLoadingSwapDishes(true);
-    try {
-      const session = await sessionService.getSessionDetail(order.sessionId);
-      const currentSessionDish = (session.dishes || []).find(
-        (d) => d.dishId?.toLowerCase() === proposal.currentDishId?.toLowerCase(),
-      );
-      const targetCategoryId = proposal.requiredCategoryId || currentSessionDish?.categoryId;
-
-      let available = (session.dishes || []).filter((d) => {
-        const isDifferentDish = d.dishId?.toLowerCase() !== proposal.currentDishId?.toLowerCase();
-        const isPrepared =
-          d.preparedQuantity !== 0 &&
-          d.preparedQuantity !== null &&
-          d.preparedQuantity !== undefined;
-        const matchesCategory = targetCategoryId ? d.categoryId === targetCategoryId : true;
-        return isDifferentDish && isPrepared && matchesCategory;
-      });
-
-      if (available.length === 0) {
-        available = (session.dishes || []).filter((d) => {
-          const isDifferentDish = d.dishId?.toLowerCase() !== proposal.currentDishId?.toLowerCase();
-          const isPrepared =
-            d.preparedQuantity !== 0 &&
-            d.preparedQuantity !== null &&
-            d.preparedQuantity !== undefined;
-          return isDifferentDish && isPrepared;
-        });
-      }
-
-      setSwapDishes(
-        available.map((d) => ({
-          dishId: d.dishId,
-          dishName: d.dishName || "",
-          imgUrl: d.imgUrl,
-          priceAmount: d.priceAmount,
-        })),
-      );
-      if (available.length === 0) {
-        toast.warning("Không có món ăn thay thế phù hợp trong ca ăn này.");
-        setSwappingProposal(null);
-      }
-    } catch {
-      toast.error("Không thể tải danh sách món ăn thay thế.");
-      setSwappingProposal(null);
-    } finally {
-      setLoadingSwapDishes(false);
-    }
-  };
-
-  const handleConfirmSwap = async (newDishId: string) => {
-    if (!swappingProposal) return;
-    setIsSwapping(true);
-    try {
-      await changeProposalService.accept(swappingProposal.id, newDishId);
-      toast.success("Đổi món thành công!");
-      setSwappingProposal(null);
-      fetchProposals();
-      fetchRefunds();
-      queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
-    } catch (err) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      const raw = axiosErr?.response?.data?.message;
-      toast.error(raw ? translateApiMessage(raw) : "Lỗi khi thực hiện đổi món.");
-    } finally {
-      setIsSwapping(false);
-    }
   };
 
   const handleRequestRefund = async (proposal: ChangeProposalDetail) => {
     const result = await Swal.fire({
-      title: "Hoàn tiền món ăn này?",
-      text: "Số tiền món ăn sẽ được tự động hoàn trực tiếp vào ví của bạn ngay lập tức.",
+      title: "Hoàn điểm món ăn này?",
+      text: "Số điểm món ăn sẽ được tự động hoàn trực tiếp vào ví của bạn ngay lập tức.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#D35400",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Xác nhận hoàn tiền",
+      confirmButtonText: "Xác nhận hoàn điểm",
       cancelButtonText: "Hủy",
       background: "#ffffff",
       customClass: {
@@ -259,14 +192,14 @@ export default function OrderDetailPage() {
     setIsRefunding(true);
     try {
       await changeProposalService.requestRefund(proposal.id);
-      toast.success("Hoàn tiền món thành công! Số tiền đã được tự động cộng vào ví.");
+      toast.success("Hoàn điểm món thành công! Số điểm đã được tự động cộng vào ví.");
       fetchProposals();
       fetchRefunds();
       queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
     } catch (err) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       const raw = axiosErr?.response?.data?.message;
-      toast.error(raw ? translateApiMessage(raw) : "Lỗi khi gửi yêu cầu hoàn tiền.");
+      toast.error(raw ? translateApiMessage(raw) : "Lỗi khi gửi yêu cầu hoàn điểm.");
     } finally {
       setIsRefunding(false);
     }
@@ -274,8 +207,8 @@ export default function OrderDetailPage() {
 
   const handleRequestOrderRefund = async (proposal: ChangeProposalDetail) => {
     const result = await Swal.fire({
-      title: "Hủy đơn & hoàn tiền toàn bộ?",
-      text: "Đơn hàng sẽ bị hủy và toàn bộ số tiền (các món chưa hoàn) sẽ được tự động hoàn trực tiếp vào ví của bạn ngay lập tức.",
+      title: "Hủy đơn & hoàn điểm toàn bộ?",
+      text: "Đơn hàng sẽ bị hủy và toàn bộ số điểm (các món chưa hoàn) sẽ được tự động hoàn trực tiếp vào ví của bạn ngay lập tức.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -293,7 +226,7 @@ export default function OrderDetailPage() {
     setIsRefundingOrder(true);
     try {
       await changeProposalService.requestOrderRefund(proposal.id);
-      toast.success("Hủy đơn & hoàn tiền thành công! Số tiền đã được tự động cộng vào ví.");
+      toast.success("Hủy đơn & hoàn điểm thành công! Số điểm đã được tự động cộng vào ví.");
       fetchProposals();
       fetchRefunds();
       queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
@@ -305,7 +238,7 @@ export default function OrderDetailPage() {
       const errors = axiosErr?.response?.data?.errors;
       const detail = errors ? Object.values(errors).flat().join(". ") : "";
       toast.error(
-        raw ? translateApiMessage(raw) : detail || "Lỗi khi gửi yêu cầu hoàn tiền toàn bộ.",
+        raw ? translateApiMessage(raw) : detail || "Lỗi khi gửi yêu cầu hoàn điểm toàn bộ.",
       );
     } finally {
       setIsRefundingOrder(false);
@@ -415,26 +348,23 @@ export default function OrderDetailPage() {
   }
 
   const refundStatusNum = orderRefund ? normalizeRefundStatus(orderRefund.status) : null;
-  const isOrderRefundApproved =
-    refundStatusNum === 2 ||
-    (order.items &&
-      order.items.length > 0 &&
-      order.items.every((i) => i.itemStatus === 4 || i.itemStatus === 3));
+  const isAllItemsRefunded =
+    order.items && order.items.length > 0 && order.items.every((i) => i.itemStatus === 4);
+
+  const isOrderRefundApproved = refundStatusNum === 2 || (order.status === 3 && isAllItemsRefunded);
   const isOrderRefundRejected =
-    refundStatusNum === 3 &&
-    !isOrderRefundApproved &&
-    order.items?.some((i) => i.itemStatus !== 4 && i.itemStatus !== 3);
+    refundStatusNum === 3 && !isOrderRefundApproved && order.status !== 3;
   const isOrderRefundPending =
     orderRefund && !orderRefund.changeProposalId && refundStatusNum === 1;
 
   const rawMeta = ORDER_STATUS_META[order.status as OrderStatus] || ORDER_STATUS_META[0];
   const meta =
-    isOrderRefundApproved || (order.status === 3 && !isOrderRefundRejected && !isOrderRefundPending)
-      ? { label: "Đã hủy & Hoàn tiền", color: "#8b5cf6", bg: "#f3e8ff", icon: "💰" }
-      : isOrderRefundRejected
-        ? { label: "Từ chối hoàn đơn", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }
-        : isOrderRefundPending
-          ? { label: "Chờ duyệt hoàn đơn", color: "#d97706", bg: "#fffbeb", icon: "⏳" }
+    order.status === 3 || isOrderRefundApproved || isAllItemsRefunded
+      ? { label: "Đã hủy & Hoàn điểm", color: "#8b5cf6", bg: "#f3e8ff", icon: "💰" }
+      : isOrderRefundPending
+        ? { label: "Chờ duyệt hoàn đơn", color: "#d97706", bg: "#fffbeb", icon: "⏳" }
+        : isOrderRefundRejected
+          ? { label: "Từ chối hoàn đơn", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }
           : rawMeta;
 
   return (
@@ -649,9 +579,9 @@ export default function OrderDetailPage() {
                               }`}
                             >
                               {proposal?.proposalStatus === 3
-                                ? "Đã hoàn tiền toàn bộ & hủy đơn"
+                                ? "Đã hoàn điểm toàn bộ & hủy đơn"
                                 : proposal?.proposalStatus === 2
-                                  ? "Đã hoàn tiền món ăn vào ví"
+                                  ? "Đã hoàn điểm món ăn vào ví"
                                   : proposal?.proposalStatus === 1
                                     ? "Đã đổi món"
                                     : "Món này bị thiếu số lượng!"}
@@ -666,9 +596,9 @@ export default function OrderDetailPage() {
                               }`}
                             >
                               {proposal?.proposalStatus === 3
-                                ? "Đơn hàng đã được hủy và tiền đã được tự động hoàn trả vào ví của bạn."
+                                ? "Đơn hàng đã được hủy và điểm đã được tự động hoàn trả vào ví của bạn."
                                 : proposal?.proposalStatus === 2
-                                  ? "Số tiền cho món này đã được tự động cộng trực tiếp vào ví của bạn."
+                                  ? "Số điểm cho món này đã được tự động cộng trực tiếp vào ví của bạn."
                                   : proposal?.suggestedDishName
                                     ? `Gợi ý: ${proposal.suggestedDishName}. Vui lòng chọn hành động thay thế.`
                                     : "Vui lòng chọn hành động thay thế."}
@@ -693,7 +623,7 @@ export default function OrderDetailPage() {
                           <div className="flex items-center gap-2 shrink-0 flex-wrap">
                             <button
                               onClick={() => handleOpenSwapModal(proposal)}
-                              disabled={isSwapping || isRefunding || isRefundingOrder}
+                              disabled={isRefunding || isRefundingOrder}
                               className="px-4 py-2 bg-[#D35400] hover:bg-[#b04600] disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
                             >
                               <RefreshCw className="w-3.5 h-3.5" />
@@ -703,22 +633,22 @@ export default function OrderDetailPage() {
                             {hasAllowedAction(proposal, "RefundItem") && (
                               <button
                                 onClick={() => handleRequestRefund(proposal)}
-                                disabled={isSwapping || isRefunding || isRefundingOrder}
+                                disabled={isRefunding || isRefundingOrder}
                                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
                               >
                                 <Undo2 className="w-3.5 h-3.5 inline mr-1" />
-                                Hoàn tiền món
+                                Hoàn điểm món
                               </button>
                             )}
 
                             {hasAllowedAction(proposal, "RefundOrder") && (
                               <button
                                 onClick={() => handleRequestOrderRefund(proposal)}
-                                disabled={isSwapping || isRefunding || isRefundingOrder}
+                                disabled={isRefunding || isRefundingOrder}
                                 className="px-4 py-2 bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-700 text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
                               >
                                 <Ban className="w-3.5 h-3.5 inline mr-1" />
-                                Hủy đơn & hoàn tiền
+                                Hủy đơn & hoàn điểm
                               </button>
                             )}
                           </div>
@@ -880,98 +810,33 @@ export default function OrderDetailPage() {
       </main>
 
       {/* Swap Dish Modal */}
-      {swappingProposal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div>
-                <h3 className="text-lg font-black text-gray-800">Chọn Món Thay Thế</h3>
-                <p className="text-xs text-gray-400 font-semibold mt-1">
-                  Đổi món: {swappingProposal.currentDishName}
-                </p>
-              </div>
-              <button
-                onClick={() => setSwappingProposal(null)}
-                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-650 transition-colors"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {loadingSwapDishes ? (
-                <div className="py-12 flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D35400] mb-3" />
-                  <p className="text-sm text-gray-500 font-semibold">
-                    Đang tải danh sách món ăn...
-                  </p>
-                </div>
-              ) : swapDishes.length === 0 ? (
-                <div className="py-12 text-center">
-                  <p className="text-sm text-gray-400 font-semibold">Không có món khác khả dụng.</p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {swapDishes.map((dish) => (
-                    <div
-                      key={dish.dishId}
-                      onClick={() => !isSwapping && handleConfirmSwap(dish.dishId)}
-                      className="flex items-center justify-between p-4 bg-gray-50 hover:bg-orange-50/30 hover:border-orange-200 border border-gray-100 rounded-2xl cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        {dish.imgUrl && (
-                          <Image
-                            src={dish.imgUrl}
-                            alt={dish.dishName}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-xl object-cover bg-gray-200"
-                          />
-                        )}
-                        <div>
-                          <p className="text-sm font-extrabold text-gray-800 group-hover:text-[#D35400] transition-colors">
-                            {dish.dishName}
-                          </p>
-                          {dish.priceAmount !== undefined && (
-                            <p className="text-xs text-[#D35400] font-black flex items-center gap-0.5 mt-0.5">
-                              <span>{new Intl.NumberFormat("vi-VN").format(dish.priceAmount)}</span>
-                              <Image
-                                src="/logo_point.png"
-                                alt="coin"
-                                width={12}
-                                height={12}
-                                className="object-contain"
-                              />
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-xs font-bold text-gray-400 group-hover:text-[#D35400] transition-colors flex items-center gap-1">
-                        {isSwapping ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D35400]" />
-                        ) : (
-                          <>
-                            <span>Chọn</span>
-                            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-              <button
-                onClick={() => setSwappingProposal(null)}
-                className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold rounded-xl transition-colors"
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
+      {swappingProposal && order?.sessionId && (
+        <SwapDishModal
+          proposal={swappingProposal}
+          sessionId={order.sessionId}
+          itemUnitPrice={
+            order.items?.find(
+              (i) => i.dishId?.toLowerCase() === swappingProposal.currentDishId?.toLowerCase(),
+            )?.unitPrice
+          }
+          isOpen={!!swappingProposal}
+          onClose={() => setSwappingProposal(null)}
+          onSwapSuccess={() => {
+            fetchProposals();
+            fetchRefunds();
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] });
+          }}
+          onRequestRefund={
+            hasAllowedAction(swappingProposal, "RefundItem")
+              ? () => handleRequestRefund(swappingProposal)
+              : undefined
+          }
+          onRequestOrderRefund={
+            hasAllowedAction(swappingProposal, "RefundOrder")
+              ? () => handleRequestOrderRefund(swappingProposal)
+              : undefined
+          }
+        />
       )}
 
       {/* Cancel Order Modal */}

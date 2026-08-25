@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -303,17 +304,43 @@ export default function ChangeProposalsPage() {
                                 <AlertCircle className="w-5 h-5" />
                               </div>
                               <div className="min-w-0">
-                                <p className="font-bold text-slate-900 truncate text-sm">
-                                  {proposal.currentDishName}
-                                </p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-bold text-slate-900 truncate text-sm">
+                                    {proposal.currentDishName}
+                                  </p>
+                                  {proposal.currentUnitPrice !== undefined &&
+                                    proposal.currentUnitPrice !== null && (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#D35400] bg-orange-50 border border-orange-200/60 px-2 py-0.5 rounded-md">
+                                        <span>
+                                          {new Intl.NumberFormat("vi-VN").format(
+                                            proposal.currentUnitPrice,
+                                          )}
+                                        </span>
+                                        <Image
+                                          src="/logo_point.png"
+                                          alt="coin"
+                                          width={14}
+                                          height={14}
+                                          className="object-contain inline-block"
+                                        />
+                                      </span>
+                                    )}
+                                </div>
                                 <p className="text-xs text-slate-500 mt-0.5 font-medium">
                                   {proposal.isRequiredItem ? "Bắt buộc" : "Tùy chọn"}
                                   {proposal.suggestedDishName &&
                                     ` • Gợi ý: ${proposal.suggestedDishName}`}
                                 </p>
-                                {proposal.responseDeadlineUtc && (
-                                  <p className="text-xs font-bold text-amber-600 mt-1 flex items-center gap-1">
-                                    ⏰ Hạn phản hồi: {formatDate(proposal.responseDeadlineUtc)}
+                                {(proposal.expiresAtUtc || proposal.responseDeadlineUtc) && (
+                                  <p
+                                    className={`text-xs font-bold mt-1 flex items-center gap-1 ${
+                                      proposal.isExpired ? "text-slate-400" : "text-amber-600"
+                                    }`}
+                                  >
+                                    ⏰{" "}
+                                    {proposal.isExpired
+                                      ? "Đã hết hạn"
+                                      : `Hạn phản hồi: ${formatDate(proposal.expiresAtUtc || proposal.responseDeadlineUtc)}`}
                                   </p>
                                 )}
                               </div>

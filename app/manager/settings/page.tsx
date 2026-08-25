@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
-  Trash2,
   Edit3,
   Settings2,
   GripVertical,
@@ -24,7 +23,6 @@ import type { Setting, CreateSettingPayload, UpdateSettingPayload } from "@/type
 import Modal from "../_components/modal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
 
 // ─── Group theme config ───
 
@@ -306,32 +304,6 @@ export default function ManagerSettingsPage() {
     }
   };
 
-  // ── Delete ──
-
-  const handleDelete = (id: string, name: string) => {
-    Swal.fire({
-      title: "Xoá setting?",
-      text: `Bạn có chắc muốn xoá "${name}"? Hành động này không thể hoàn tác.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Xoá",
-      cancelButtonText: "Huỷ",
-      reverseButtons: true,
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-      try {
-        await settingService.deleteSetting(id);
-        setSettings((prev) => prev.filter((s) => s.id !== id));
-        toast.success(`Đã xoá "${name}"`);
-      } catch (err) {
-        const apiMsg = err instanceof Error ? err.message : "Xoá setting thất bại";
-        toast.error(apiMsg);
-      }
-    });
-  };
-
   // ── Group data ──
 
   const groupedSettings = groups.reduce(
@@ -539,14 +511,9 @@ export default function ManagerSettingsPage() {
                               <button
                                 onClick={() => openEditModal(setting)}
                                 className="p-2.5 text-gray-400 hover:text-[#D35400] hover:bg-orange-50 rounded-xl border border-transparent hover:border-orange-100 transition-all"
+                                title="Chỉnh sửa cấu hình"
                               >
                                 <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(setting.id, setting.name)}
-                                className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all"
-                              >
-                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>

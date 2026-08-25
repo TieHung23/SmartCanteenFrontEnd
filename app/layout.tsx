@@ -23,6 +23,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Smart Canteen",
   description: "Smart Canteen - Hệ thống đặt món thông minh",
+  icons: {
+    icon: "/logo-favicon.png",
+    shortcut: "/logo-favicon.png",
+    apple: "/logo-favicon.png",
+  },
 };
 
 export default function RootLayout({

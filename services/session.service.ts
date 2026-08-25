@@ -17,6 +17,13 @@ export interface ApiResponse<T> {
   error?: string | null;
 }
 
+export interface DeleteSessionResponse {
+  id: string;
+  refundedOrderCount?: number;
+  skippedOrderCount?: number;
+  message: string;
+}
+
 export interface PaginatedList<T> {
   items: T[];
   pageNumber: number;
@@ -96,10 +103,10 @@ export const sessionService = {
     return response;
   },
 
-  deleteSession: async (id: string): Promise<ApiResponse<{ id: string; message: string }>> => {
-    const response = (await apiClient.delete<ApiResponse<{ id: string; message: string }>>(
+  deleteSession: async (id: string): Promise<ApiResponse<DeleteSessionResponse>> => {
+    const response = (await apiClient.delete<ApiResponse<DeleteSessionResponse>>(
       API_ENDPOINTS.SESSION.DELETE(id),
-    )) as unknown as ApiResponse<{ id: string; message: string }>;
+    )) as unknown as ApiResponse<DeleteSessionResponse>;
 
     return response;
   },
