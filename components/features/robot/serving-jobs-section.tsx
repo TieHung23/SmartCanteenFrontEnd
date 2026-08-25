@@ -77,8 +77,8 @@ const STATUS_CONFIG: Record<
 };
 
 const STATUS_OPTIONS: { value: ServingJobStatus | "All"; label: string }[] = [
-  { value: "Failed", label: "Lỗi (Cần cứu)" },
   { value: "All", label: "Tất cả trạng thái" },
+  { value: "Failed", label: "Lỗi (Cần cứu)" },
   { value: "Queued", label: "Chờ gắp" },
   { value: "Pushed", label: "Đã giao robot" },
   { value: "Assembling", label: "Đang ráp khay" },
@@ -99,7 +99,7 @@ export function ServingJobsSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedStatus, setSelectedStatus] = useState<ServingJobStatus | "All">("Failed");
+  const [selectedStatus, setSelectedStatus] = useState<ServingJobStatus | "All">("All");
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessionId || "");
   const [sessionsList, setSessionsList] = useState<{ id: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
