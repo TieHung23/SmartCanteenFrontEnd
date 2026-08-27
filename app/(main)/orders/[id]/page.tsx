@@ -464,11 +464,8 @@ export default function OrderDetailPage() {
                     ⚠️ Ca phục vụ này đã kết thúc!
                   </p>
                   <p className="text-amber-800 mt-1 font-medium leading-relaxed">
-                    Ca phục vụ này đã quá hạn. Đơn hàng chưa được lấy trong ca. Vui lòng bấm nút{" "}
-                    <span className="font-black text-[#D35400] underline">
-                      &quot;Yêu cầu hoàn tiền&quot;
-                    </span>{" "}
-                    ở góc bên dưới để nhận 100% tiền hoàn vào ví cá nhân.
+                    Ca phục vụ này đã quá hạn và đơn hàng chưa được lấy trong ca. Theo quy định của
+                    Canteen, đơn hàng đã hết hạn hoặc đã hủy không hỗ trợ gửi yêu cầu hoàn tiền.
                   </p>
                 </div>
               </div>
@@ -738,11 +735,8 @@ export default function OrderDetailPage() {
               </button>
             )}
 
-            {/* Single Refund Request Button for Status 4 (Đang chuẩn bị), Status 2 (Hoàn thành) & Status 7 (Đã hết hạn) */}
-            {(order.status === 4 ||
-              order.status === 2 ||
-              order.status === 7 ||
-              (sessionInfo?.isExpired && order.status !== 3)) &&
+            {/* Single Refund Request Button for Status 4 (Đang chuẩn bị) & Status 2 (Hoàn thành) */}
+            {(order.status === 4 || order.status === 2) &&
               !orderRefund &&
               !isOrderRefundPending &&
               !isOrderRefundRejected && (
