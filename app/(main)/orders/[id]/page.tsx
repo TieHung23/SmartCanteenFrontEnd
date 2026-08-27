@@ -456,7 +456,7 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Expired Session Notice Banner */}
-            {sessionInfo?.isExpired && (order.status === 4 || order.status === 0) && (
+            {(sessionInfo?.isExpired || order.status === 7) && order.status !== 3 && (
               <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 flex items-start gap-3 text-xs font-bold shadow-2xs mb-6">
                 <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
@@ -738,8 +738,11 @@ export default function OrderDetailPage() {
               </button>
             )}
 
-            {/* Single Refund Request Button for Status 4 (Đang chuẩn bị) & Status 2 (Hoàn thành) */}
-            {(order.status === 4 || order.status === 2) &&
+            {/* Single Refund Request Button for Status 4 (Đang chuẩn bị), Status 2 (Hoàn thành) & Status 7 (Đã hết hạn) */}
+            {(order.status === 4 ||
+              order.status === 2 ||
+              order.status === 7 ||
+              (sessionInfo?.isExpired && order.status !== 3)) &&
               !orderRefund &&
               !isOrderRefundPending &&
               !isOrderRefundRejected && (
