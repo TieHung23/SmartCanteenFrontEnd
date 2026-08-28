@@ -75,7 +75,12 @@ export default function SessionReportSelectPage() {
           completedOrders: item.completedOrders || 0,
           revenue: item.revenue || 0,
           refundAmount: item.refundAmount || 0,
-          completionRate: item.completionRate || 0,
+          completionRate:
+            typeof item.completionRate === "number" && item.completionRate > 0
+              ? item.completionRate
+              : (item.totalOrders || 0) > 0
+                ? ((item.completedOrders || 0) / item.totalOrders) * 100
+                : 0,
           isActive: fullSession
             ? Boolean(fullSession.isActive)
             : item.availableTo
@@ -329,7 +334,9 @@ export default function SessionReportSelectPage() {
                     </td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/50 rounded-xl px-2.5 py-1 text-xs">
-                        {session.completionRate ? `${session.completionRate.toFixed(0)}%` : "100%"}
+                        {typeof session.completionRate === "number"
+                          ? `${session.completionRate.toFixed(0)}%`
+                          : "0%"}
                       </span>
                     </td>
                     <td className="px-5 py-4">

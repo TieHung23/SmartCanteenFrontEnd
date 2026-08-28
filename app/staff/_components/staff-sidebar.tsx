@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,17 +25,18 @@ const NAV_ITEMS = [
 ];
 
 interface StaffSidebarProps {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
+  sidebarOpen?: boolean;
+  setSidebarOpen?: (open: boolean) => void;
 }
 
 export const StaffSidebar = memo(function StaffSidebar({
-  sidebarOpen,
+  sidebarOpen = false,
   setSidebarOpen,
 }: StaffSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { profile } = useUser();
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleLogout = () => {
     clearAuthTokens();
@@ -48,20 +49,31 @@ export const StaffSidebar = memo(function StaffSidebar({
 
   return (
     <aside
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "fixed inset-y-0 left-0 w-[300px] sm:w-[320px] bg-white border-r border-gray-200 flex flex-col shrink-0 z-50 transition-transform duration-300 ease-in-out p-6 shadow-2xl justify-between",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        "fixed top-4 bottom-4 left-4 z-40 bg-white/95 backdrop-blur-xl border border-gray-200/80 shadow-2xl rounded-3xl flex flex-col justify-between transition-all duration-300 ease-in-out overflow-hidden group",
+        // Mobile state vs Desktop state
+        sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0",
+        // Desktop expansion on hover
+        isHovered ? "md:w-72 md:p-5" : "md:w-20 md:p-3",
+        sidebarOpen ? "p-5" : "",
       )}
     >
-      <div className="space-y-6 flex flex-col flex-1 overflow-hidden relative">
+      <div className="flex flex-col flex-1 min-h-0 space-y-6">
         {/* Header Drawer */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="flex items-center justify-between h-12 px-1 border-b border-gray-100 pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden relative shrink-0 flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-xl overflow-hidden relative shrink-0 flex items-center justify-center">
               <Image src="/logo.png" alt="Logo" width={40} height={35} className="object-contain" />
             </div>
-            <div>
-              <h2 className="text-lg font-black text-gray-900 leading-tight">
+            <div
+              className={cn(
+                "transition-all duration-200 min-w-0 overflow-hidden whitespace-nowrap",
+                isHovered || sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 md:hidden",
+              )}
+            >
+              <h2 className="text-base font-black text-gray-900 leading-tight">
                 Smart <span className="text-[#D35400]">Canteen</span>
               </h2>
               <p className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest">
@@ -69,45 +81,66 @@ export const StaffSidebar = memo(function StaffSidebar({
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {setSidebarOpen && sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* ── NAVIGATION MENU ── */}
-        <nav className="space-y-1">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em] px-3 mb-3">
+        <nav className="flex-1 min-h-0 overflow-y-auto space-y-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            className={cn(
+              "text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 transition-all duration-200",
+              isHovered || sidebarOpen ? "opacity-100 block" : "opacity-0 hidden",
+            )}
+          >
             Danh Mục Quản Lý
-          </p>
-          <ul className="space-y-2">
+          </div>
+
+          <ul className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const isActive =
                 item.href === "/staff" ? pathname === "/staff" : pathname.startsWith(item.href);
+              const ItemIcon = item.icon;
+
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    onClick={() => setSidebarOpen(false)}
+                    onClick={() => setSidebarOpen && setSidebarOpen(false)}
+                    title={!isHovered && !sidebarOpen ? item.label : undefined}
                     className={cn(
-                      "flex items-center justify-between px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-200 group hover:translate-x-1.5",
+                      "flex items-center justify-between p-3 rounded-2xl text-sm font-bold transition-all duration-200 group/link",
                       isActive
-                        ? "bg-[#D35400]/10 text-[#D35400] border border-[#D35400]/20 shadow-xs"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
+                        ? "bg-[#D35400] text-white shadow-lg shadow-orange-500/25"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70",
+                      !isHovered && !sidebarOpen ? "justify-center" : "",
                     )}
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <item.icon
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ItemIcon
                         className={cn(
                           "w-5 h-5 shrink-0 transition-colors",
-                          isActive ? "text-[#D35400]" : "text-gray-400 group-hover:text-gray-600",
+                          isActive ? "text-white" : "text-gray-400 group-hover/link:text-gray-700",
                         )}
                       />
-                      <span className="truncate">{item.label}</span>
+                      <span
+                        className={cn(
+                          "truncate transition-all duration-200",
+                          isHovered || sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 hidden",
+                        )}
+                      >
+                        {item.label}
+                      </span>
                     </div>
-                    {isActive && <ChevronRight className="w-4 h-4 text-[#D35400] shrink-0" />}
+                    {isActive && (isHovered || sidebarOpen) && (
+                      <ChevronRight className="w-4 h-4 text-white shrink-0" />
+                    )}
                   </Link>
                 </li>
               );
@@ -117,28 +150,39 @@ export const StaffSidebar = memo(function StaffSidebar({
       </div>
 
       {/* ── FOOTER ── */}
-      <div className="border-t border-gray-100 pt-5 bg-white shrink-0">
-        <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-50/80 border border-gray-100/50">
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
+      <div className="border-t border-gray-100 pt-3 shrink-0">
+        <div
+          className={cn(
+            "flex items-center gap-3 p-2 rounded-2xl bg-gray-50/90 border border-gray-200/60 transition-all",
+            !isHovered && !sidebarOpen ? "justify-center" : "",
+          )}
+        >
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
             <Image
               src={avatarUrl}
               alt={displayName}
-              width={48}
-              height={48}
+              width={40}
+              height={40}
               className="object-cover w-full h-full"
             />
           </div>
-          <div className="flex-1 min-w-0 space-y-0.5">
-            <p className="text-base font-bold text-gray-900 truncate">{displayName}</p>
-            <p className="text-sm font-medium text-gray-400 truncate">{displayEmail}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="text-gray-400 hover:text-red-500 p-2.5 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all shrink-0"
-            title="Đăng xuất"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+
+          {(isHovered || sidebarOpen) && (
+            <div className="flex-1 min-w-0 space-y-0.5 whitespace-nowrap overflow-hidden">
+              <p className="text-sm font-black text-gray-900 truncate">{displayName}</p>
+              <p className="text-[10px] font-bold text-gray-400 truncate">{displayEmail}</p>
+            </div>
+          )}
+
+          {(isHovered || sidebarOpen) && (
+            <button
+              onClick={handleLogout}
+              className="text-gray-400 hover:text-[#D35400] p-2 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all shrink-0 cursor-pointer"
+              title="Đăng xuất"
+            >
+              <LogOut className="w-4.5 h-4.5" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

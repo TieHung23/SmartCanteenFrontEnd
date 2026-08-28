@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { servingJobService } from "@/services/serving-job.service";
 import { sessionService } from "@/services/session.service";
+import { orderService } from "@/services/order.service";
 import type { ServingJob, ServingJobStatus } from "@/types/serving-job.types";
 import ServingJobEventsModal from "./serving-job-events-modal";
 import Modal from "@/app/manager/_components/modal";
@@ -133,8 +134,29 @@ export function ServingJobsSection({
         100,
         sessionId || selectedSessionId || undefined,
       );
-      setJobs(res.jobs || []);
-      setTotal(res.total || 0);
+      const rawJobs = res.jobs || [];
+
+      // Enrich missing trayCode from order details if job itself doesn't have it
+      const jobsWithTray = await Promise.all(
+        rawJobs.map(async (job) => {
+          if (job.trayCode) return job;
+          if (!job.orderId) return job;
+          try {
+            const orderDetail = await orderService
+              .getManagerOrderById(job.orderId)
+              .catch(() => null);
+            if (orderDetail?.trayCode) {
+              return { ...job, trayCode: orderDetail.trayCode };
+            }
+          } catch {
+            // ignore
+          }
+          return job;
+        }),
+      );
+
+      setJobs(jobsWithTray);
+      setTotal(res.total || jobsWithTray.length);
     } catch (err: unknown) {
       console.error("Failed to fetch serving jobs:", err);
       setError("Không thể tải danh sách serving jobs.");

@@ -11,12 +11,11 @@ import {
   DollarSign,
   ShoppingBag,
   PieChart as PieIcon,
-  BarChart2,
-  Clock,
 } from "lucide-react";
 import { reportService } from "@/services/report.service";
 import { OrderStatusPie } from "@/components/features/reports/order-status-pie";
 import { PopularDishesChart } from "@/components/features/reports/popular-dishes-chart";
+import { SessionTrendChart } from "@/components/features/reports/session-trend-chart";
 import type { SessionDetailReportData } from "@/types/report.types";
 import { cn } from "@/lib/utils";
 
@@ -56,14 +55,7 @@ export default function SessionDetailReportPage({
 
   const reportQuery = useQuery({
     queryKey: ["session-detail-report", sessionId],
-    queryFn: async () => {
-      try {
-        return await reportService.getSessionDetail(sessionId);
-      } catch (err) {
-        console.error("Failed to load session detail report:", err);
-        return null;
-      }
-    },
+    queryFn: () => reportService.getSessionDetail(sessionId),
     staleTime: 30_000,
   });
 
@@ -197,9 +189,21 @@ export default function SessionDetailReportPage({
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <p className="text-3xl font-black text-gray-900">
-                {(data.summary.completionRate || 0).toFixed(1)}%
+                {(() => {
+                  const rate =
+                    typeof data.summary.completionRate === "number" &&
+                    data.summary.completionRate > 0
+                      ? data.summary.completionRate
+                      : data.summary.totalOrders > 0
+                        ? ((data.summary.completedOrders || 0) / data.summary.totalOrders) * 100
+                        : 0;
+                  return rate.toFixed(1);
+                })()}
+                %
               </p>
-              <p className="text-xs text-gray-400 font-bold">Đã phục vụ xong</p>
+              <p className="text-xs text-gray-400 font-bold">
+                {data.summary.completedOrders || 0} / {data.summary.totalOrders || 0} đơn thành công
+              </p>
             </div>
 
             <div className="bg-white rounded-3xl border border-gray-200 p-6 space-y-2 shadow-xs">
@@ -210,50 +214,37 @@ export default function SessionDetailReportPage({
                 <AlertCircle className="w-5 h-5" />
               </div>
               <p className="text-3xl font-black text-gray-900">
-                {(data.summary.refundRate || 0).toFixed(1)}%
+                {(() => {
+                  const total = data.summary.totalOrders || 0;
+                  const cancelled = data.summary.cancelledOrders || 0;
+                  const expired = data.summary.expiredOrders || 0;
+                  const refundReq = data.summary.refundRequests || 0;
+
+                  if (typeof data.summary.cancelRate === "number" && data.summary.cancelRate > 0) {
+                    return data.summary.cancelRate.toFixed(1);
+                  }
+                  if (typeof data.summary.refundRate === "number" && data.summary.refundRate > 0) {
+                    return data.summary.refundRate.toFixed(1);
+                  }
+                  if (total > 0) {
+                    const issueCount = cancelled + expired + refundReq;
+                    return ((issueCount / total) * 100).toFixed(1);
+                  }
+                  return "0.0";
+                })()}
+                %
               </p>
               <p className="text-xs text-red-500 font-bold">
-                {data.summary.cancelledOrders} hủy · {data.summary.refundRequests} hoàn
+                {data.summary.cancelledOrders || 0} hủy · {data.summary.expiredOrders || 0} hết hạn
+                · {data.summary.refundRequests || 0} hoàn
               </p>
             </div>
           </div>
 
           {/* Charts Section */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* 30-min Order Trend */}
-            <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-4 shadow-xs">
-              <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
-                <BarChart2 className="w-5 h-5 text-[#D35400]" />
-                <h2 className="text-xl font-black text-gray-900">Xu hướng đặt món 30 phút</h2>
-              </div>
-              {!data.orderTrend || data.orderTrend.length === 0 ? (
-                <p className="text-gray-400 font-bold text-center py-12">
-                  Chưa có dữ liệu theo khung giờ.
-                </p>
-              ) : (
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                  {data.orderTrend.map((slot, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl"
-                    >
-                      <span className="font-bold text-sm text-gray-800">
-                        <Clock className="w-3.5 h-3.5 inline mr-1.5" />
-                        {slot.timeBucket}
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
-                          {slot.orders} đơn
-                        </span>
-                        <span className="text-xs font-black text-[#D35400] bg-orange-50 px-2.5 py-1 rounded-lg">
-                          {formatMoney(slot.revenue)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* 30-min Order Trend Line Chart */}
+            <SessionTrendChart data={data.orderTrend} loading={isLoading} />
 
             {/* Status Pie Chart */}
             <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-4 shadow-xs">

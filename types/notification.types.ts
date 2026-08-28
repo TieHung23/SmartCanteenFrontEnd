@@ -5,6 +5,7 @@ export interface NotificationItem {
   message: string;
   referenceType: string;
   referenceId: string;
+  actionUrl?: string | null;
   isRead: boolean;
   readAtUtc: string | null;
   createdAtUtc: string;

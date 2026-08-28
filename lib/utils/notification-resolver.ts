@@ -4,16 +4,25 @@ import type { NotificationItem } from "@/types/notification.types";
 
 /**
  * Resolves the destination URL for a given notification item.
- * Handles cases where referenceId/referenceType relates to order, proposal, refund, verification, wallet, etc.
+ * Handles actionUrl if available, or falls back to referenceId/referenceType.
  */
-export async function resolveNotificationTargetUrl(n: NotificationItem): Promise<string> {
+export async function resolveNotificationTargetUrl(
+  n: NotificationItem,
+  role?: string,
+): Promise<string> {
+  const actionUrl = (n.actionUrl || "").trim();
   const refId = (n.referenceId || "").trim();
   const refType = (n.referenceType || "").toLowerCase();
   const notifType = (n.type || "").toLowerCase();
   const title = (n.title || "").toLowerCase();
   const message = (n.message || "").toLowerCase();
 
-  // Verification / Identity notifications
+  // 1. If actionUrl is provided and is a valid relative path, use it directly
+  if (actionUrl && actionUrl.startsWith("/")) {
+    return actionUrl;
+  }
+
+  // 2. Verification / Identity notifications
   if (
     refType.includes("verification") ||
     notifType.includes("verification") ||
@@ -31,7 +40,7 @@ export async function resolveNotificationTargetUrl(n: NotificationItem): Promise
     return "/verification";
   }
 
-  // Wallet / Transaction notifications
+  // 3. Wallet / Transaction notifications
   if (
     refType.includes("wallet") ||
     notifType.includes("wallet") ||
@@ -46,32 +55,41 @@ export async function resolveNotificationTargetUrl(n: NotificationItem): Promise
 
   if (!refId) return "/notifications";
 
-  // ChangeProposal notifications
+  // 4. ChangeProposal notifications
   if (refType.includes("changeproposal") || notifType.includes("changeproposal")) {
     try {
       const proposal = await changeProposalService.getById(refId);
       if (proposal?.orderId) {
-        return `/orders/${proposal.orderId}`;
+        return role === "Staff"
+          ? `/staff/orders/${proposal.orderId}`
+          : `/orders/${proposal.orderId}`;
       }
     } catch (err) {
       console.warn("Could not resolve proposal ID to order ID, falling back to referenceId:", err);
     }
-    return `/orders/${refId}`;
+    return role === "Staff" ? `/staff/orders/${refId}` : `/orders/${refId}`;
   }
 
-  // Refund notifications
+  // 5. Refund notifications
   if (refType.includes("refund") || notifType.includes("refund")) {
     try {
       const refund = await refundService.getRefundDetail(refId);
       if (refund?.orderId) {
-        return `/orders/${refund.orderId}`;
+        return role === "Staff" ? `/staff/orders/${refund.orderId}` : `/orders/${refund.orderId}`;
       }
     } catch (err) {
       console.warn("Could not resolve refund ID to order ID, falling back to referenceId:", err);
     }
-    return `/orders/${refId}`;
+    return role === "Staff" ? `/staff/orders/${refId}` : `/orders/${refId}`;
   }
 
-  // Default for Order or any other referenceType with referenceId
+  // 6. Default for Order or any other referenceType with referenceId
+  if (role === "Staff") {
+    return `/staff/orders/${refId}`;
+  }
+  if (role === "Manager") {
+    return `/manager/orders/${refId}`;
+  }
+
   return `/orders/${refId}`;
 }
