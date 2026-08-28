@@ -79,3 +79,21 @@ export function formatCurrency(amount: number): string {
   if (!amount || amount <= 0) return "0";
   return new Intl.NumberFormat("vi-VN").format(amount);
 }
+
+const ROLE_MAP: Record<number | string, string> = {
+  1: "ADMIN",
+  2: "MANAGER",
+  3: "USER",
+  4: "STAFF",
+  ADMIN: "ADMIN",
+  MANAGER: "MANAGER",
+  USER: "USER",
+  STAFF: "STAFF",
+};
+
+export function getUserRoleString(role: unknown): string {
+  if (role === undefined || role === null) return "";
+  if (typeof role === "number") return ROLE_MAP[role] || "";
+  if (typeof role === "string") return (ROLE_MAP[role] || role).toUpperCase();
+  return "";
+}

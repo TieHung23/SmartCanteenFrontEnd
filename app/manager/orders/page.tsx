@@ -831,9 +831,20 @@ export default function ManagerOrdersPage() {
                   <h4 className="text-lg font-black text-gray-900">
                     {selectedDetail.name || selectedDetail.userName || "Khách hàng"}
                   </h4>
-                  <p className="text-xs font-mono text-gray-500">
-                    User ID: {selectedDetail.userId}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs font-mono text-gray-500">
+                      User ID: {selectedDetail.userId}
+                    </p>
+                    {selectedDetail.trayCode ? (
+                      <span className="px-2 py-0.5 rounded bg-orange-100 text-[#D35400] font-mono font-bold text-xs border border-orange-200">
+                        Khay: {selectedDetail.trayCode}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-400 font-mono text-xs border border-gray-200">
+                        Khay: N/A
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

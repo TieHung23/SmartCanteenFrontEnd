@@ -29,6 +29,7 @@ export interface RevenueDataPoint {
 export interface PopularDish {
   dishId: string;
   dishName: string;
+  imgUrl?: string | null;
   totalOrders: number;
   totalQuantity: number;
   revenue: number;

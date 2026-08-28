@@ -384,7 +384,18 @@ export default function OrderDetailPage() {
             <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
               <div>
                 <h1 className="text-3xl font-black text-gray-800">Chi tiết đơn hàng</h1>
-                <p className="text-sm text-gray-400 font-mono mt-1">ID: {order.id}</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <p className="text-sm text-gray-400 font-mono">ID: {order.id}</p>
+                  {order.trayCode ? (
+                    <span className="px-2.5 py-0.5 rounded-lg bg-orange-100 text-[#D35400] text-xs font-mono font-black border border-orange-200">
+                      Mã khay: {order.trayCode}
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-lg bg-gray-100 text-gray-400 text-xs font-mono font-semibold border border-gray-200">
+                      Mã khay: N/A
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-right">
                 <span

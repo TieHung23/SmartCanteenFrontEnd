@@ -52,6 +52,7 @@ export interface OrderListItem {
   totalPrice: number;
   itemCount: number;
   createdAtUtc: string;
+  trayCode?: string | null;
 }
 
 export interface OrderStatusHistory {
@@ -68,6 +69,7 @@ export interface OrderDetail extends OrderListItem {
   mealTemplateId?: string | null;
   name?: string | null;
   imgUrl?: string | null;
+  trayCode?: string | null;
   items: OrderItem[];
   statusHistories?: OrderStatusHistory[];
   updatedAtUtc: string | null;

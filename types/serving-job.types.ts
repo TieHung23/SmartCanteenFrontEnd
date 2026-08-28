@@ -33,6 +33,7 @@ export type ServingJobEventType =
   | "EmergencyStop";
 
 export interface ServingJobEvent {
+  servingJobId?: string | null;
   eventType: ServingJobEventType;
   dishId: string | null;
   dishName: string | null;

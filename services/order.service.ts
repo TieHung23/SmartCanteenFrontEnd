@@ -6,6 +6,7 @@ import type {
   OrderDetail,
   OrderListItem,
 } from "@/types/order.types";
+import type { ServingJobEvent } from "@/types/serving-job.types";
 import type { ApiResponse, PaginatedList } from "./session.service";
 
 function buildOrderQueryParams(
@@ -223,5 +224,43 @@ export const orderService = {
       { id: orderId, status },
     )) as unknown as ApiResponse<{ message: string }>;
     return response?.value;
+  },
+
+  getOrderEvents: async (
+    orderId: string,
+    type?: string,
+  ): Promise<{
+    orderId: string;
+    count: number;
+    events: ServingJobEvent[];
+  }> => {
+    try {
+      const params = type ? { type } : undefined;
+      const response = (await apiClient.get<unknown>(API_ENDPOINTS.ORDER.MANAGER_EVENTS(orderId), {
+        params,
+      })) as unknown as Record<string, unknown>;
+
+      const val = (response?.value || response) as {
+        orderId?: string;
+        count?: number;
+        events?: ServingJobEvent[];
+      };
+
+      return {
+        orderId: val?.orderId || orderId,
+        count: val?.count || val?.events?.length || 0,
+        events: val?.events || [],
+      };
+    } catch (err) {
+      console.warn(
+        `[orderService.getOrderEvents] Endpoint ${API_ENDPOINTS.ORDER.MANAGER_EVENTS(orderId)} returned error (404/not deployed yet):`,
+        err,
+      );
+      return {
+        orderId,
+        count: 0,
+        events: [],
+      };
+    }
   },
 };

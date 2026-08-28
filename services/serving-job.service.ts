@@ -16,10 +16,50 @@ export const servingJobService = {
     sessionId?: string,
   ): Promise<ServingJobListResponse> => {
     const statusParam = status && status !== "All" ? status : undefined;
-    const response = (await apiClient.get<ApiResponse<ServingJobListResponse>>(
+    const response = (await apiClient.get<unknown>(
       API_ENDPOINTS.MANAGER.SERVING_JOBS.LIST(statusParam, take, sessionId),
-    )) as unknown as ApiResponse<ServingJobListResponse>;
-    return response.value;
+    )) as unknown as Record<string, unknown>;
+
+    const rawVal = (response?.value || response) as Record<string, unknown>;
+    let rawJobs: Record<string, unknown>[] = [];
+    let total = 0;
+
+    if (Array.isArray(rawVal)) {
+      rawJobs = rawVal;
+      total = rawVal.length;
+    } else if (Array.isArray(rawVal?.jobs)) {
+      rawJobs = rawVal.jobs as Record<string, unknown>[];
+      total = typeof rawVal.total === "number" ? rawVal.total : rawJobs.length;
+    } else if (Array.isArray(rawVal?.items)) {
+      rawJobs = rawVal.items as Record<string, unknown>[];
+      total = typeof rawVal.total === "number" ? rawVal.total : rawJobs.length;
+    }
+
+    const jobs = rawJobs.map((j) => {
+      const trayObj = (j.tray || j.trayInfo || {}) as Record<string, unknown>;
+      const trayCode =
+        (j.trayCode as string) ||
+        (trayObj.code as string) ||
+        (trayObj.trayCode as string) ||
+        (j.trayId as string) ||
+        null;
+
+      return {
+        jobId: (j.jobId || j.id || "") as string,
+        orderId: (j.orderId || "") as string,
+        status: (j.status || "Queued") as ServingJobStatus,
+        trayId: (j.trayId || null) as string | null,
+        trayCode: trayCode,
+        pickupSlotId: (j.pickupSlotId || null) as string | null,
+        failureReason: (j.failureReason || j.errorMessage || null) as string | null,
+        createdAtUtc: (j.createdAtUtc || j.createdAt || new Date().toISOString()) as string,
+        pushedAtUtc: (j.pushedAtUtc || null) as string | null,
+        acknowledgedAtUtc: (j.acknowledgedAtUtc || null) as string | null,
+        completedAtUtc: (j.completedAtUtc || null) as string | null,
+      };
+    });
+
+    return { total, jobs };
   },
 
   requeue: async (id: string): Promise<ServingJobActionResponse> => {

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { ChevronRight } from "lucide-react";
 import { StaffSidebar } from "./_components/staff-sidebar";
 import { StaffHeader } from "./_components/staff-header";
 import { StaffBackground } from "./_components/staff-background";
-import { cn } from "@/lib/utils";
+import { cn, getUserRoleString } from "@/lib/utils";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -17,12 +17,49 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAuthenticated, loading } = useAuth();
 
-  // Auto-close sidebar on route changes
+  useEffect(() => {
+    if (!loading) {
+      if (!isAuthenticated || !user) {
+        router.push("/login");
+        return;
+      }
+      const role = getUserRoleString(user.role);
+      if (role !== "STAFF") {
+        if (role === "MANAGER") {
+          router.push("/manager");
+        } else if (role === "ADMIN") {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
+      }
+    }
+  }, [loading, isAuthenticated, user, router]);
+
   useEffect(() => {
     const timer = setTimeout(() => setSidebarOpen(false), 0);
     return () => clearTimeout(timer);
   }, [pathname]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-[#D35400]/20 border-t-[#D35400] rounded-full animate-spin" />
+          </div>
+          <p className="text-base font-bold text-gray-500">Đang tải Cổng Nhân Viên...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) return null;
+  const userRole = getUserRoleString(user.role);
+  if (userRole !== "STAFF") return null;
 
   return (
     <div
@@ -34,29 +71,19 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
     >
       <StaffBackground />
 
-      {/* Floating Edge Pull Handle - Cục Popup kéo sát mép màn hình màu Xám */}
-      <button
-        onClick={() => setSidebarOpen((prev) => !prev)}
-        className={cn(
-          "fixed left-0 top-1/2 -translate-y-1/2 z-40 flex items-center justify-center w-8 h-16 bg-gray-300 hover:bg-orange-400 text-white rounded-r-2xl shadow-2xl hover:w-10 transition-all duration-300 group cursor-pointer border-y border-r border-gray-600/50",
-          sidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100",
-        )}
-        title="Nhấn để kéo menu nhân viên"
-      >
-        <ChevronRight className="w-5 h-5 text-white transition-transform group-hover:translate-x-0.5" />
-      </button>
-
-      {/* Sidebar Backdrop Overlay */}
+      {/* Sidebar Backdrop Overlay for mobile */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 animate-fade-in"
+          className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-40 animate-fade-in"
         />
       )}
 
+      {/* Eden Hover-Expand Sidebar */}
       <StaffSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0 w-full h-full md:pl-28 transition-all duration-300">
         <StaffHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth [&_*]:tracking-[0.02em]">
           {children}

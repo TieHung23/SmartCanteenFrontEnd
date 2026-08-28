@@ -47,6 +47,7 @@ export const API_ENDPOINTS = {
     MANAGER_BY_SESSION: (sessionId: string) => `/api/manager/orders/session/${sessionId}`,
     MANAGER_GET: (id: string) => `/api/manager/orders/${id}`,
     MANAGER_UPDATE_STATUS: (id: string) => `/api/manager/orders/${id}/status`,
+    MANAGER_EVENTS: (orderId: string) => `/api/manager/orders/${orderId}/events`,
   },
   CART: {
     GET: "/api/Cart",
