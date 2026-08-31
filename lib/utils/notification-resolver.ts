@@ -1,5 +1,6 @@
 import { changeProposalService } from "@/services/change-proposal.service";
 import { refundService } from "@/services/refund.service";
+import { orderService } from "@/services/order.service";
 import type { NotificationItem } from "@/types/notification.types";
 
 /**
@@ -17,12 +18,63 @@ export async function resolveNotificationTargetUrl(
   const title = (n.title || "").toLowerCase();
   const message = (n.message || "").toLowerCase();
 
-  // 1. If actionUrl is provided and is a valid relative path, use it directly
+  const formatOrderRoute = (orderId: string) => {
+    if (role === "Staff") return `/staff/orders/${orderId}`;
+    if (role === "Manager") return `/manager/orders/${orderId}`;
+    return `/orders/${orderId}`;
+  };
+
+  const safeFetchOrder = async (id: string) => {
+    if (!id) return null;
+    try {
+      if (role === "Manager") {
+        return await orderService.getManagerOrderById(id);
+      }
+      return await orderService.getOrderById(id);
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. If actionUrl is provided
   if (actionUrl && actionUrl.startsWith("/")) {
-    return actionUrl;
+    const orderMatch = actionUrl.match(/\/orders\/([a-zA-Z0-9-]+)/);
+    if (orderMatch && orderMatch[1]) {
+      return formatOrderRoute(orderMatch[1]);
+    }
+
+    const validStaticRoutes = [
+      "/notifications",
+      "/change-proposals",
+      "/refunds",
+      "/refund",
+      "/wallet/transactions",
+      "/verification",
+      "/manager/verify",
+      "/orders",
+      "/session",
+      "/menu",
+      "/checkout",
+    ];
+
+    if (
+      validStaticRoutes.includes(actionUrl) ||
+      actionUrl.startsWith("/refund?") ||
+      actionUrl.startsWith("/orders?")
+    ) {
+      return actionUrl;
+    }
   }
 
-  // 2. Verification / Identity notifications
+  // 2. Direct Order check: If refId is a valid Order ID, ALWAYS go to Order Detail page!
+  if (refId) {
+    const directOrder = await safeFetchOrder(refId);
+    if (directOrder?.id) {
+      return formatOrderRoute(directOrder.id);
+    }
+  }
+
+  // 3. Verification / Identity notifications
   if (
     refType.includes("verification") ||
     notifType.includes("verification") ||
@@ -40,56 +92,92 @@ export async function resolveNotificationTargetUrl(
     return "/verification";
   }
 
-  // 3. Wallet / Transaction notifications
+  // 4. ChangeProposal notifications
+  if (refType.includes("changeproposal") || notifType.includes("changeproposal")) {
+    if (refId) {
+      try {
+        const proposal = await changeProposalService.getById(refId);
+        if (proposal?.orderId) {
+          return formatOrderRoute(proposal.orderId);
+        }
+      } catch (err) {
+        console.warn("Could not resolve proposal ID to order ID:", err);
+      }
+    }
+    return "/change-proposals";
+  }
+
+  // 5. Refund Request notifications
+  if (refType.includes("refund") || notifType.includes("refund")) {
+    if (refId) {
+      try {
+        const refund = await refundService.getRefundDetail(refId);
+        if (refund?.orderId) {
+          return formatOrderRoute(refund.orderId);
+        }
+      } catch (err) {
+        console.warn("Could not resolve refund ID to order ID:", err);
+      }
+    }
+    return "/refunds";
+  }
+
+  // 6. Meal Session notifications (e.g. ca ăn bị hủy, phiên ăn)
+  if (
+    refType.includes("session") ||
+    notifType.includes("session") ||
+    title.includes("ca ăn") ||
+    message.includes("ca ăn") ||
+    title.includes("phiên ăn") ||
+    message.includes("phiên ăn")
+  ) {
+    if (refId) {
+      try {
+        const myOrders = await orderService.getMyOrders({ sessionId: refId, pageSize: 1 });
+        if (myOrders.items && myOrders.items.length > 0) {
+          return formatOrderRoute(myOrders.items[0].id);
+        }
+        const list = await orderService.getMyOrders({ pageSize: 50 });
+        const matched = list.items?.find((o) => o.sessionId === refId);
+        if (matched) {
+          return formatOrderRoute(matched.id);
+        }
+      } catch (err) {
+        console.warn("Could not find order for session ID:", err);
+      }
+    }
+
+    if (title.includes("hoàn") || message.includes("hoàn") || message.includes("ví")) {
+      return role === "Manager" ? "/manager/orders" : "/wallet/transactions";
+    }
+
+    return role === "Staff" ? "/staff/orders" : role === "Manager" ? "/manager/orders" : "/orders";
+  }
+
+  // 7. Explicit Wallet Topup / Withdrawal notifications (without specific order)
   if (
     refType.includes("wallet") ||
     notifType.includes("wallet") ||
     refType.includes("transaction") ||
     notifType.includes("transaction") ||
-    title.includes("ví") ||
     title.includes("nạp tiền") ||
     title.includes("rút tiền")
   ) {
-    return "/wallet/transactions";
-  }
-
-  if (!refId) return "/notifications";
-
-  // 4. ChangeProposal notifications
-  if (refType.includes("changeproposal") || notifType.includes("changeproposal")) {
-    try {
-      const proposal = await changeProposalService.getById(refId);
-      if (proposal?.orderId) {
-        return role === "Staff"
-          ? `/staff/orders/${proposal.orderId}`
-          : `/orders/${proposal.orderId}`;
-      }
-    } catch (err) {
-      console.warn("Could not resolve proposal ID to order ID, falling back to referenceId:", err);
+    if (role !== "Manager" && role !== "Staff") {
+      return "/wallet/transactions";
     }
-    return role === "Staff" ? `/staff/orders/${refId}` : `/orders/${refId}`;
   }
 
-  // 5. Refund notifications
-  if (refType.includes("refund") || notifType.includes("refund")) {
+  // 8. Default fallback
+  if (refId) {
     try {
-      const refund = await refundService.getRefundDetail(refId);
-      if (refund?.orderId) {
-        return role === "Staff" ? `/staff/orders/${refund.orderId}` : `/orders/${refund.orderId}`;
-      }
-    } catch (err) {
-      console.warn("Could not resolve refund ID to order ID, falling back to referenceId:", err);
+      const list = await orderService.getMyOrders({ pageSize: 50 });
+      const matched = list.items?.find((o) => o.sessionId === refId || o.id === refId);
+      if (matched) return formatOrderRoute(matched.id);
+    } catch {
+      // Ignore
     }
-    return role === "Staff" ? `/staff/orders/${refId}` : `/orders/${refId}`;
   }
 
-  // 6. Default for Order or any other referenceType with referenceId
-  if (role === "Staff") {
-    return `/staff/orders/${refId}`;
-  }
-  if (role === "Manager") {
-    return `/manager/orders/${refId}`;
-  }
-
-  return `/orders/${refId}`;
+  return role === "Manager" ? "/manager/orders" : role === "Staff" ? "/staff/orders" : "/orders";
 }

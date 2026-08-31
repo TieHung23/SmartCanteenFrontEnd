@@ -346,35 +346,48 @@ export function NewSessionForm({
           setDescription(detail.description);
 
           const todayStr = dayjs().format("YYYY-MM-DD");
-          const [copiedOrderDate, copiedOrderTime] = toDatetimeLocal(
-            detail.availableForOrder,
-          ).split("T");
-          const [copiedFromDate, copiedFromTime] = toDatetimeLocal(detail.availableFrom).split("T");
-          const [copiedToDate, copiedToTime] = toDatetimeLocal(detail.availableTo).split("T");
+          const [, copiedOrderTime] = toDatetimeLocal(detail.availableForOrder).split("T");
+          const [, copiedFromTime] = toDatetimeLocal(detail.availableFrom).split("T");
+          const [, copiedToTime] = toDatetimeLocal(detail.availableTo).split("T");
 
-          // Ca sao chép nằm trong quá khứ thì dời sang hôm nay, chỉ giữ lại phần giờ đã cấu hình
-          const orderDate = dayjs(copiedOrderDate).isBefore(dayjs(), "day")
-            ? todayStr
-            : copiedOrderDate;
-          const serveDate = dayjs(copiedFromDate).isBefore(dayjs(), "day")
-            ? todayStr
-            : copiedFromDate;
-          // Giữ nguyên số ngày lệch giữa giờ kết thúc và giờ bắt đầu (ca qua đêm)
-          const overnightOffset = Math.max(
-            dayjs(copiedToDate).diff(dayjs(copiedFromDate), "day"),
-            0,
-          );
-          const serveEndDate = dayjs(serveDate).add(overnightOffset, "day").format("YYYY-MM-DD");
+          // Giữ nguyên ngày là HÔM NAY (todayStr)
+          const orderDate = todayStr;
+          const serveDate = todayStr;
 
-          // Dựng lại datetime từ ngày đã dời để khớp với 2 ô chọn ngày, giống hệt luồng tạo thủ công
+          // Nếu mốc giờ được copy đã trôi qua so với hiện tại -> tự động điều chỉnh về thời gian hợp lệ cho HÔM NAY
+          const now = dayjs();
+          let orderTime = copiedOrderTime || now.format("HH:mm");
+          if (dayjs(`${todayStr}T${orderTime}`).isBefore(now, "minute")) {
+            orderTime = now.format("HH:mm");
+          }
+
+          let fromTime = copiedFromTime || now.add(10, "minute").format("HH:mm");
+          if (dayjs(`${todayStr}T${fromTime}`).isBefore(now, "minute")) {
+            fromTime = now.add(10, "minute").format("HH:mm");
+          }
+
+          let toTime = copiedToTime || now.add(2, "hour").format("HH:mm");
+          if (toTime <= fromTime) {
+            toTime = dayjs(`${todayStr}T${fromTime}`).add(2, "hour").format("HH:mm");
+          }
+
           setOrderOpenDate(orderDate);
           setSessionDate(serveDate);
-          setAvailableForOrder(`${orderDate}T${copiedOrderTime}`);
-          setAvailableFrom(`${serveDate}T${copiedFromTime}`);
-          setAvailableTo(`${serveEndDate}T${copiedToTime}`);
+          setAvailableForOrder(`${orderDate}T${orderTime}`);
+          setAvailableFrom(`${serveDate}T${fromTime}`);
+          setAvailableTo(`${serveDate}T${toTime}`);
+
           if (detail.finalizationDeadline) {
-            const copiedDeadlineTime = toDatetimeLocal(detail.finalizationDeadline).split("T")[1];
-            setFinalizationDeadline(`${serveDate}T${copiedDeadlineTime}`);
+            const [, copiedDeadlineTime] = toDatetimeLocal(detail.finalizationDeadline).split(
+              "T",
+            )[1]
+              ? toDatetimeLocal(detail.finalizationDeadline).split("T")
+              : ["", ""];
+            let deadlineTime = copiedDeadlineTime || fromTime;
+            if (deadlineTime <= orderTime || deadlineTime >= fromTime) {
+              deadlineTime = fromTime;
+            }
+            setFinalizationDeadline(`${serveDate}T${deadlineTime}`);
           }
           setSelectedDishIds(new Set(detail.dishes.map((d) => d.dishId)));
           setTemplates(
@@ -614,14 +627,21 @@ export function NewSessionForm({
   }, [filteredDishes, selectedDishIds, categoryFilter]);
 
   const dishCategories = useMemo(() => {
+    const catNameMap = new Map(categories.map((c) => [c.id, c.name]));
     const cats = new Map<string, string>();
     dishes.forEach((d) => {
-      if (d.categoryId && d.categoryName) {
-        cats.set(d.categoryId, d.categoryName);
+      const catName = d.categoryName || catNameMap.get(d.categoryId);
+      if (d.categoryId && catName) {
+        cats.set(d.categoryId, catName);
+      }
+    });
+    categories.forEach((c) => {
+      if (c.id && c.name && !cats.has(c.id)) {
+        cats.set(c.id, c.name);
       }
     });
     return Array.from(cats.entries());
-  }, [dishes]);
+  }, [dishes, categories]);
 
   useEffect(() => {
     if (!loading && poolGridRef.current) {
@@ -1439,29 +1459,6 @@ export function NewSessionForm({
                         minutesStep={1}
                         value={availableForOrder ? dayjs(availableForOrder) : null}
                         onChange={(v) => handleTimeSelect("order", v)}
-                        shouldDisableTime={(value, view) => {
-                          const isToday = orderOpenDate === dayjs().format("YYYY-MM-DD");
-                          if (isToday && view === "hours" && value.hour() < dayjs().hour())
-                            return true;
-                          if (
-                            isToday &&
-                            view === "minutes" &&
-                            value.hour() === dayjs().hour() &&
-                            value.minute() <= dayjs().minute()
-                          )
-                            return true;
-                          if (orderOpenDate === sessionDate && finalizationDeadline) {
-                            const dl = dayjs(finalizationDeadline);
-                            if (view === "hours" && value.hour() > dl.hour()) return true;
-                            if (
-                              view === "minutes" &&
-                              value.hour() === dl.hour() &&
-                              value.minute() >= dl.minute()
-                            )
-                              return true;
-                          }
-                          return false;
-                        }}
                         disabled={!orderOpenDate}
                         slotProps={{
                           textField: {
@@ -1478,13 +1475,11 @@ export function NewSessionForm({
                           },
                         }}
                       />
-                      {clickedFields.has("order") &&
-                        (!orderOpenDate || errors.availableForOrder) && (
-                          <p className="text-xs font-semibold text-red-500">
-                            ⚠️{" "}
-                            {!orderOpenDate ? "Chọn ngày mở đặt trước" : errors.availableForOrder}
-                          </p>
-                        )}
+                      {clickedFields.has("order") && errors.availableForOrder && (
+                        <p className="text-xs font-semibold text-red-500">
+                          ⚠️ {errors.availableForOrder}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1553,20 +1548,7 @@ export function NewSessionForm({
                         minutesStep={1}
                         value={finalizationDeadline ? dayjs(finalizationDeadline) : null}
                         onChange={(v) => handleTimeSelect("deadline", v)}
-                        shouldDisableTime={(value, view) => {
-                          if (availableForOrder && orderOpenDate === sessionDate) {
-                            const order = dayjs(availableForOrder);
-                            if (view === "hours" && value.hour() < order.hour()) return true;
-                            if (
-                              view === "minutes" &&
-                              value.hour() === order.hour() &&
-                              value.minute() <= order.minute()
-                            )
-                              return true;
-                          }
-                          return false;
-                        }}
-                        disabled={!availableForOrder}
+                        disabled={!sessionDate}
                         slotProps={{
                           textField: {
                             size: "small",
@@ -1582,15 +1564,11 @@ export function NewSessionForm({
                           },
                         }}
                       />
-                      {clickedFields.has("deadline") &&
-                        (!availableForOrder || errors.finalizationDeadline) && (
-                          <p className="text-xs font-semibold text-red-500">
-                            ⚠️{" "}
-                            {!availableForOrder
-                              ? "Chọn giờ mở đặt trước"
-                              : errors.finalizationDeadline}
-                          </p>
-                        )}
+                      {clickedFields.has("deadline") && errors.finalizationDeadline && (
+                        <p className="text-xs font-semibold text-red-500">
+                          ⚠️ {errors.finalizationDeadline}
+                        </p>
+                      )}
                     </div>
                     <div
                       id="field-availableFrom"
@@ -1607,20 +1585,7 @@ export function NewSessionForm({
                         minutesStep={1}
                         value={availableFrom ? dayjs(availableFrom) : null}
                         onChange={(v) => handleTimeSelect("start", v)}
-                        shouldDisableTime={(value, view) => {
-                          if (finalizationDeadline) {
-                            const dl = dayjs(finalizationDeadline);
-                            if (view === "hours" && value.hour() < dl.hour()) return true;
-                            if (
-                              view === "minutes" &&
-                              value.hour() === dl.hour() &&
-                              value.minute() <= dl.minute()
-                            )
-                              return true;
-                          }
-                          return false;
-                        }}
-                        disabled={!finalizationDeadline}
+                        disabled={!sessionDate}
                         slotProps={{
                           textField: {
                             size: "small",
@@ -1636,15 +1601,11 @@ export function NewSessionForm({
                           },
                         }}
                       />
-                      {clickedFields.has("start") &&
-                        (!finalizationDeadline || errors.availableFrom) && (
-                          <p className="text-xs font-semibold text-red-500">
-                            ⚠️{" "}
-                            {!finalizationDeadline
-                              ? "Chọn hạn chốt món trước"
-                              : errors.availableFrom}
-                          </p>
-                        )}
+                      {clickedFields.has("start") && errors.availableFrom && (
+                        <p className="text-xs font-semibold text-red-500">
+                          ⚠️ {errors.availableFrom}
+                        </p>
+                      )}
                     </div>
                     <div
                       id="field-availableTo"
@@ -1661,20 +1622,7 @@ export function NewSessionForm({
                         minutesStep={1}
                         value={availableTo ? dayjs(availableTo) : null}
                         onChange={(v) => handleTimeSelect("end", v)}
-                        shouldDisableTime={(value, view) => {
-                          if (availableFrom) {
-                            const start = dayjs(availableFrom);
-                            if (view === "hours" && value.hour() < start.hour()) return true;
-                            if (
-                              view === "minutes" &&
-                              value.hour() === start.hour() &&
-                              value.minute() <= start.minute()
-                            )
-                              return true;
-                          }
-                          return false;
-                        }}
-                        disabled={!availableFrom}
+                        disabled={!sessionDate}
                         slotProps={{
                           textField: {
                             size: "small",
@@ -1690,9 +1638,9 @@ export function NewSessionForm({
                           },
                         }}
                       />
-                      {clickedFields.has("end") && (!availableFrom || errors.availableTo) && (
+                      {clickedFields.has("end") && errors.availableTo && (
                         <p className="text-xs font-semibold text-red-500">
-                          ⚠️ {!availableFrom ? "Chọn giờ bắt đầu ca trước" : errors.availableTo}
+                          ⚠️ {errors.availableTo}
                         </p>
                       )}
                     </div>
@@ -2258,20 +2206,20 @@ export function NewSessionForm({
                         {dish.name}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[9px] font-black text-gray-400 truncate max-w-[4rem]">
-                          {dish.categoryName || "—"}
+                        <span className="text-[10px] font-bold text-gray-400 truncate max-w-[6rem]">
+                          {dish.categoryName ||
+                            categories.find((c) => c.id === dish.categoryId)?.name ||
+                            "Khác"}
                         </span>
-                        <span className="inline-flex items-center gap-0.5 text-xs font-black text-[#D35400]">
-                          {dish.price}
-                          <div className="relative w-3.5 h-3.5 opacity-90">
-                            <Image
-                              src="/logo_point.png"
-                              alt="Point"
-                              fill
-                              sizes="14px"
-                              className="object-contain"
-                            />
-                          </div>
+                        <span className="inline-flex items-center gap-1 text-xs font-black text-[#D35400] bg-orange-50/80 px-1.5 py-0.5 rounded-md border border-orange-100/60">
+                          <span>{new Intl.NumberFormat("vi-VN").format(dish.price)}</span>
+                          <Image
+                            src="/logo_point.png"
+                            alt="Point"
+                            width={12}
+                            height={12}
+                            className="object-contain inline-block"
+                          />
                         </span>
                       </div>
                     </div>
