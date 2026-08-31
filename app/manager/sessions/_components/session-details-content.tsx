@@ -314,6 +314,58 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
     [editAvailableFrom, editAvailableTo, existingSessions, sessionId],
   );
 
+  const minDatetimeLocal = useMemo(() => {
+    const d = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }, []);
+
+  const editTimeErrors = useMemo(() => {
+    const errs: Record<string, string> = {};
+    if (!editAvailableFrom || !editAvailableTo || !editAvailableForOrder) {
+      if (!editAvailableForOrder) errs.availableForOrder = "Vui lòng nhập giờ mở đặt.";
+      if (!editAvailableFrom) errs.availableFrom = "Vui lòng nhập thời gian bắt đầu ca.";
+      if (!editAvailableTo) errs.availableTo = "Vui lòng nhập thời gian kết thúc ca.";
+      return errs;
+    }
+
+    const nowBuffer = new Date(minDatetimeLocal).getTime() - 60000;
+    const orderAt = new Date(editAvailableForOrder).getTime();
+    const fromAt = new Date(editAvailableFrom).getTime();
+    const toAt = new Date(editAvailableTo).getTime();
+    const deadlineAt = editDeadline ? new Date(editDeadline).getTime() : null;
+
+    if (isNaN(orderAt) || isNaN(fromAt) || isNaN(toAt)) return errs;
+
+    if (orderAt < nowBuffer) {
+      errs.availableForOrder = "Thời gian mở đặt không được ở trong quá khứ.";
+    }
+
+    if (fromAt < nowBuffer) {
+      errs.availableFrom = "Thời gian bắt đầu ca không được ở trong quá khứ.";
+    }
+
+    if (fromAt >= toAt) {
+      errs.availableTo = "Thời gian kết thúc ca phải sau thời gian bắt đầu ca.";
+    }
+
+    if (orderAt >= toAt) {
+      errs.availableForOrder = "Giờ mở đặt phải trước thời gian kết thúc ca.";
+    } else if (orderAt > fromAt) {
+      errs.availableForOrder = "Giờ mở đặt nên trước hoặc bằng giờ bắt đầu ca.";
+    }
+
+    if (deadlineAt) {
+      if (deadlineAt < orderAt) {
+        errs.deadline = "Hạn chốt món phải sau hoặc bằng giờ mở đặt.";
+      } else if (deadlineAt > fromAt) {
+        errs.deadline = "Hạn chốt món phải trước hoặc bằng giờ bắt đầu ca.";
+      }
+    }
+
+    return errs;
+  }, [editAvailableForOrder, editAvailableFrom, editAvailableTo, editDeadline, minDatetimeLocal]);
+
   // Group dishes by category for Category Budget calculation and UI rendering
   const groupedCategories = useMemo(() => {
     if (!session || !session.dishes) return [];
@@ -400,10 +452,17 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
     if (!session) return;
     setEditName(session.name);
     setEditDescription(session.description);
-    setEditAvailableFrom(toDatetimeLocal(session.availableFrom));
-    setEditAvailableTo(toDatetimeLocal(session.availableTo));
-    setEditAvailableForOrder(toDatetimeLocal(session.availableForOrder));
-    setEditDeadline(toDatetimeLocal(session.finalizationDeadline));
+
+    const nowIso = minDatetimeLocal;
+    const orderIso = toDatetimeLocal(session.availableForOrder);
+    const fromIso = toDatetimeLocal(session.availableFrom);
+    const toIso = toDatetimeLocal(session.availableTo);
+    const deadlineIso = toDatetimeLocal(session.finalizationDeadline);
+
+    setEditAvailableForOrder(new Date(orderIso) < new Date() ? nowIso : orderIso);
+    setEditAvailableFrom(new Date(fromIso) < new Date() ? nowIso : fromIso);
+    setEditAvailableTo(new Date(toIso) < new Date() ? minDatetimeLocal : toIso);
+    setEditDeadline(deadlineIso && new Date(deadlineIso) < new Date() ? nowIso : deadlineIso);
 
     const allDishIds = session.dishes.map((d) => d.dishId);
     const loadedTemplates: LocalTemplate[] =
@@ -431,12 +490,15 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
       toast.error("Tên ca phục vụ không được để trống.");
       return;
     }
-    if (!editAvailableFrom || !editAvailableTo || !editAvailableForOrder) {
-      toast.error("Vui lòng nhập đầy đủ thời gian.");
+    const timeErrKeys = Object.keys(editTimeErrors);
+    if (timeErrKeys.length > 0) {
+      toast.error(editTimeErrors[timeErrKeys[0]]);
       return;
     }
-    if (new Date(editAvailableFrom) >= new Date(editAvailableTo)) {
-      toast.error("Thời gian kết thúc phải sau thời gian bắt đầu.");
+    if (editOverlappingSessions.length > 0) {
+      toast.error(
+        formatSessionOverlapMessage(editAvailableFrom, editAvailableTo, editOverlappingSessions),
+      );
       return;
     }
     if (editTemplates.length === 0) {
@@ -767,24 +829,34 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
     [editSelectedDishIds, editTemplates, editEditingTplIdx],
   );
 
-  const editFilteredDishes = useMemo(
-    () =>
-      allDishes.filter(
-        (d) =>
-          (d.name.toLowerCase().includes(editDishSearch.toLowerCase()) ||
-            d.categoryName?.toLowerCase().includes(editDishSearch.toLowerCase())) &&
-          (editCategoryFilter === "all" || d.categoryId === editCategoryFilter),
-      ),
-    [allDishes, editDishSearch, editCategoryFilter],
-  );
-
   const editDishCategories = useMemo(() => {
+    const catNameMap = new Map(categories.map((c) => [c.id, c.name]));
     const cats = new Map<string, string>();
     allDishes.forEach((d) => {
-      if (d.categoryId && d.categoryName) cats.set(d.categoryId, d.categoryName);
+      const catName = d.categoryName || catNameMap.get(d.categoryId);
+      if (d.categoryId && catName) {
+        cats.set(d.categoryId, catName);
+      }
+    });
+    categories.forEach((c) => {
+      if (c.id && c.name && !cats.has(c.id)) {
+        cats.set(c.id, c.name);
+      }
     });
     return Array.from(cats.entries());
-  }, [allDishes]);
+  }, [allDishes, categories]);
+
+  const editFilteredDishes = useMemo(() => {
+    const catNameMap = new Map(categories.map((c) => [c.id, c.name]));
+    return allDishes.filter((d) => {
+      const catName = d.categoryName || catNameMap.get(d.categoryId) || "";
+      const matchesSearch =
+        d.name.toLowerCase().includes(editDishSearch.toLowerCase()) ||
+        catName.toLowerCase().includes(editDishSearch.toLowerCase());
+      const matchesCategory = editCategoryFilter === "all" || d.categoryId === editCategoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [allDishes, categories, editDishSearch, editCategoryFilter]);
 
   const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c]));
 
@@ -1382,10 +1454,21 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                   </label>
                   <input
                     type="datetime-local"
+                    min={minDatetimeLocal}
                     value={editAvailableForOrder}
                     onChange={(e) => setEditAvailableForOrder(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs"
+                    className={cn(
+                      "w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs",
+                      editTimeErrors.availableForOrder
+                        ? "border-red-400 bg-red-50/20"
+                        : "border-gray-200",
+                    )}
                   />
+                  {editTimeErrors.availableForOrder && (
+                    <p className="text-xs font-bold text-red-500 mt-1">
+                      {editTimeErrors.availableForOrder}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
@@ -1393,10 +1476,21 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                   </label>
                   <input
                     type="datetime-local"
+                    min={minDatetimeLocal}
                     value={editAvailableFrom}
                     onChange={(e) => setEditAvailableFrom(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs"
+                    className={cn(
+                      "w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs",
+                      editTimeErrors.availableFrom
+                        ? "border-red-400 bg-red-50/20"
+                        : "border-gray-200",
+                    )}
                   />
+                  {editTimeErrors.availableFrom && (
+                    <p className="text-xs font-bold text-red-500 mt-1">
+                      {editTimeErrors.availableFrom}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
@@ -1404,10 +1498,21 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                   </label>
                   <input
                     type="datetime-local"
+                    min={minDatetimeLocal}
                     value={editAvailableTo}
                     onChange={(e) => setEditAvailableTo(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs"
+                    className={cn(
+                      "w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs",
+                      editTimeErrors.availableTo
+                        ? "border-red-400 bg-red-50/20"
+                        : "border-gray-200",
+                    )}
                   />
+                  {editTimeErrors.availableTo && (
+                    <p className="text-xs font-bold text-red-500 mt-1">
+                      {editTimeErrors.availableTo}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
@@ -1415,10 +1520,17 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                   </label>
                   <input
                     type="datetime-local"
+                    min={minDatetimeLocal}
                     value={editDeadline}
                     onChange={(e) => setEditDeadline(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs"
+                    className={cn(
+                      "w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#D35400]/20 focus:border-[#D35400] transition-all shadow-xs",
+                      editTimeErrors.deadline ? "border-red-400 bg-red-50/20" : "border-gray-200",
+                    )}
                   />
+                  {editTimeErrors.deadline && (
+                    <p className="text-xs font-bold text-red-500 mt-1">{editTimeErrors.deadline}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
@@ -1744,9 +1856,24 @@ export function SessionDetailsContent({ sessionId, onBack }: SessionDetailsConte
                               <p className="text-sm font-bold text-gray-800 truncate">
                                 {dish.name}
                               </p>
-                              <span className="text-[10px] text-gray-400">
-                                {dish.categoryName || "—"}
-                              </span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-[#D35400] bg-orange-50/80 px-1.5 py-0.5 rounded-md border border-orange-100/60">
+                                  <span>{new Intl.NumberFormat("vi-VN").format(dish.price)}</span>
+                                  <Image
+                                    src="/logo_point.png"
+                                    alt="xu"
+                                    width={12}
+                                    height={12}
+                                    className="object-contain inline-block"
+                                  />
+                                </span>
+                                <span className="text-[10px] font-semibold text-gray-400">
+                                  •{" "}
+                                  {dish.categoryName ||
+                                    categories.find((c) => c.id === dish.categoryId)?.name ||
+                                    "Khác"}
+                                </span>
+                              </div>
                             </div>
                             <div
                               className={cn(

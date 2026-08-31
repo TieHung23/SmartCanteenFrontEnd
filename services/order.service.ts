@@ -109,19 +109,12 @@ export const orderService = {
   },
 
   getOrderById: async (id: string): Promise<OrderDetail> => {
-    try {
-      const response = (await apiClient.get<unknown>(
-        API_ENDPOINTS.ORDER.GET(id),
-      )) as unknown as Record<string, unknown>;
-      const data = (response?.value || response) as OrderDetail;
-      if (data && (data.id || data.items)) return data;
-      throw new Error("Invalid detail response");
-    } catch {
-      const response = (await apiClient.get<unknown>(
-        API_ENDPOINTS.ORDER.MANAGER_GET(id),
-      )) as unknown as Record<string, unknown>;
-      return (response?.value || response) as OrderDetail;
-    }
+    const response = (await apiClient.get<unknown>(
+      API_ENDPOINTS.ORDER.GET(id),
+    )) as unknown as Record<string, unknown>;
+    const data = (response?.value || response) as OrderDetail;
+    if (data && (data.id || data.items)) return data;
+    throw new Error("Invalid detail response");
   },
 
   createOrder: async (sessionId: string, cartVersion: number): Promise<CreateOrderResponse> => {
